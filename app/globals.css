@@ -1,0 +1,80 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #0f172a;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: #f8fafc;
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  overflow-x: hidden;
+}
+
+/* Custom Striped Patterns for Cargo Slots to match the mockup */
+.striped-cargo {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    #ffffff,
+    #ffffff 8px,
+    #f1f5f9 8px,
+    #f1f5f9 16px
+  );
+}
+
+.striped-cargo-green-indicator {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    #ffffff,
+    #ffffff 8px,
+    #f0fdf4 8px,
+    #f0fdf4 16px
+  );
+}
+
+.striped-cargo-blue-indicator {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    #ffffff,
+    #ffffff 8px,
+    #eff6ff 8px,
+    #eff6ff 16px
+  );
+}
+
+/* Premium micro-animations */
+@keyframes pulse-subtle {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.pulse-active {
+  animation: pulse-subtle 2s infinite ease-in-out;
+}
+
+/* Custom minimalist scrollbar for activity log */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
