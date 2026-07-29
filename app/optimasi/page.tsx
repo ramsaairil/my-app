@@ -530,7 +530,6 @@ export default function CargoDetailsDashboardPage() {
   });
 
   // 3D View and BPP States
-  const [visualizerMode, setVisualizerMode] = useState<"2d" | "3d">("3d");
   const [packedBoxes, setPackedBoxes] = useState<PlacedBox[]>([]);
   const [rotation, setRotation] = useState({ x: -15, y: -35 });
   const [isDragging, setIsDragging] = useState(false);
@@ -1221,166 +1220,112 @@ export default function CargoDetailsDashboardPage() {
                 </div>
               </div>
 
-              {/* Tab Selector Visualizer */}
-              <div className="flex gap-2 border-b border-slate-100 pb-3 mb-5">
-                {[
-                  { id: "3d", label: "Visualisator 3D Interaktif" },
-                  { id: "2d", label: "Tampilan Grid 2D (Bay Slots)" }
-                ].map((tab) => (
+              {/* 3D Visualizer Container */}
+              <div className="w-full flex flex-col items-center justify-center p-6 bg-slate-950 text-white border border-slate-900 rounded-xl min-h-[380px] select-none overflow-hidden relative shadow-inner">
+                {/* Drag Instructions & Reset View */}
+                <div className="absolute top-3 left-3 text-[10px] text-slate-400 font-semibold bg-slate-900/80 px-2.5 py-1 rounded-md border border-slate-800 flex items-center gap-2 z-20">
+                  <span>🔄 Drag mouse untuk memutar kontainer secara 3D</span>
                   <button
-                    key={tab.id}
-                    onClick={() => setVisualizerMode(tab.id as "2d" | "3d")}
-                    className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                      visualizerMode === tab.id
-                        ? "bg-emerald-700 text-white shadow-xs"
-                        : "bg-slate-50 border border-slate-200 text-slate-500 hover:bg-slate-100"
-                    }`}
+                    type="button"
+                    onClick={() => setRotation({ x: -15, y: -35 })}
+                    className="text-emerald-400 hover:text-emerald-300 font-bold transition-colors cursor-pointer"
                   >
-                    {tab.label}
+                    Reset View
                   </button>
-                ))}
-              </div>
+                </div>
 
-              {visualizerMode === "3d" ? (
-                <div className="w-full flex flex-col items-center justify-center p-6 bg-slate-950 text-white border border-slate-900 rounded-xl min-h-[380px] select-none overflow-hidden relative shadow-inner">
-                  {/* Drag Instructions & Reset View */}
-                  <div className="absolute top-3 left-3 text-[10px] text-slate-400 font-semibold bg-slate-900/80 px-2.5 py-1 rounded-md border border-slate-800 flex items-center gap-2 z-20">
-                    <span>🔄 Drag mouse untuk memutar kontainer secara 3D</span>
-                    <button
-                      type="button"
-                      onClick={() => setRotation({ x: -15, y: -35 })}
-                      className="text-emerald-400 hover:text-emerald-300 font-bold transition-colors cursor-pointer"
-                    >
-                      Reset View
-                    </button>
-                  </div>
+                <div className="absolute top-3 right-3 text-[10px] text-slate-400 font-semibold bg-slate-900/80 px-2.5 py-1 rounded-md border border-slate-800 z-20">
+                  <span>Kapasitas Kontainer: 67.7 m³</span>
+                </div>
 
-                  <div className="absolute top-3 right-3 text-[10px] text-slate-400 font-semibold bg-slate-900/80 px-2.5 py-1 rounded-md border border-slate-800 z-20">
-                    <span>Kapasitas Kontainer: 67.7 m³</span>
-                  </div>
-
-                  {/* 3D Scene Viewport */}
+                {/* 3D Scene Viewport */}
+                <div
+                  className="w-full h-[300px] flex items-center justify-center cursor-grab active:cursor-grabbing relative"
+                  onMouseDown={handleMouseDown}
+                  onMouseMove={handleMouseMove}
+                  onMouseUp={handleMouseUp}
+                  onMouseLeave={handleMouseUp}
+                  style={{ perspective: "1200px" }}
+                >
+                  {/* Container 3D Bounds */}
                   <div
-                    className="w-full h-[300px] flex items-center justify-center cursor-grab active:cursor-grabbing relative"
-                    onMouseDown={handleMouseDown}
-                    onMouseMove={handleMouseMove}
-                    onMouseUp={handleMouseUp}
-                    onMouseLeave={handleMouseUp}
-                    style={{ perspective: "1200px" }}
+                    className="relative"
+                    style={{
+                      width: "432px",
+                      height: "86px",
+                      transformStyle: "preserve-3d",
+                      transform: `rotateX(${rotation.x}deg) rotateY(${rotation.y}deg)`,
+                      transition: isDragging ? "none" : "transform 0.1s ease-out"
+                    }}
                   >
-                    {/* Container 3D Bounds */}
-                    <div
-                      className="relative"
+                    {/* Floor Grid (rotated X -90) */}
+                    <div className="absolute top-0 left-0 border border-slate-700/60 bg-slate-800/20"
                       style={{
                         width: "432px",
                         height: "86px",
-                        transformStyle: "preserve-3d",
-                        transform: `rotateX(${rotation.x}deg) rotateY(${rotation.y}deg)`,
-                        transition: isDragging ? "none" : "transform 0.1s ease-out"
+                        transform: "translateY(86px) rotateX(-90deg)",
+                        transformOrigin: "top",
+                        backgroundImage: "linear-gradient(to right, rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.08) 1px, transparent 1px)",
+                        backgroundSize: "36px 36px"
                       }}
-                    >
-                      {/* Floor Grid (rotated X -90) */}
-                      <div className="absolute top-0 left-0 border border-slate-700/60 bg-slate-800/20"
-                        style={{
-                          width: "432px",
-                          height: "86px",
-                          transform: "translateY(86px) rotateX(-90deg)",
-                          transformOrigin: "top",
-                          backgroundImage: "linear-gradient(to right, rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.08) 1px, transparent 1px)",
-                          backgroundSize: "36px 36px"
-                        }}
-                      />
+                    />
 
-                      {/* Back Wall */}
-                      <div className="absolute top-0 left-0 border border-slate-700/50 bg-slate-900/10"
-                        style={{
-                          width: "432px",
-                          height: "86px",
-                          transform: "translateZ(-86px)"
-                        }}
-                      />
+                    {/* Back Wall */}
+                    <div className="absolute top-0 left-0 border border-slate-700/50 bg-slate-900/10"
+                      style={{
+                        width: "432px",
+                        height: "86px",
+                        transform: "translateZ(-86px)"
+                      }}
+                    />
 
-                      {/* Left Wall */}
-                      <div className="absolute top-0 left-0 border border-slate-700/50 bg-slate-900/20"
-                        style={{
-                          width: "86px",
-                          height: "86px",
-                          transform: "rotateY(90deg)",
-                          transformOrigin: "left"
-                        }}
-                      />
+                    {/* Left Wall */}
+                    <div className="absolute top-0 left-0 border border-slate-700/50 bg-slate-900/20"
+                      style={{
+                        width: "86px",
+                        height: "86px",
+                        transform: "rotateY(90deg)",
+                        transformOrigin: "left"
+                      }}
+                    />
 
-                      {/* Right Wall */}
-                      <div className="absolute top-0 left-0 border border-slate-700/50 bg-slate-900/20"
-                        style={{
-                          width: "86px",
-                          height: "86px",
-                          transform: "translateX(432px) rotateY(90deg)",
-                          transformOrigin: "left"
-                        }}
-                      />
+                    {/* Right Wall */}
+                    <div className="absolute top-0 left-0 border border-slate-700/50 bg-slate-900/20"
+                      style={{
+                        width: "86px",
+                        height: "86px",
+                        transform: "translateX(432px) rotateY(90deg)",
+                        transformOrigin: "left"
+                      }}
+                    />
 
-                      {/* Ceiling */}
-                      <div className="absolute top-0 left-0 border border-slate-700/10 bg-slate-950/5"
-                        style={{
-                          width: "432px",
-                          height: "86px",
-                          transform: "rotateX(-90deg)",
-                          transformOrigin: "top"
-                        }}
-                      />
+                    {/* Ceiling */}
+                    <div className="absolute top-0 left-0 border border-slate-700/10 bg-slate-950/5"
+                      style={{
+                        width: "432px",
+                        height: "86px",
+                        transform: "rotateX(-90deg)",
+                        transformOrigin: "top"
+                      }}
+                    />
 
-                      {/* Render Packed Boxes */}
-                      {packedBoxes.map((box, index) => (
-                        <Box3D
-                          key={index}
-                          w={box.w}
-                          h={box.h}
-                          d={box.d}
-                          x={box.x}
-                          y={box.y}
-                          z={box.z}
-                          color={box.color}
-                          label={box.label}
-                        />
-                      ))}
-                    </div>
+                    {/* Render Packed Boxes */}
+                    {packedBoxes.map((box, index) => (
+                      <Box3D
+                        key={index}
+                        w={box.w}
+                        h={box.h}
+                        d={box.d}
+                        x={box.x}
+                        y={box.y}
+                        z={box.z}
+                        color={box.color}
+                        label={box.label}
+                      />
+                    ))}
                   </div>
                 </div>
-              ) : (
-                <div className="w-full relative flex items-center justify-center p-2 bg-[#fdfdfd] border border-slate-100 rounded-xl overflow-hidden min-h-[300px] select-none">
-                  {/* Truck Background Image */}
-                  <img
-                    src="/truck_40ft.png"
-                    alt="40ft Container Truck Layout"
-                    className="w-full max-w-[720px] h-auto object-contain pointer-events-none"
-                  />
-
-                  {/* Cargo Compartments Grid Overlay on the truck trailer */}
-                  <div
-                    className="absolute flex flex-col justify-between"
-                    style={{
-                      left: "37.9%",
-                      top: "7.8%",
-                      width: "59.6%",
-                      height: "45.5%"
-                    }}
-                  >
-                    {/* Grid A */}
-                    <div className="grid grid-cols-6 gap-0.5 h-[32%]">
-                      {slots.filter((s) => s.row === "A").map((slot) => renderSlotCell(slot))}
-                    </div>
-                    {/* Grid B */}
-                    <div className="grid grid-cols-6 gap-0.5 h-[32%]">
-                      {slots.filter((s) => s.row === "B").map((slot) => renderSlotCell(slot))}
-                    </div>
-                    {/* Grid C */}
-                    <div className="grid grid-cols-6 gap-0.5 h-[32%]">
-                      {slots.filter((s) => s.row === "C").map((slot) => renderSlotCell(slot))}
-                    </div>
-                  </div>
-                </div>
-              )}
+              </div>
             </section>
 
             {/* COMPONENT 7: CARGO ASSIGNMENT PANEL */}
