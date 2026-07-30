@@ -43,7 +43,7 @@ export default function LayoutInner({ children }: { children: React.ReactNode })
         {/* Floating Header with Profile Avatar & Toggle Button when sidebar is hidden */}
         {!isOpen && (
           <div className="absolute top-3 left-3 sm:left-4 z-40 flex items-center gap-2 sm:gap-3 bg-white/95 backdrop-blur-md px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border border-slate-200/80 shadow-sm transition-all">
-            <Link href="/profile" className="hover:opacity-90 transition-opacity">
+            <Link href="/settings" className="hover:opacity-90 transition-opacity">
               <Logo size="sm" showText={false} />
             </Link>
             <div className="h-4 w-[1px] bg-slate-200" />

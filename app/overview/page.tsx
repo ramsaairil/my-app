@@ -200,7 +200,6 @@ export default function HomeOverviewPage() {
                     <thead>
                       <tr className="border-b border-slate-100 text-slate-400 font-bold uppercase tracking-wider">
                         <th className="pb-3 pl-2">ID Truk</th>
-                        <th className="pb-3">Pengemudi</th>
                         <th className="pb-3">Dok/Lokasi</th>
                         <th className="pb-3">Status</th>
                         <th className="pb-3">Muatan Kargo</th>
@@ -216,7 +215,6 @@ export default function HomeOverviewPage() {
                               <span>{truck.id}</span>
                             </div>
                           </td>
-                          <td className="py-3.5">{truck.driver}</td>
                           <td className="py-3.5">
                             <span className="flex items-center gap-1">
                               <MapPin size={12} className="text-slate-400" />

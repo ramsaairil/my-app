@@ -7,8 +7,6 @@ import {
   Home,
   Package,
   Truck,
-  Inbox,
-  User,
   Settings,
   ChevronLeft,
   Layers
@@ -22,18 +20,16 @@ export default function Sidebar() {
 
   const navigationItems = [
     { id: "overview", label: "Dashboard", icon: Home, href: "/overview" },
-    { id: "cargo", label: "Cargo Database", icon: Package, href: "/cargo" },
     { id: "optimasi", label: "3D Visualizer", icon: Layers, href: "/optimasi" },
+    { id: "cargo", label: "Cargo Database", icon: Package, href: "/cargo" },
     { id: "fleet", label: "Fleet Operations", icon: Truck, href: "/trucks" },
-    { id: "messages", label: "Messages & Alerts", icon: Inbox, href: "/inbox" },
-    { id: "profile", label: "Profile Settings", icon: User, href: "/profile" },
   ] as { id: string; label: string; icon: React.ComponentType<{ size?: number; className?: string }>; href: string; badge?: string }[];
 
   return (
     <aside className="w-full flex-shrink-0 bg-white border-r border-slate-100 flex flex-col h-full z-20 relative">
       {/* Logo Header */}
       <div className="h-16 px-4 flex items-center justify-between border-b border-slate-50 transition-all duration-300">
-        <Link href="/profile" className="hover:opacity-90 transition-opacity flex-shrink-0">
+        <Link href="/settings" className="hover:opacity-90 transition-opacity flex-shrink-0">
           <Logo size="sm" showText={isOpen} />
         </Link>
         <button

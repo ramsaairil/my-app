@@ -5,6 +5,7 @@ import Link from "next/link";
 import PageHeader from "../components/PageHeader";
 import { useProfile } from "../context/ProfileContext";
 import { benchmarkBaselines } from "../data/datasets";
+import { fetchCargosFromDb, insertCargoToDb } from "../../lib/db";
 import {
   Home,
   Database,
@@ -612,6 +613,35 @@ export default function CargoDetailsDashboardPage() {
     }
   }, [activeBaseline]);
 
+  // Mode sumber data: "dataset" (Benchmark Dataset) atau "custom" (Data Kargo Kustom)
+  const [dataMode, setDataMode] = useState<"dataset" | "custom">("dataset");
+  const [supabaseCustomShipments, setSupabaseCustomShipments] = useState<CargoItem[]>([]);
+
+  // Sync custom cargos from Supabase PostgreSQL database
+  useEffect(() => {
+    async function syncCustomFromDb() {
+      const dbCargos = await fetchCargosFromDb();
+      if (dbCargos && dbCargos.length > 0) {
+        const mapped: CargoItem[] = dbCargos.map((item) => ({
+          id: item.id,
+          badge: item.priority || "Standard",
+          badgeColor:
+            item.priority === "Prioritas" || item.priority === "Express" || item.priority === "Same day"
+              ? "bg-green-50 text-green-700 border-green-200"
+              : item.priority === "Volume Tinggi"
+              ? "bg-blue-50 text-blue-700 border-blue-200"
+              : "bg-slate-100 text-slate-705 border-slate-200",
+          type: item.category || "Pallet",
+          qty: `${item.quantity || 1} unit`,
+          dimension: item.dimension || "1.2x0.8x1.4 m",
+          method: item.handling_method || "Pickup"
+        }));
+        setSupabaseCustomShipments(mapped);
+      }
+    }
+    syncCustomFromDb();
+  }, []);
+
   // Available shipments database
   const [customShipments, setCustomShipments] = useState<Record<string, CargoItem[]>>(() => {
     const initial: Record<string, CargoItem[]> = {
@@ -625,6 +655,13 @@ export default function CargoDetailsDashboardPage() {
     });
     return initial;
   });
+
+  const availableShipments = useMemo(() => {
+    if (dataMode === "custom") {
+      return supabaseCustomShipments;
+    }
+    return customShipments[activeBaseline] || [];
+  }, [dataMode, activeBaseline, customShipments, supabaseCustomShipments]);
 
   // Loading activities log
   const [activityLog, setActivityLog] = useState<ActivityLog[]>([
@@ -650,9 +687,7 @@ export default function CargoDetailsDashboardPage() {
     return slots.find((s) => s.id === selectedSlotId);
   }, [slots, selectedSlotId]);
 
-  const availableShipments = useMemo(() => {
-    return customShipments[activeBaseline] || [];
-  }, [customShipments, activeBaseline]);
+
 
   // Perhitungan meter real-time dari item kargo terpasang (Sumbu X, Y, Z)
   const containerMetrics = useMemo(() => {
@@ -844,13 +879,13 @@ export default function CargoDetailsDashboardPage() {
     }, 1000);
   };
 
-  const handleSaveCustomCargo = (e: React.FormEvent) => {
+  const handleSaveCustomCargo = async (e: React.FormEvent) => {
     e.preventDefault();
     const idToUse = customId.trim() || `SHP-CST-${String(customCounter).padStart(3, "0")}`;
 
     const duplicate = availableShipments.some((s) => s.id === idToUse);
     if (duplicate) {
-      showToast(`Shipment ID ${idToUse} already exists!`, "error");
+      showToast(`ID Kargo ${idToUse} sudah ada!`, "error");
       return;
     }
 
@@ -871,15 +906,30 @@ export default function CargoDetailsDashboardPage() {
       method: customMethod
     };
 
+    // Save to Supabase PostgreSQL database
+    const qtyNum = parseInt(customQty) || 1;
+    await insertCargoToDb({
+      id: idToUse,
+      name: `Kargo ${idToUse}`,
+      category: customType,
+      priority: customBadge,
+      quantity: qtyNum,
+      dimension: customDim,
+      volume_m3: getVolume(customDim) * qtyNum,
+      handling_method: customMethod,
+      status: "Unassigned"
+    });
+
+    setSupabaseCustomShipments((prev) => [newItem, ...prev]);
     setCustomShipments((prev) => ({
       ...prev,
-      [activeBaseline]: [...prev[activeBaseline], newItem]
+      [activeBaseline]: [...(prev[activeBaseline] || []), newItem]
     }));
 
     setCustomId("");
     setCustomCounter((c) => c + 1);
     setIsAddFormOpen(false);
-    showToast(`Custom shipment ${idToUse} added to list`, "success");
+    showToast(`Kargo kustom ${idToUse} tersimpan ke Supabase database!`, "success");
   };
 
   const handleBaselineChange = (val: string) => {
@@ -1097,92 +1147,7 @@ export default function CargoDetailsDashboardPage() {
           {/* ==================== LEFT COLUMN ==================== */}
           <div className="col-span-12 lg:col-span-4 space-y-6">
 
-            {/* Truck Information Card */}
-            <section className="bg-white border border-slate-100 rounded-xl p-5 shadow-xs">
-              <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Truck Information</h2>
-              
-              <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-                <div className="flex items-center gap-3">
-                  <img
-                    src="/marcus_lee.png"
-                    alt="Driver Marcus Lee"
-                    className="w-10 h-10 rounded-full object-cover border-2 border-slate-100 shadow-inner flex-shrink-0"
-                  />
-                  <div>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide block">Driver</span>
-                    <h3 className="text-xs font-bold text-slate-800 leading-none mt-0.5">Marcus Lee</h3>
-                  </div>
-                </div>
-                
-                <div className="flex gap-2">
-                  <button className="p-2 border border-slate-150 hover:bg-slate-50 text-slate-400 hover:text-slate-650 rounded-lg transition-colors cursor-pointer">
-                    <Phone size={14} />
-                  </button>
-                  <button className="p-2 border border-slate-150 hover:bg-slate-50 text-slate-400 hover:text-slate-650 rounded-lg transition-colors cursor-pointer">
-                    <Check size={14} />
-                  </button>
-                </div>
-              </div>
 
-              {/* Grid details */}
-              <div className="grid grid-cols-3 gap-y-4 gap-x-2 border-b border-slate-100 py-4 text-xs font-medium">
-                <div>
-                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Truck ID</span>
-                  <span className="text-slate-800 font-bold mt-0.5 block">TRC-204</span>
-                </div>
-                <div>
-                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Dock</span>
-                  <span className="text-slate-800 font-bold mt-0.5 block">Dock #3</span>
-                </div>
-                <div>
-                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Started</span>
-                  <span className="text-slate-800 font-bold mt-0.5 block">08:34 AM</span>
-                </div>
-              </div>
-
-              {/* Route Path Graphic */}
-              <div className="py-4 border-b border-slate-100">
-                <div className="flex items-center justify-between text-[10px] text-slate-400 font-bold mb-2">
-                  <span>ROUTE</span>
-                </div>
-                
-                <div className="flex items-center justify-between px-2 py-1.5 rounded-lg">
-                  <div className="text-center">
-                    <span className="text-sm font-extrabold text-slate-800 block">NY</span>
-                    <span className="text-[9px] text-slate-400 font-semibold block">New York</span>
-                  </div>
-                  
-                  {/* Dotted connector line with a play circle in the middle */}
-                  <div className="flex-1 flex items-center justify-center px-4 relative">
-                    <div className="w-full border-t border-dashed border-slate-200 absolute" />
-                    <div className="w-5 h-5 rounded-full bg-slate-900 flex items-center justify-center text-white relative z-10 shadow-xs cursor-pointer hover:scale-105 transition-transform">
-                      <div className="w-0 h-0 border-t-[3.5px] border-t-transparent border-l-[6px] border-l-white border-b-[3.5px] border-b-transparent ml-0.5" />
-                    </div>
-                  </div>
-
-                  <div className="text-center">
-                    <span className="text-sm font-extrabold text-slate-800 block">NJ</span>
-                    <span className="text-[9px] text-slate-400 font-semibold block">New Jersey</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Action buttons */}
-              <div className="mt-4 grid grid-cols-2 gap-3">
-                <button
-                  onClick={() => showToast("Change driver triggered", "success")}
-                  className="py-2 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-semibold shadow-xs transition-colors cursor-pointer text-center"
-                >
-                  Change driver
-                </button>
-                <button
-                  onClick={() => showToast("Edit route triggered", "success")}
-                  className="py-2 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-semibold shadow-xs transition-colors cursor-pointer text-center"
-                >
-                  Edit route
-                </button>
-              </div>
-            </section>
 
             {/* Capacity & load Card */}
             <section className="bg-white border border-slate-100 rounded-xl p-5 shadow-xs space-y-4">
@@ -1519,8 +1484,9 @@ export default function CargoDetailsDashboardPage() {
                       ))}
                   </div>
                 </div>
+              </div>
 
-                {/* PANEL PERHITUNGAN METER KONTAINER (SUMBU X, Y, Z) */}
+              {/* PANEL PERHITUNGAN METER KONTAINER (SUMBU X, Y, Z) */}
                 <div className="w-full mt-3 bg-slate-900/95 border border-slate-800 rounded-xl p-4 text-xs shadow-lg">
                   <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3 mb-3">
                     <div className="flex items-center gap-2">
@@ -1603,275 +1569,10 @@ export default function CargoDetailsDashboardPage() {
                       </div>
                       <div className="flex justify-between items-center text-[9px] text-slate-400 mt-1.5 font-semibold">
                         <span>Total Items: {containerMetrics.boxCount}</span>
-                        <span className="text-emerald-400 font-bold">{containerMetrics.occupancyPercent}%</span>
-                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </section>
-
-            {/* COMPONENT 7: CARGO ASSIGNMENT PANEL */}
-            <section className="bg-white border border-slate-100 rounded-xl p-6 shadow-sm">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-5 mb-5">
-                <div>
-                  <h2 className="text-sm font-bold text-slate-900 tracking-wide uppercase">
-                    {selectedSlot ? (
-                      selectedSlot.occupied ? (
-                        <span>Detail slot {selectedSlot.id}</span>
-                      ) : (
-                        <span>Assign shipment to {selectedSlot.id} slot</span>
-                      )
-                    ) : (
-                      <span>Assign shipment to {selectedSlotId || "A5"} slot</span>
-                    )}
-                  </h2>
-                  <p className="text-xs text-slate-400 mt-0.5 font-medium">
-                    {selectedSlot?.occupied
-                      ? `Slot ini diisi oleh item kargo ${selectedSlot.shipmentId}.`
-                      : `Pilih paket kargo di bawah untuk dimuat ke slot ${selectedSlotId || "A5"}.`}
-                  </p>
-                </div>
-
-                {!selectedSlot?.occupied && (
-                  <div className="flex flex-wrap items-center gap-3">
-                    {/* Search query */}
-                    <div className="relative">
-                      <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                        <Search size={14} />
-                      </span>
-                      <input
-                        type="text"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Search for shipment ID"
-                        className="pl-8 pr-3.5 py-1.5 w-[160px] border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-emerald-700 bg-white placeholder-slate-400 text-slate-700"
-                      />
-                      {searchQuery && (
-                        <button
-                          onClick={() => setSearchQuery("")}
-                          className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-400 hover:text-slate-655"
-                        >
-                          <X size={12} />
-                        </button>
-                      )}
-                    </div>
-
-                    <div className="relative">
-                      <button className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 bg-white text-slate-600 rounded-lg text-xs font-semibold hover:bg-slate-50 transition-colors">
-                        <SlidersHorizontal size={12} />
-                        <span>Sort by</span>
-                        <ChevronDown size={12} />
-                      </button>
-                    </div>
-
-                    <button className="p-1.5 border border-slate-200 bg-slate-50 text-slate-600 rounded-lg transition-colors" title="Toggle grid layout">
-                      <Grid size={14} />
-                    </button>
-
-                    <button
-                      onClick={() => setIsAddFormOpen(!isAddFormOpen)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold shadow-xs transition-colors cursor-pointer"
-                    >
-                      <Plus size={12} />
-                      <span>Custom Cargo</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Custom Cargo Form */}
-              {isAddFormOpen && (
-                <form onSubmit={handleSaveCustomCargo} className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-5 space-y-4 animate-fade-in">
-                  <div className="flex justify-between items-center border-b border-slate-200 pb-2">
-                    <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Tambah Item Kargo Kustom</h3>
-                    <button type="button" onClick={() => setIsAddFormOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
-                      <X size={14} />
-                    </button>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs font-medium">
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">ID Kargo (Opsional)</label>
-                      <input
-                        type="text"
-                        value={customId}
-                        onChange={(e) => setCustomId(e.target.value)}
-                        placeholder={`SHP-CST-${String(customCounter).padStart(3, "0")}`}
-                        className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-emerald-700 text-slate-850"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">Jenis Paket</label>
-                      <select
-                        value={customType}
-                        onChange={(e) => setCustomType(e.target.value)}
-                        className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-emerald-700 text-slate-850 cursor-pointer"
-                      >
-                        <option value="Pallet">Pallet</option>
-                        <option value="Box">Box</option>
-                        <option value="Peti">Peti</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">Jumlah</label>
-                      <input
-                        type="text"
-                        value={customQty}
-                        onChange={(e) => setCustomQty(e.target.value)}
-                        placeholder="Contoh: 10 Unit"
-                        className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-emerald-700 text-slate-850"
-                        required
-                      />
-                    </div>
-
-
-
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">Dimensi (P x L x T)</label>
-                      <input
-                        type="text"
-                        value={customDim}
-                        onChange={(e) => setCustomDim(e.target.value)}
-                        placeholder="Contoh: 1.2x0.8x1.4 m"
-                        className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-emerald-700 text-slate-850 font-mono"
-                        required
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">Prioritas / Badge</label>
-                      <select
-                        value={customBadge}
-                        onChange={(e) => setCustomBadge(e.target.value)}
-                        className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-emerald-700 text-slate-850 cursor-pointer"
-                      >
-                        <option value="Standard">Standard</option>
-                        <option value="Express">Express</option>
-                        <option value="Same day">Same day</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">Metode Muat</label>
-                      <select
-                        value={customMethod}
-                        onChange={(e) => setCustomMethod(e.target.value)}
-                        className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-emerald-700 text-slate-850 cursor-pointer"
-                      >
-                        <option value="Pickup">Pickup</option>
-                        <option value="Forklift">Forklift</option>
-                        <option value="Manual">Manual</option>
-                      </select>
-                    </div>
-
-                    <div className="flex items-end">
-                      <button
-                        type="submit"
-                        className="w-full py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg font-bold shadow-xs transition-colors cursor-pointer text-center"
-                      >
-                        Simpan Kargo
-                      </button>
-                    </div>
-                  </div>
-                </form>
-              )}
-
-              {/* Slot contents display or Available shipments database grid */}
-              {selectedSlot?.occupied ? (
-                <div className="p-5 border border-emerald-100 bg-emerald-50/20 rounded-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                  <div className="flex gap-4 items-center">
-                    <div className="w-12 h-12 rounded-xl bg-emerald-700/10 border border-emerald-200/50 flex items-center justify-center text-emerald-800 flex-shrink-0">
-                      <Package size={22} />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-extrabold text-slate-900">{selectedSlot.shipmentId}</span>
-                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100">
-                          Dimuat
-                        </span>
-                      </div>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-1 mt-1 text-[11px] text-slate-500 font-medium">
-                        <div>Jenis: <span className="text-slate-700 font-semibold">{selectedSlot.type || "Kargo"}</span></div>
-                        <div>Volume: <span className="text-slate-700 font-semibold">{(getVolume(selectedSlot.dimensions)).toFixed(2)} m³</span></div>
-                        <div>Dimensi: <span className="text-slate-700 font-semibold">{selectedSlot.dimensions || "T/A"}</span></div>
-                        <div>Bay: <span className="text-slate-700 font-semibold">{selectedSlot.id}</span></div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={() => handleUnloadSlot(selectedSlot.id)}
-                    className="px-4 py-2 border border-rose-250 hover:bg-rose-50 text-rose-700 rounded-lg text-xs font-bold transition-all cursor-pointer flex-shrink-0"
-                  >
-                    Bongkar kargo
-                  </button>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {filteredShipments.map((shipment) => (
-                    <div
-                      key={shipment.id}
-                      className="border border-slate-150 rounded-xl p-4 flex flex-col justify-between bg-slate-50/40 hover:bg-white hover:border-slate-205 transition-all duration-200 group"
-                    >
-                      <div className="flex justify-between items-start pb-3 border-b border-slate-100/80 mb-3.5">
-                        <div className="flex items-center gap-1.5 text-slate-705">
-                          <Package size={14} className="text-slate-400" />
-                          <span className="text-xs font-extrabold">{shipment.id.trim()}</span>
-                        </div>
-                        <span className={`px-2 py-0.5 rounded text-[9px] font-bold border ${shipment.badgeColor}`}>
-                          {shipment.badge}
-                        </span>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-y-3.5 gap-x-1.5 text-[10px] text-slate-400 font-medium mb-5">
-                        <div>
-                          <span className="block text-[8px] font-bold text-slate-400 uppercase tracking-wider">Bentuk</span>
-                          <span className="text-slate-750 font-bold">{getShapeLabel(shipment.dimension)}</span>
-                        </div>
-                        <div>
-                          <span className="block text-[8px] font-bold text-slate-400 uppercase tracking-wider">Type</span>
-                          <span className="text-slate-700 font-semibold">{shipment.type}</span>
-                        </div>
-                        <div>
-                          <span className="block text-[8px] font-bold text-slate-400 uppercase tracking-wider">Quantity</span>
-                          <span className="text-slate-700 font-semibold">{shipment.qty}</span>
-                        </div>
-                        <div>
-                          <span className="block text-[8px] font-bold text-slate-400 uppercase tracking-wider">Total Volume</span>
-                          <span className="text-slate-700 font-semibold">{(getVolume(shipment.dimension) * (parseInt(shipment.qty) || 1)).toFixed(2)} m³</span>
-                        </div>
-                        <div>
-                          <span className="block text-[8px] font-bold text-slate-400 uppercase tracking-wider">Dimension</span>
-                          <span className="text-slate-700 font-semibold truncate block" title={shipment.dimension}>
-                            {shipment.dimension}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="block text-[8px] font-bold text-slate-400 uppercase tracking-wider">Method</span>
-                          <span className="text-slate-700 font-semibold">{shipment.method}</span>
-                        </div>
-                      </div>
-
-                      <button
-                        onClick={() => handleAssignCargoItem(shipment)}
-                        className="w-full flex items-center justify-center gap-1.5 py-2 px-3 border border-slate-200 hover:border-emerald-700 hover:bg-emerald-50 rounded-lg text-xs font-bold text-slate-700 hover:text-emerald-750 transition-colors duration-200 cursor-pointer"
-                      >
-                        <Plus size={12} strokeWidth={2.5} />
-                        <span>+ Assign to truck</span>
-                      </button>
-                    </div>
-                  ))}
-
-                  {filteredShipments.length === 0 && (
-                    <div className="col-span-3 text-center py-10 text-slate-400 text-sm font-medium">
-                      No shipments match the search criteria.
-                    </div>
-                  )}
-                </div>
-              )}
             </section>
 
           </div>
@@ -1928,10 +1629,6 @@ export default function CargoDetailsDashboardPage() {
                   <span className="font-bold text-slate-900">Dock #3</span>
                 </div>
                 <div className="p-3 bg-slate-50 border border-slate-150 rounded-xl">
-                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Driver</span>
-                  <span className="font-bold text-slate-900">Marcus Lee</span>
-                </div>
-                 <div className="p-3 bg-slate-50 border border-slate-150 rounded-xl">
                   <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Total Volume load</span>
                   <span className="font-bold text-slate-900">{(currentLoadVolume).toFixed(2)} / {maxCapacityVolume} m³</span>
                 </div>
@@ -1967,13 +1664,9 @@ export default function CargoDetailsDashboardPage() {
               </div>
 
               {/* Signatures */}
-              <div className="pt-8 grid grid-cols-2 gap-8 text-center text-xs font-bold text-slate-750">
-                <div className="space-y-12">
-                  <span className="block border-b border-slate-200 pb-1.5 mx-auto max-w-[160px]">Marcus Lee</span>
-                  <span className="text-[10px] text-slate-400 uppercase block tracking-wider">Driver Signature</span>
-                </div>
-                <div className="space-y-12">
-                  <span className="block border-b border-slate-200 pb-1.5 mx-auto max-w-[160px]">{profile?.name || "Petugas Logistik"}</span>
+              <div className="pt-8 flex justify-end text-center text-xs font-bold text-slate-750">
+                <div className="space-y-12 w-64">
+                  <span className="block border-b border-slate-200 pb-1.5 mx-auto max-w-[200px]">{profile?.name || "Petugas Logistik"}</span>
                   <span className="text-[10px] text-slate-400 uppercase block tracking-wider">Loading Supervisor</span>
                 </div>
               </div>

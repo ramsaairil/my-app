@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import PageHeader from "../components/PageHeader";
 import { useProfile } from "../context/ProfileContext";
 import {
@@ -8,11 +8,11 @@ import {
   Plus,
   Search,
   X,
-  Layers,
   Database,
-  Sparkles,
-  Inbox
+  Inbox,
+  Trash2
 } from "lucide-react";
+import { fetchCargosFromDb, insertCargoToDb, deleteCargoFromDb } from "../../lib/db";
 
 // Helper to calculate volume (m³) from dimension string like "1.2x0.8x1.4 m"
 const getVolume = (dimStr: string): number => {
@@ -52,7 +52,6 @@ export default function CargoDatabasePage() {
 
   // Search query state
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [activeTab, setActiveTab] = useState<string>("all");
 
   // Toast Notification state
   const [toast, setToast] = useState<{ show: boolean; message: string; type: "success" | "error" }>({
@@ -123,23 +122,38 @@ export default function CargoDatabasePage() {
     return customShipments[activeBaseline] || [];
   }, [customShipments, activeBaseline]);
 
-  // Statistics calculations
-  const statsSummary = useMemo(() => {
-    const items = availableShipments;
-    const totalItemsCount = items.length;
-    const totalVolume = items.reduce((sum, item) => {
-      const qtyVal = parseInt(item.qty) || 1;
-      return sum + (getVolume(item.dimension) * qtyVal);
-    }, 0);
-    const priorityCount = items.filter(item => item.badge === "Prioritas").length;
-    return {
-      totalItemsCount,
-      totalVolume,
-      priorityCount
-    };
-  }, [availableShipments]);
 
-  const handleSaveCustomCargo = (e: React.FormEvent) => {
+
+  // Sync cargos from Supabase PostgreSQL database
+  useEffect(() => {
+    async function syncDb() {
+      const dbCargos = await fetchCargosFromDb();
+      if (dbCargos && dbCargos.length > 0) {
+        const mappedFromDb: CargoItem[] = dbCargos.map((item) => ({
+          id: item.id,
+          badge: item.priority || "Standar",
+          badgeColor:
+            item.priority === "Prioritas" || item.priority === "Express" || item.priority === "Same day"
+              ? "bg-green-50 text-green-700 border-green-200"
+              : item.priority === "Volume Tinggi"
+              ? "bg-blue-50 text-blue-700 border-blue-200"
+              : "bg-slate-100 text-slate-700 border-slate-200",
+          type: item.category || "Pallet",
+          qty: `${item.quantity || 1} unit`,
+          dimension: item.dimension || "1.2x0.8x1.4 m",
+          method: item.handling_method || "Forklift"
+        }));
+
+        setCustomShipments((prev) => ({
+          ...prev,
+          default: [...mappedFromDb, ...prev.default.filter(d => !mappedFromDb.some(m => m.id === d.id))]
+        }));
+      }
+    }
+    syncDb();
+  }, []);
+
+  const handleSaveCustomCargo = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const idToUse = customId.trim() || `KRG-CST-${String(customCounter).padStart(3, "0")}`;
@@ -168,6 +182,21 @@ export default function CargoDatabasePage() {
       method: customMethod
     };
 
+    // Save to Supabase PostgreSQL database
+    const qtyNumber = parseInt(customQty) || 1;
+    const volM3 = getVolume(customDim) * qtyNumber;
+    await insertCargoToDb({
+      id: idToUse,
+      name: `Kargo ${idToUse}`,
+      category: customType,
+      priority: customBadge,
+      quantity: qtyNumber,
+      dimension: customDim,
+      volume_m3: volM3,
+      handling_method: customMethod,
+      status: "Unassigned"
+    });
+
     setCustomShipments((prev) => ({
       ...prev,
       [activeBaseline]: [...(prev[activeBaseline] || []), newItem]
@@ -177,7 +206,16 @@ export default function CargoDatabasePage() {
     setCustomId("");
     setCustomCounter((c) => c + 1);
     setIsAddFormOpen(false);
-    showToast(`Kargo Kustom ${idToUse} ditambahkan ke database!`, "success");
+    showToast(`Kargo Kustom ${idToUse} tersimpan ke database!`, "success");
+  };
+
+  const handleDeleteCargo = async (id: string) => {
+    await deleteCargoFromDb(id);
+    setCustomShipments((prev) => ({
+      ...prev,
+      [activeBaseline]: (prev[activeBaseline] || []).filter((item) => item.id !== id)
+    }));
+    showToast(`Kargo ${id} berhasil dihapus!`, "success");
   };
 
   const handleBaselineChange = (val: keyof typeof baselines) => {
@@ -192,23 +230,16 @@ export default function CargoDatabasePage() {
     }, 4000);
   };
 
-  // Search and priority category filtering
+  // Search filtering
   const filteredShipments = useMemo(() => {
     return availableShipments.filter((shipment) => {
-      const matchesSearch =
+      return (
         shipment.id.toLowerCase().includes(searchQuery.toLowerCase().trim()) ||
         shipment.type.toLowerCase().includes(searchQuery.toLowerCase().trim()) ||
-        shipment.badge.toLowerCase().includes(searchQuery.toLowerCase().trim());
-      
-      const matchesTab =
-        activeTab === "all" ||
-        (activeTab === "priority" && shipment.badge === "Prioritas") ||
-        (activeTab === "volume" && shipment.badge === "Volume Tinggi") ||
-        (activeTab === "standard" && shipment.badge === "Standar");
-
-      return matchesSearch && matchesTab;
+        shipment.badge.toLowerCase().includes(searchQuery.toLowerCase().trim())
+      );
     });
-  }, [availableShipments, searchQuery, activeTab]);
+  }, [availableShipments, searchQuery]);
 
   return (
     <div className="flex-grow flex flex-col h-full overflow-hidden">
@@ -255,42 +286,6 @@ export default function CargoDatabasePage() {
       <div className="flex-grow overflow-y-auto p-4 sm:p-8 custom-scrollbar">
         <div className="max-w-[1400px] mx-auto space-y-6">
           
-          {/* Summary Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-white border border-slate-100 rounded-xl p-5 hover:border-slate-200 transition-colors duration-200">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Total Jenis Barang</span>
-                <Package size={18} className="text-slate-400" />
-              </div>
-              <div className="mt-4 space-y-0.5">
-                <span className="text-2xl font-bold text-slate-800 block">{statsSummary.totalItemsCount} Kategori</span>
-                <span className="text-[10px] font-semibold text-slate-500 block">Terdaftar dalam manifest aktif</span>
-              </div>
-            </div>
-
-            <div className="bg-white border border-slate-100 rounded-xl p-5 hover:border-slate-200 transition-colors duration-200">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Estimasi Total Volume</span>
-                <Layers size={18} className="text-slate-400" />
-              </div>
-              <div className="mt-4 space-y-0.5">
-                <span className="text-2xl font-bold text-slate-800 block">{statsSummary.totalVolume.toFixed(2)} m³</span>
-                <span className="text-[10px] font-semibold text-slate-500 block">Berdasarkan P x L x T barang</span>
-              </div>
-            </div>
-
-            <div className="bg-white border border-slate-100 rounded-xl p-5 hover:border-slate-200 transition-colors duration-200">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Kargo Prioritas</span>
-                <Sparkles size={18} className="text-slate-400" />
-              </div>
-              <div className="mt-4 space-y-0.5">
-                <span className="text-2xl font-bold text-slate-800 block">{statsSummary.priorityCount} Kargo</span>
-                <span className="text-[10px] font-semibold text-slate-500 block">Memerlukan penanganan prioritas</span>
-              </div>
-            </div>
-          </div>
-
           {/* Search, Filter, and Dataset selectors */}
           <div className="bg-white border border-slate-100 rounded-xl p-6 shadow-sm space-y-6">
             <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
@@ -322,20 +317,6 @@ export default function CargoDatabasePage() {
                   )}
                 </div>
 
-                {/* Dataset selector */}
-                <div className="flex items-center gap-1.5 text-xs text-slate-500 font-bold border border-slate-200 px-3 py-2 bg-slate-50 rounded-lg shadow-inner">
-                  <span className="text-[10px] text-slate-400 uppercase tracking-wider">Dataset:</span>
-                  <select
-                    value={activeBaseline}
-                    onChange={(e) => handleBaselineChange(e.target.value as keyof typeof baselines)}
-                    className="bg-transparent border-none text-slate-800 font-bold focus:outline-none cursor-pointer text-xs"
-                  >
-                    <option value="default">Default Logistic</option>
-                    <option value="br1">Bischoff BR1 (Lemah)</option>
-                    <option value="br5">Bischoff BR5 (Sedang)</option>
-                    <option value="homogeneous">Europallet Homogen</option>
-                  </select>
-                </div>
               </div>
             </div>
 
@@ -440,82 +421,67 @@ export default function CargoDatabasePage() {
               </form>
             )}
 
-            {/* Category tabs */}
-            <div className="flex gap-2 border-b border-slate-100 pb-3">
-              {[
-                { id: "all", label: "Semua Kargo" },
-                { id: "priority", label: "Prioritas Utama" },
-                { id: "volume", label: "Volume Tinggi" },
-                { id: "standard", label: "Standar" }
-              ].map(tab => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                    activeTab === tab.id
-                      ? "bg-emerald-700 text-white shadow-xs"
-                      : "bg-slate-50 border border-slate-200 text-slate-500 hover:bg-slate-100"
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
 
-            {/* Inventory Grid List */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredShipments.map((shipment) => (
-                <div
-                  key={shipment.id}
-                  className="border border-slate-150 rounded-xl p-5 flex flex-col justify-between bg-slate-50/40 hover:bg-white hover:shadow-md hover:border-slate-200 hover:-translate-y-0.5 transition-all duration-200 group"
-                >
-                  <div className="flex justify-between items-start pb-3 border-b border-slate-100/80 mb-3.5">
-                    <div className="flex items-center gap-1.5 text-slate-700">
-                      <Package size={16} className="text-slate-400" />
-                      <span className="text-sm font-extrabold text-slate-900">{shipment.id}</span>
-                    </div>
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${shipment.badgeColor}`}>
-                      {shipment.badge}
-                    </span>
-                  </div>
 
-                  <div className="grid grid-cols-2 gap-y-3.5 gap-x-1.5 text-[11px] text-slate-400 font-medium mb-4">
-                    <div>
-                      <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider">Jenis Paket</span>
-                      <span className="text-slate-800 font-bold text-xs">{shipment.type}</span>
-                    </div>
-                    <div>
-                      <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider">Jumlah</span>
-                      <span className="text-slate-800 font-bold text-xs">{shipment.qty}</span>
-                    </div>
-                    <div>
-                      <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider">Total Volume</span>
-                      <span className="text-slate-800 font-bold text-xs">{(getVolume(shipment.dimension) * (parseInt(shipment.qty) || 1)).toFixed(2)} m³</span>
-                    </div>
-                    <div>
-                      <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider">Dimensi</span>
-                      <span className="text-slate-800 font-bold font-mono text-xs block truncate" title={shipment.dimension}>
-                        {shipment.dimension}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider">Metode Muat</span>
-                      <span className="text-slate-700 font-semibold">{shipment.method}</span>
-                    </div>
-                    <div>
-                      <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider">Bentuk</span>
-                      <span className="text-slate-750 font-bold">{getShapeLabel(shipment.dimension)}</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-
-              {filteredShipments.length === 0 && (
-                <div className="col-span-1 md:col-span-2 lg:col-span-3 text-center py-16 text-slate-400 text-sm font-semibold bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
-                  <Inbox size={32} className="mx-auto text-slate-300 mb-2" />
-                  Tidak ada data kargo yang cocok dengan &quot;{searchQuery}&quot; dalam kategori ini.
-                </div>
-              )}
+            {/* Inventory Table List */}
+            <div className="overflow-x-auto rounded-xl border border-slate-200/80 bg-white shadow-2xs">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200 text-slate-400 font-bold uppercase tracking-wider bg-slate-50/70">
+                    <th className="py-3 px-4">ID Kargo</th>
+                    <th className="py-3 px-4">Prioritas</th>
+                    <th className="py-3 px-4">Jenis Paket</th>
+                    <th className="py-3 px-4">Jumlah</th>
+                    <th className="py-3 px-4">Dimensi (P x L x T)</th>
+                    <th className="py-3 px-4">Total Volume</th>
+                    <th className="py-3 px-4">Bentuk</th>
+                    <th className="py-3 px-4">Metode Muat</th>
+                    <th className="py-3 px-4 text-right">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+                  {filteredShipments.map((shipment) => (
+                    <tr key={shipment.id} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="py-3.5 px-4 font-bold text-slate-900">
+                        <div className="flex items-center gap-2">
+                          <Package size={15} className="text-slate-400" />
+                          <span>{shipment.id}</span>
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${shipment.badgeColor}`}>
+                          {shipment.badge}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4 font-semibold text-slate-800">{shipment.type}</td>
+                      <td className="py-3.5 px-4 font-bold text-slate-900">{shipment.qty}</td>
+                      <td className="py-3.5 px-4 font-mono text-slate-700">{shipment.dimension}</td>
+                      <td className="py-3.5 px-4 font-bold text-slate-900">
+                        {(getVolume(shipment.dimension) * (parseInt(shipment.qty) || 1)).toFixed(2)} m³
+                      </td>
+                      <td className="py-3.5 px-4 font-semibold text-slate-700">{getShapeLabel(shipment.dimension)}</td>
+                      <td className="py-3.5 px-4 font-medium text-slate-600">{shipment.method}</td>
+                      <td className="py-3.5 px-4 text-right">
+                        <button
+                          onClick={() => handleDeleteCargo(shipment.id)}
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                          title={`Hapus Kargo ${shipment.id}`}
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {filteredShipments.length === 0 && (
+                    <tr>
+                      <td colSpan={9} className="text-center py-16 text-slate-400 text-sm font-semibold bg-slate-50/30">
+                        <Inbox size={32} className="mx-auto text-slate-300 mb-2" />
+                        Tidak ada data kargo yang cocok dengan &quot;{searchQuery}&quot; dalam kategori ini.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
 
