@@ -4,6 +4,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import PageHeader from "../components/PageHeader";
 import { useProfile } from "../context/ProfileContext";
+import { benchmarkBaselines } from "../data/datasets";
 import {
   Home,
   Database,
@@ -142,9 +143,9 @@ const Box3D = ({ w, h, d, x, y, z, color, label }: { w: number, h: number, d: nu
   const scale = 36;
   const containerHeight = 2.4;
 
-  const pxW = w * scale;
-  const pxH = h * scale;
-  const pxD = d * scale;
+  const pxW = Math.max(16, w * scale);
+  const pxH = Math.max(16, h * scale);
+  const pxD = Math.max(16, d * scale);
 
   const tx = x * scale;
   const ty = (containerHeight - z - h) * scale;
@@ -161,9 +162,12 @@ const Box3D = ({ w, h, d, x, y, z, color, label }: { w: number, h: number, d: nu
     backgroundImage: "repeating-linear-gradient(90deg, rgba(0,0,0,0.06) 0px, rgba(0,0,0,0.06) 1px, transparent 1px, transparent 10px)"
   } : {};
 
+  const halfD = pxD / 2;
+  const halfH = pxH / 2;
+
   return (
     <div
-      className="absolute"
+      className="absolute pointer-events-none"
       style={{
         width: `${pxW}px`,
         height: `${pxH}px`,
@@ -172,20 +176,19 @@ const Box3D = ({ w, h, d, x, y, z, color, label }: { w: number, h: number, d: nu
       }}
     >
       {/* Front Face (z=0) */}
-      <div className={`absolute border border-black/15 flex items-center justify-center text-[7px] font-black text-slate-800 rounded shadow-xs relative ${color}`}
+      <div className={`absolute top-0 left-0 border border-slate-950/40 flex items-center justify-center text-[8px] font-black text-slate-900 shadow-md ${color}`}
         style={{
           width: `${pxW}px`,
           height: `${pxH}px`,
-          transform: `translateZ(0px)`,
-          backfaceVisibility: "hidden",
+          transform: `translate3d(0, 0, 0)`,
           ...textureStyle
         }}
       >
-        <span className="truncate max-w-full px-0.5 z-10">{label}</span>
+        <span className="truncate max-w-full px-0.5 z-10 select-none">{label}</span>
         
-        {/* Barcode label on cube front face */}
+        {/* Barcode label on front face */}
         {isCube && (
-          <div className="absolute right-1 bottom-1 w-3.5 h-2 bg-white flex items-center justify-around px-0.5 opacity-80 border border-slate-350 pointer-events-none z-10">
+          <div className="absolute right-1 bottom-1 w-3.5 h-2 bg-white flex items-center justify-around px-0.5 opacity-80 border border-slate-350 z-10">
             <div className="w-[0.5px] h-full bg-slate-800" />
             <div className="w-[1px] h-full bg-slate-800" />
             <div className="w-[0.5px] h-full bg-slate-800" />
@@ -195,70 +198,61 @@ const Box3D = ({ w, h, d, x, y, z, color, label }: { w: number, h: number, d: nu
       </div>
 
       {/* Back Face (z=-D) */}
-      <div className={`absolute border border-black/15 rounded ${color}`}
+      <div className={`absolute top-0 left-0 border border-slate-950/40 ${color}`}
         style={{
           width: `${pxW}px`,
           height: `${pxH}px`,
-          transform: `translateZ(${-pxD}px) rotateY(180deg)`,
-          opacity: 0.9,
-          backfaceVisibility: "hidden",
+          transform: `translate3d(0, 0, ${-pxD}px) rotateY(180deg)`,
+          filter: "brightness(0.65)",
           ...textureStyle
         }}
       />
 
       {/* Left Face (x=0) */}
-      <div className={`absolute border border-black/15 rounded ${color}`}
+      <div className={`absolute top-0 left-0 border border-slate-950/40 ${color}`}
         style={{
           width: `${pxD}px`,
           height: `${pxH}px`,
-          transform: `rotateY(90deg)`,
-          transformOrigin: "left",
-          opacity: 0.85,
-          backfaceVisibility: "hidden",
+          transform: `translate3d(${-halfD}px, 0, ${-halfD}px) rotateY(-90deg)`,
+          filter: "brightness(0.75)",
           ...textureStyle
         }}
       />
 
       {/* Right Face (x=W) */}
-      <div className={`absolute border border-black/15 rounded ${color}`}
+      <div className={`absolute top-0 left-0 border border-slate-950/40 ${color}`}
         style={{
           width: `${pxD}px`,
           height: `${pxH}px`,
-          transform: `translateX(${pxW}px) rotateY(90deg)`,
-          transformOrigin: "left",
-          opacity: 0.85,
-          backfaceVisibility: "hidden",
+          transform: `translate3d(${pxW - halfD}px, 0, ${-halfD}px) rotateY(90deg)`,
+          filter: "brightness(0.85)",
           ...textureStyle
         }}
       />
 
       {/* Top Face (y=0) */}
-      <div className={`absolute border border-black/15 rounded relative ${color}`}
+      <div className={`absolute top-0 left-0 border border-slate-950/40 ${color}`}
         style={{
           width: `${pxW}px`,
           height: `${pxD}px`,
-          transform: `rotateX(-90deg)`,
-          transformOrigin: "top",
-          opacity: 0.95,
-          backfaceVisibility: "hidden",
+          transform: `translate3d(0, ${-halfD}px, ${-halfD}px) rotateX(90deg)`,
+          filter: "brightness(1.2)",
           ...topTextureStyle
         }}
       >
-        {/* Cardboard box sealing tape for cube top face */}
+        {/* Cardboard box sealing tape */}
         {isCube && (
-          <div className="absolute inset-y-0 w-1.5 bg-amber-800/30 left-[calc(50%-3px)] z-10 shadow-inner" />
+          <div className="absolute inset-y-0 w-1.5 bg-amber-800/40 left-[calc(50%-3px)] z-10 shadow-inner" />
         )}
       </div>
 
       {/* Bottom Face (y=H) */}
-      <div className={`absolute border border-black/15 rounded ${color}`}
+      <div className={`absolute top-0 left-0 border border-slate-950/40 ${color}`}
         style={{
           width: `${pxW}px`,
           height: `${pxD}px`,
-          transform: `translateY(${pxH}px) rotateX(-90deg)`,
-          transformOrigin: "top",
-          opacity: 0.95,
-          backfaceVisibility: "hidden",
+          transform: `translate3d(0, ${pxH - halfD}px, ${-halfD}px) rotateX(-90deg)`,
+          filter: "brightness(0.5)",
           ...topTextureStyle
         }}
       />
@@ -531,7 +525,7 @@ export default function CargoDetailsDashboardPage() {
 
   // 3D View and BPP States
   const [packedBoxes, setPackedBoxes] = useState<PlacedBox[]>([]);
-  const [rotation, setRotation] = useState({ x: -15, y: -35 });
+  const [rotation, setRotation] = useState({ x: -22, y: -45 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
@@ -556,7 +550,7 @@ export default function CargoDetailsDashboardPage() {
     setIsDragging(false);
   };
 
-  const baselines = {
+  const baselines: Record<string, { name: string; slots: CargoSlot[]; shipments: CargoItem[] }> = {
     default: {
       name: "TRC-204 Default Cargo Hold",
       slots: [...EMPTY_SLOTS],
@@ -564,7 +558,7 @@ export default function CargoDetailsDashboardPage() {
         { id: "SHP-9821", badge: "Standard", badgeColor: "bg-slate-100 text-slate-705 border-slate-200", type: "Pallet", qty: "10 pallets", dimension: "0.8x0.6x1 m", method: "Pickup" },
         { id: "SHP-9821 ", badge: "Express", badgeColor: "bg-green-50 text-green-700 border-green-200", type: "Box", qty: "15 boxes", dimension: "0.4x0.2x1 m", method: "Pickup" },
         { id: "SHP-9821  ", badge: "Same day", badgeColor: "bg-blue-50 text-blue-700 border-blue-200", type: "Box", qty: "12 boxes", dimension: "1.5x1.2x0.4 m", method: "Pickup" }
-      ] as CargoItem[]
+      ]
     },
     br1: {
       name: "Bischoff BR1 (Heterogen Lemah)",
@@ -572,7 +566,7 @@ export default function CargoDetailsDashboardPage() {
       shipments: [
         { id: "SHP-BR1-01", badge: "Standard", badgeColor: "bg-slate-100 text-slate-705 border-slate-200", type: "Pallet", qty: "8 pallets", dimension: "1.2x0.8x1.6 m", method: "Pickup" },
         { id: "SHP-BR1-02", badge: "Express", badgeColor: "bg-green-50 text-green-700 border-green-200", type: "Box", qty: "5 boxes", dimension: "0.8x0.6x1.0 m", method: "Pickup" }
-      ] as CargoItem[]
+      ]
     },
     br5: {
       name: "Bischoff BR5 (Heterogen Sedang)",
@@ -580,33 +574,56 @@ export default function CargoDetailsDashboardPage() {
       shipments: [
         { id: "SHP-BR5-01", badge: "Express", badgeColor: "bg-green-50 text-green-700 border-green-200", type: "Pallet", qty: "4 pallets", dimension: "2.0x0.8x1.2 m", method: "Pickup" },
         { id: "SHP-BR5-02", badge: "Same day", badgeColor: "bg-blue-50 text-blue-700 border-blue-200", type: "Box", qty: "6 boxes", dimension: "0.8x0.8x1.8 m", method: "Pickup" }
-      ] as CargoItem[]
+      ]
     },
     homogeneous: {
       name: "Europallet Homogen",
       slots: [...EMPTY_SLOTS],
       shipments: [
         { id: "SHP-HOM-01", badge: "Standard", badgeColor: "bg-slate-100 text-slate-705 border-slate-200", type: "Pallet", qty: "18 pallets", dimension: "1.2x0.8x1.4 m", method: "Pickup" }
-      ] as CargoItem[]
-    }
+      ]
+    },
+    ...Object.fromEntries(
+      Object.entries(benchmarkBaselines).map(([k, v]) => [
+        k,
+        { ...v, slots: [...EMPTY_SLOTS] }
+      ])
+    )
   };
 
-  const [activeBaseline, setActiveBaseline] = useState<keyof typeof baselines>("default");
+  const [activeBaseline, setActiveBaseline] = useState<string>("default");
 
   // Slots loading state
-  const [slots, setSlots] = useState<CargoSlot[]>([...baselines.default.slots]);
+  const [slots, setSlots] = useState<CargoSlot[]>(() => [...(baselines.default?.slots || [])]);
 
-  // Sync initial 3D boxes on baseline change
+  // Sync initial 3D boxes and auto-pack datasets on baseline change
   useEffect(() => {
-    setPackedBoxes(getInitial3DBoxes(baselines[activeBaseline].slots));
+    if (baselines[activeBaseline]) {
+      const base = baselines[activeBaseline];
+      const initialBoxes = getInitial3DBoxes(base.slots);
+      if (initialBoxes.length > 0) {
+        setPackedBoxes(initialBoxes);
+      } else if (base.shipments && base.shipments.length > 0) {
+        const { packed } = run3DDecoupledSolver(base.shipments, []);
+        setPackedBoxes(packed);
+      } else {
+        setPackedBoxes([]);
+      }
+    }
   }, [activeBaseline]);
 
   // Available shipments database
-  const [customShipments, setCustomShipments] = useState<Record<string, CargoItem[]>>({
-    default: [...baselines.default.shipments],
-    br1: [...baselines.br1.shipments],
-    br5: [...baselines.br5.shipments],
-    homogeneous: [...baselines.homogeneous.shipments]
+  const [customShipments, setCustomShipments] = useState<Record<string, CargoItem[]>>(() => {
+    const initial: Record<string, CargoItem[]> = {
+      default: [...baselines.default.shipments],
+      br1: [...baselines.br1.shipments],
+      br5: [...baselines.br5.shipments],
+      homogeneous: [...baselines.homogeneous.shipments]
+    };
+    Object.entries(benchmarkBaselines).forEach(([k, v]) => {
+      initial[k] = [...v.shipments];
+    });
+    return initial;
   });
 
   // Loading activities log
@@ -636,6 +653,48 @@ export default function CargoDetailsDashboardPage() {
   const availableShipments = useMemo(() => {
     return customShipments[activeBaseline] || [];
   }, [customShipments, activeBaseline]);
+
+  // Perhitungan meter real-time dari item kargo terpasang (Sumbu X, Y, Z)
+  const containerMetrics = useMemo(() => {
+    const containerW = 12.0; // Sumbu X (meter)
+    const containerD = 2.4;  // Sumbu Y (meter)
+    const containerH = 2.4;  // Sumbu Z (meter)
+    const totalVolume = containerW * containerD * containerH; // 69.12 m3
+
+    let maxX = 0;
+    let maxY = 0;
+    let maxZ = 0;
+    let usedVol = 0;
+
+    packedBoxes.forEach((box) => {
+      const boxXEnd = box.x + box.w;
+      const boxYEnd = box.y + box.d;
+      const boxZEnd = box.z + box.h;
+      if (boxXEnd > maxX) maxX = boxXEnd;
+      if (boxYEnd > maxY) maxY = boxYEnd;
+      if (boxZEnd > maxZ) maxZ = boxZEnd;
+      usedVol += box.w * box.d * box.h;
+    });
+
+    const remainingX = Math.max(0, containerW - maxX);
+    const occupancyPercent = ((usedVol / totalVolume) * 100).toFixed(1);
+    const remainingVol = Math.max(0, totalVolume - usedVol);
+
+    return {
+      containerW,
+      containerD,
+      containerH,
+      totalVolume,
+      maxX: Math.min(containerW, maxX),
+      maxY: Math.min(containerD, maxY),
+      maxZ: Math.min(containerH, maxZ),
+      remainingX,
+      usedVol,
+      remainingVol,
+      occupancyPercent,
+      boxCount: packedBoxes.length
+    };
+  }, [packedBoxes]);
 
   // Actions
   const handleAssignCargoItem = (shipment: CargoItem) => {
@@ -823,12 +882,48 @@ export default function CargoDetailsDashboardPage() {
     showToast(`Custom shipment ${idToUse} added to list`, "success");
   };
 
-  const handleBaselineChange = (val: keyof typeof baselines) => {
+  const handleBaselineChange = (val: string) => {
+    if (!baselines[val]) return;
     setActiveBaseline(val);
-    setSlots([...baselines[val].slots]);
-    setPackedBoxes(getInitial3DBoxes(baselines[val].slots));
+
+    const base = baselines[val];
+    const freshShipments = [...base.shipments];
+
+    setCustomShipments((prev) => ({
+      ...prev,
+      [val]: freshShipments
+    }));
+
+    const initialBoxes = getInitial3DBoxes(base.slots);
+    if (initialBoxes.length > 0) {
+      setSlots([...base.slots]);
+      setPackedBoxes(initialBoxes);
+    } else if (freshShipments.length > 0) {
+      const { packed, utilization } = run3DDecoupledSolver(freshShipments, []);
+      setPackedBoxes(packed);
+
+      const updatedSlots = [...EMPTY_SLOTS];
+      packed.forEach((box, idx) => {
+        if (idx < updatedSlots.length) {
+          const badgeColor = box.color.includes("emerald") ? "green" : box.color.includes("blue") ? "blue" : "none";
+          updatedSlots[idx] = {
+            ...updatedSlots[idx],
+            occupied: true,
+            shipmentId: box.label,
+            badgeColor,
+            type: box.label.startsWith("KRG") || box.label.startsWith("SHP") ? "Box" : "Pallet",
+            dimensions: `${box.w}x${box.d}x${box.h} m`
+          };
+        }
+      });
+      setSlots(updatedSlots);
+    } else {
+      setSlots([...EMPTY_SLOTS]);
+      setPackedBoxes([]);
+    }
+
     setSolverState("idle");
-    showToast(`Manifest changed to: ${baselines[val].name}`, "success");
+    showToast(`Dataset & Visualisator 3D disinkronkan: ${base.name}`, "success");
   };
 
   const handleClearContainer = () => {
@@ -1208,39 +1303,64 @@ export default function CargoDetailsDashboardPage() {
                     <span className="text-[10px] text-slate-400 uppercase tracking-wider">Dataset:</span>
                     <select
                       value={activeBaseline}
-                      onChange={(e) => handleBaselineChange(e.target.value as keyof typeof baselines)}
-                      className="bg-transparent border-none text-slate-750 font-bold focus:outline-none cursor-pointer text-xs pr-1"
+                      onChange={(e) => handleBaselineChange(e.target.value)}
+                      className="bg-transparent border-none text-slate-750 font-bold focus:outline-none cursor-pointer text-xs pr-1 max-w-[280px] truncate"
                     >
-                      <option value="default">Default Hold</option>
-                      <option value="br1">BR1 (Weak)</option>
-                      <option value="br5">BR5 (Medium)</option>
-                      <option value="homogeneous">Europallet</option>
+                      <optgroup label="Preset Standard">
+                        <option value="default">Default Hold (TRC-204)</option>
+                        <option value="br1">Bischoff BR1 (Heterogen Lemah)</option>
+                        <option value="br5">Bischoff BR5 (Heterogen Sedang)</option>
+                        <option value="homogeneous">Europallet Homogen</option>
+                      </optgroup>
+                      <optgroup label="Benchmark Datasets (Folder Dataset)">
+                        {Object.entries(benchmarkBaselines).map(([k, v]) => (
+                          <option key={k} value={k}>
+                            {v.name}
+                          </option>
+                        ))}
+                      </optgroup>
                     </select>
                   </div>
                 </div>
               </div>
 
               {/* 3D Visualizer Container */}
-              <div className="w-full flex flex-col items-center justify-center p-6 bg-slate-950 text-white border border-slate-900 rounded-xl min-h-[380px] select-none overflow-hidden relative shadow-inner">
-                {/* Drag Instructions & Reset View */}
-                <div className="absolute top-3 left-3 text-[10px] text-slate-400 font-semibold bg-slate-900/80 px-2.5 py-1 rounded-md border border-slate-800 flex items-center gap-2 z-20">
-                  <span>🔄 Drag mouse untuk memutar kontainer secara 3D</span>
-                  <button
-                    type="button"
-                    onClick={() => setRotation({ x: -15, y: -35 })}
-                    className="text-emerald-400 hover:text-emerald-300 font-bold transition-colors cursor-pointer"
-                  >
-                    Reset View
-                  </button>
+              <div className="w-full flex flex-col items-center justify-center p-5 bg-slate-950 text-white border border-slate-900 rounded-xl min-h-[420px] select-none overflow-hidden relative shadow-inner">
+                
+                {/* Viewport Top Header & Axis Legend Badges */}
+                <div className="w-full flex flex-wrap items-center justify-between gap-2 z-20 pb-3 mb-2 border-b border-slate-900">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-slate-400 font-semibold bg-slate-900 px-2.5 py-1 rounded-md border border-slate-800 flex items-center gap-2">
+                      <span>🔄 Drag mouse untuk memutar 3D</span>
+                      <button
+                        type="button"
+                        onClick={() => setRotation({ x: -22, y: -45 })}
+                        className="text-emerald-400 hover:text-emerald-300 font-bold transition-colors cursor-pointer"
+                      >
+                        Reset View
+                      </button>
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2 text-[10px] font-bold">
+                    <span className="px-2.5 py-1 bg-rose-950/80 text-rose-300 border border-rose-800/60 rounded-md flex items-center gap-1.5 shadow-xs">
+                      <span className="w-2 h-2 rounded-full bg-rose-500" />
+                      Sumbu X (Panjang): 12.0m
+                    </span>
+                    <span className="px-2.5 py-1 bg-cyan-950/80 text-cyan-300 border border-cyan-800/60 rounded-md flex items-center gap-1.5 shadow-xs">
+                      <span className="w-2 h-2 rounded-full bg-cyan-400" />
+                      Sumbu Y (Lebar): 2.4m
+                    </span>
+                    <span className="px-2.5 py-1 bg-amber-950/80 text-amber-300 border border-amber-800/60 rounded-md flex items-center gap-1.5 shadow-xs">
+                      <span className="w-2 h-2 rounded-full bg-amber-400" />
+                      Sumbu Z (Tinggi): 2.4m
+                    </span>
+                  </div>
                 </div>
 
-                <div className="absolute top-3 right-3 text-[10px] text-slate-400 font-semibold bg-slate-900/80 px-2.5 py-1 rounded-md border border-slate-800 z-20">
-                  <span>Kapasitas Kontainer: 67.7 m³</span>
-                </div>
-
-                {/* 3D Scene Viewport */}
+                {/* 3D Scene Viewport (Plotly 3D Style) */}
                 <div
-                  className="w-full h-[300px] flex items-center justify-center cursor-grab active:cursor-grabbing relative"
+                  className="w-full h-[320px] flex items-center justify-center cursor-grab active:cursor-grabbing relative bg-slate-950/80 rounded-lg p-2"
                   onMouseDown={handleMouseDown}
                   onMouseMove={handleMouseMove}
                   onMouseUp={handleMouseUp}
@@ -1258,39 +1378,111 @@ export default function CargoDetailsDashboardPage() {
                       transition: isDragging ? "none" : "transform 0.1s ease-out"
                     }}
                   >
-                    {/* Floor Grid (rotated X -90) */}
-                    <div className="absolute top-0 left-0 border border-slate-700/60 bg-slate-800/20"
+                    {/* Floor Grid Plane (Plotly Soft Blue Background with White Grid) */}
+                    <div className="absolute top-0 left-0 border border-slate-400/50 bg-[#ebf3ff]/90 shadow-inner"
                       style={{
                         width: "432px",
                         height: "86px",
                         transform: "translateY(86px) rotateX(-90deg)",
                         transformOrigin: "top",
-                        backgroundImage: "linear-gradient(to right, rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.08) 1px, transparent 1px)",
+                        backgroundImage: "linear-gradient(to right, rgba(255,255,255,0.95) 1.5px, transparent 1.5px), linear-gradient(to bottom, rgba(255,255,255,0.95) 1.5px, transparent 1.5px)",
+                        backgroundSize: "36px 36px"
+                      }}
+                    >
+                      {/* SUMBU X (PANJANG AXIS LINE & NUMERICAL TICKS LIKE PLOTLY) */}
+                      <div className="absolute top-0 left-0 right-0 h-[2px] bg-red-600 z-20 pointer-events-none" />
+                      {[0, 200, 400, 600, 800, 1000, 1200].map((val, idx) => {
+                        const m = (idx * 2);
+                        return (
+                          <div
+                            key={`x-tick-${val}`}
+                            className="absolute top-0 flex flex-col items-center pointer-events-none z-20"
+                            style={{ left: `${m * 36}px` }}
+                          >
+                            <div className="w-[1px] h-2 bg-slate-600 font-bold" />
+                            <span className="text-[9px] font-bold text-slate-200 mt-1 font-mono select-none">
+                              {val}
+                            </span>
+                          </div>
+                        );
+                      })}
+                      {/* Sumbu X Label */}
+                      <div className="absolute -top-7 left-1/2 -translate-x-1/2 text-slate-200 font-serif italic text-xs font-bold pointer-events-none">
+                        x
+                      </div>
+
+                      {/* SUMBU Y (LEBAR AXIS LINE & NUMERICAL TICKS LIKE PLOTLY) */}
+                      <div className="absolute top-0 left-0 bottom-0 w-[2px] bg-slate-600 z-20 pointer-events-none" />
+                      {[0, 200, 400, 600, 800, 1000].map((val, idx) => {
+                        const topPx = (idx * 0.48 * 36);
+                        return (
+                          <div
+                            key={`y-tick-${val}`}
+                            className="absolute left-0 flex items-center pointer-events-none z-20"
+                            style={{ top: `${topPx}px` }}
+                          >
+                            <div className="h-[1px] w-2 bg-slate-600 font-bold" />
+                            <span className="text-[9px] font-bold text-slate-200 -translate-x-9 font-mono select-none">
+                              {val}
+                            </span>
+                          </div>
+                        );
+                      })}
+                      {/* Sumbu Y Label */}
+                      <div className="absolute -left-8 top-1/2 -translate-y-1/2 text-slate-200 font-serif italic text-xs font-bold pointer-events-none">
+                        y
+                      </div>
+                    </div>
+
+                    {/* SUMBU Z (TINGGI AXIS LINE & TICKS ON BACK-LEFT WALL LIKE PLOTLY) */}
+                    <div className="absolute top-0 left-0 h-[86px] w-[2px] bg-red-600 z-30 pointer-events-none">
+                      {[0, 200, 400, 600, 800, 1000, 1200].map((val) => {
+                        const norm = val / 1200; // 0 to 1
+                        const topPx = (1 - norm) * 86;
+                        return (
+                          <div
+                            key={`z-tick-${val}`}
+                            className="absolute left-0 flex items-center pointer-events-none z-30"
+                            style={{ top: `${topPx}px` }}
+                          >
+                            <div className="h-[1px] w-2 bg-red-600 font-bold" />
+                            <span className="text-[9px] font-bold text-slate-200 -translate-x-9 font-mono select-none">
+                              {val}
+                            </span>
+                          </div>
+                        );
+                      })}
+                      {/* Sumbu Z Label */}
+                      <div className="absolute -left-7 top-1/2 -translate-y-1/2 text-slate-200 font-serif italic text-xs font-bold pointer-events-none">
+                        z
+                      </div>
+                    </div>
+
+                    {/* Back Wall Plane (Plotly Soft Blue Background with White Grid) */}
+                    <div className="absolute top-0 left-0 border border-slate-400/50 bg-[#ebf3ff]/70"
+                      style={{
+                        width: "432px",
+                        height: "86px",
+                        transform: "translateZ(-86px)",
+                        backgroundImage: "linear-gradient(to right, rgba(255,255,255,0.95) 1.5px, transparent 1.5px), linear-gradient(to bottom, rgba(255,255,255,0.95) 1.5px, transparent 1.5px)",
                         backgroundSize: "36px 36px"
                       }}
                     />
 
-                    {/* Back Wall */}
-                    <div className="absolute top-0 left-0 border border-slate-700/50 bg-slate-900/10"
-                      style={{
-                        width: "432px",
-                        height: "86px",
-                        transform: "translateZ(-86px)"
-                      }}
-                    />
-
-                    {/* Left Wall */}
-                    <div className="absolute top-0 left-0 border border-slate-700/50 bg-slate-900/20"
+                    {/* Left Wall Plane (Plotly Soft Blue Background with White Grid) */}
+                    <div className="absolute top-0 left-0 border border-slate-400/50 bg-[#ebf3ff]/80"
                       style={{
                         width: "86px",
                         height: "86px",
                         transform: "rotateY(90deg)",
-                        transformOrigin: "left"
+                        transformOrigin: "left",
+                        backgroundImage: "linear-gradient(to right, rgba(255,255,255,0.95) 1.5px, transparent 1.5px), linear-gradient(to bottom, rgba(255,255,255,0.95) 1.5px, transparent 1.5px)",
+                        backgroundSize: "36px 36px"
                       }}
                     />
 
-                    {/* Right Wall */}
-                    <div className="absolute top-0 left-0 border border-slate-700/50 bg-slate-900/20"
+                    {/* Right Wall Plane */}
+                    <div className="absolute top-0 left-0 border border-slate-400/30 bg-[#ebf3ff]/30"
                       style={{
                         width: "86px",
                         height: "86px",
@@ -1300,7 +1492,7 @@ export default function CargoDetailsDashboardPage() {
                     />
 
                     {/* Ceiling */}
-                    <div className="absolute top-0 left-0 border border-slate-700/10 bg-slate-950/5"
+                    <div className="absolute top-0 left-0 border border-slate-400/20 bg-slate-950/5"
                       style={{
                         width: "432px",
                         height: "86px",
@@ -1310,19 +1502,110 @@ export default function CargoDetailsDashboardPage() {
                     />
 
                     {/* Render Packed Boxes */}
-                    {packedBoxes.map((box, index) => (
-                      <Box3D
-                        key={index}
-                        w={box.w}
-                        h={box.h}
-                        d={box.d}
-                        x={box.x}
-                        y={box.y}
-                        z={box.z}
-                        color={box.color}
-                        label={box.label}
-                      />
-                    ))}
+                    {[...packedBoxes]
+                      .sort((a, b) => (b.y + b.d) - (a.y + a.d) || a.z - b.z || a.x - b.x)
+                      .map((box, index) => (
+                        <Box3D
+                          key={`${box.id}-${index}`}
+                          w={box.w}
+                          h={box.h}
+                          d={box.d}
+                          x={box.x}
+                          y={box.y}
+                          z={box.z}
+                          color={box.color}
+                          label={box.label}
+                        />
+                      ))}
+                  </div>
+                </div>
+
+                {/* PANEL PERHITUNGAN METER KONTAINER (SUMBU X, Y, Z) */}
+                <div className="w-full mt-3 bg-slate-900/95 border border-slate-800 rounded-xl p-4 text-xs shadow-lg">
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3 mb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                      <h3 className="font-extrabold text-slate-200 uppercase tracking-wider text-[11px]">
+                        Dashboard Perhitungan Meter & Dimensi Volumetrik
+                      </h3>
+                    </div>
+                    <div className="text-[10px] text-slate-400 font-semibold bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
+                      Rasio Skala: 1.0 m = 36 px
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-slate-300">
+                    <div className="bg-slate-950 p-3 rounded-lg border border-slate-800/80">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[10px] font-bold text-rose-400 uppercase tracking-wider">Sumbu X (Panjang)</span>
+                        <span className="text-[9px] font-bold text-rose-300 bg-rose-950/80 px-1.5 py-0.2 rounded border border-rose-900/60">X-Axis</span>
+                      </div>
+                      <div className="flex items-baseline gap-1 mt-1">
+                        <span className="text-lg font-black text-rose-200">{containerMetrics.maxX.toFixed(2)}</span>
+                        <span className="text-[10px] text-slate-400">/ 12.00 m</span>
+                      </div>
+                      <div className="w-full bg-slate-900 h-1.5 rounded-full mt-2 overflow-hidden border border-slate-800">
+                        <div className="bg-rose-500 h-full transition-all duration-300" style={{ width: `${(containerMetrics.maxX / 12) * 100}%` }} />
+                      </div>
+                      <div className="flex justify-between items-center text-[9px] text-slate-400 mt-1.5 font-semibold">
+                        <span>Terisi: {((containerMetrics.maxX / 12) * 100).toFixed(0)}%</span>
+                        <span className="text-rose-400">Sisa: {containerMetrics.remainingX.toFixed(2)}m</span>
+                      </div>
+                    </div>
+
+                    <div className="bg-slate-950 p-3 rounded-lg border border-slate-800/80">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-wider">Sumbu Y (Lebar)</span>
+                        <span className="text-[9px] font-bold text-cyan-300 bg-cyan-950/80 px-1.5 py-0.2 rounded border border-cyan-900/60">Y-Axis</span>
+                      </div>
+                      <div className="flex items-baseline gap-1 mt-1">
+                        <span className="text-lg font-black text-cyan-200">{containerMetrics.maxY.toFixed(2)}</span>
+                        <span className="text-[10px] text-slate-400">/ 2.40 m</span>
+                      </div>
+                      <div className="w-full bg-slate-900 h-1.5 rounded-full mt-2 overflow-hidden border border-slate-800">
+                        <div className="bg-cyan-400 h-full transition-all duration-300" style={{ width: `${(containerMetrics.maxY / 2.4) * 100}%` }} />
+                      </div>
+                      <div className="flex justify-between items-center text-[9px] text-slate-400 mt-1.5 font-semibold">
+                        <span>Span Kedalaman:</span>
+                        <span className="text-cyan-400">{((containerMetrics.maxY / 2.4) * 100).toFixed(0)}%</span>
+                      </div>
+                    </div>
+
+                    <div className="bg-slate-950 p-3 rounded-lg border border-slate-800/80">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">Sumbu Z (Tinggi)</span>
+                        <span className="text-[9px] font-bold text-amber-300 bg-amber-950/80 px-1.5 py-0.2 rounded border border-amber-900/60">Z-Axis</span>
+                      </div>
+                      <div className="flex items-baseline gap-1 mt-1">
+                        <span className="text-lg font-black text-amber-200">{containerMetrics.maxZ.toFixed(2)}</span>
+                        <span className="text-[10px] text-slate-400">/ 2.40 m</span>
+                      </div>
+                      <div className="w-full bg-slate-900 h-1.5 rounded-full mt-2 overflow-hidden border border-slate-800">
+                        <div className="bg-amber-400 h-full transition-all duration-300" style={{ width: `${(containerMetrics.maxZ / 2.4) * 100}%` }} />
+                      </div>
+                      <div className="flex justify-between items-center text-[9px] text-slate-400 mt-1.5 font-semibold">
+                        <span>Span Ketinggian:</span>
+                        <span className="text-amber-400">{((containerMetrics.maxZ / 2.4) * 100).toFixed(0)}%</span>
+                      </div>
+                    </div>
+
+                    <div className="bg-slate-950 p-3 rounded-lg border border-slate-800/80">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">Perhitungan Volume</span>
+                        <span className="text-[9px] font-bold text-emerald-300 bg-emerald-950/80 px-1.5 py-0.2 rounded border border-emerald-900/60">m³</span>
+                      </div>
+                      <div className="flex items-baseline gap-1 mt-1">
+                        <span className="text-lg font-black text-emerald-200">{containerMetrics.usedVol.toFixed(2)}</span>
+                        <span className="text-[10px] text-slate-400">/ 69.12 m³</span>
+                      </div>
+                      <div className="w-full bg-slate-900 h-1.5 rounded-full mt-2 overflow-hidden border border-slate-800">
+                        <div className="bg-emerald-500 h-full transition-all duration-300" style={{ width: `${containerMetrics.occupancyPercent}%` }} />
+                      </div>
+                      <div className="flex justify-between items-center text-[9px] text-slate-400 mt-1.5 font-semibold">
+                        <span>Total Items: {containerMetrics.boxCount}</span>
+                        <span className="text-emerald-400 font-bold">{containerMetrics.occupancyPercent}%</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>

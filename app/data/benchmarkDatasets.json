@@ -1,0 +1,1146 @@
+{
+  "3dBPP_1": {
+    "key": "3dBPP_1",
+    "name": "3dBPP Benchmark Dataset 1",
+    "binDim": "1200x1200x1200",
+    "maxWeight": "",
+    "items": [
+      {
+        "id": "0",
+        "quantity": 1,
+        "length": 127,
+        "width": 167,
+        "height": 161,
+        "weight": 20
+      },
+      {
+        "id": "1",
+        "quantity": 8,
+        "length": 193,
+        "width": 286,
+        "height": 286,
+        "weight": 37
+      },
+      {
+        "id": "2",
+        "quantity": 6,
+        "length": 250,
+        "width": 286,
+        "height": 97,
+        "weight": 20
+      },
+      {
+        "id": "3",
+        "quantity": 4,
+        "length": 214,
+        "width": 341,
+        "height": 249,
+        "weight": 20
+      },
+      {
+        "id": "4",
+        "quantity": 5,
+        "length": 220,
+        "width": 348,
+        "height": 396,
+        "weight": 48
+      },
+      {
+        "id": "5",
+        "quantity": 5,
+        "length": 161,
+        "width": 413,
+        "height": 133,
+        "weight": 20
+      },
+      {
+        "id": "6",
+        "quantity": 3,
+        "length": 302,
+        "width": 439,
+        "height": 101,
+        "weight": 20
+      },
+      {
+        "id": "7",
+        "quantity": 3,
+        "length": 307,
+        "width": 479,
+        "height": 121,
+        "weight": 20
+      },
+      {
+        "id": "8",
+        "quantity": 9,
+        "length": 353,
+        "width": 481,
+        "height": 209,
+        "weight": 50
+      },
+      {
+        "id": "9",
+        "quantity": 7,
+        "length": 340,
+        "width": 545,
+        "height": 228,
+        "weight": 50
+      }
+    ]
+  },
+  "3dBPP_10": {
+    "key": "3dBPP_10",
+    "name": "3dBPP Benchmark Dataset 10",
+    "binDim": "1500x1500x1500",
+    "maxWeight": "",
+    "items": [
+      {
+        "id": "0",
+        "quantity": 9,
+        "length": 114,
+        "width": 207,
+        "height": 181,
+        "weight": 27
+      },
+      {
+        "id": "1",
+        "quantity": 6,
+        "length": 158,
+        "width": 220,
+        "height": 101,
+        "weight": 20
+      },
+      {
+        "id": "2",
+        "quantity": 7,
+        "length": 206,
+        "width": 270,
+        "height": 199,
+        "weight": 20
+      },
+      {
+        "id": "3",
+        "quantity": 1,
+        "length": 192,
+        "width": 280,
+        "height": 189,
+        "weight": 49
+      },
+      {
+        "id": "4",
+        "quantity": 8,
+        "length": 213,
+        "width": 291,
+        "height": 192,
+        "weight": 20
+      },
+      {
+        "id": "5",
+        "quantity": 6,
+        "length": 211,
+        "width": 297,
+        "height": 133,
+        "weight": 20
+      },
+      {
+        "id": "6",
+        "quantity": 6,
+        "length": 227,
+        "width": 298,
+        "height": 294,
+        "weight": 50
+      },
+      {
+        "id": "7",
+        "quantity": 1,
+        "length": 220,
+        "width": 318,
+        "height": 199,
+        "weight": 50
+      },
+      {
+        "id": "8",
+        "quantity": 3,
+        "length": 217,
+        "width": 325,
+        "height": 189,
+        "weight": 20
+      },
+      {
+        "id": "9",
+        "quantity": 4,
+        "length": 390,
+        "width": 525,
+        "height": 139,
+        "weight": 20
+      }
+    ]
+  },
+  "3dBPP_11": {
+    "key": "3dBPP_11",
+    "name": "3dBPP Benchmark Dataset 11",
+    "binDim": "900x900x900",
+    "maxWeight": "800",
+    "items": [
+      {
+        "id": "0",
+        "quantity": 6,
+        "length": 218,
+        "width": 247,
+        "height": 216,
+        "weight": 50
+      },
+      {
+        "id": "1",
+        "quantity": 2,
+        "length": 215,
+        "width": 265,
+        "height": 64,
+        "weight": 20
+      },
+      {
+        "id": "2",
+        "quantity": 3,
+        "length": 220,
+        "width": 296,
+        "height": 267,
+        "weight": 20
+      },
+      {
+        "id": "3",
+        "quantity": 6,
+        "length": 171,
+        "width": 307,
+        "height": 101,
+        "weight": 20
+      },
+      {
+        "id": "4",
+        "quantity": 1,
+        "length": 280,
+        "width": 318,
+        "height": 298,
+        "weight": 20
+      },
+      {
+        "id": "5",
+        "quantity": 2,
+        "length": 265,
+        "width": 321,
+        "height": 138,
+        "weight": 20
+      },
+      {
+        "id": "6",
+        "quantity": 3,
+        "length": 185,
+        "width": 349,
+        "height": 157,
+        "weight": 20
+      },
+      {
+        "id": "7",
+        "quantity": 5,
+        "length": 297,
+        "width": 358,
+        "height": 151,
+        "weight": 50
+      },
+      {
+        "id": "8",
+        "quantity": 6,
+        "length": 207,
+        "width": 362,
+        "height": 107,
+        "weight": 20
+      },
+      {
+        "id": "9",
+        "quantity": 4,
+        "length": 201,
+        "width": 399,
+        "height": 96,
+        "weight": 20
+      }
+    ]
+  },
+  "3dBPP_12": {
+    "key": "3dBPP_12",
+    "name": "3dBPP Benchmark Dataset 12",
+    "binDim": "1000x1000x1000",
+    "maxWeight": "900",
+    "items": [
+      {
+        "id": "0",
+        "quantity": 3,
+        "length": 218,
+        "width": 247,
+        "height": 216,
+        "weight": 20
+      },
+      {
+        "id": "1",
+        "quantity": 3,
+        "length": 215,
+        "width": 265,
+        "height": 64,
+        "weight": 20
+      },
+      {
+        "id": "2",
+        "quantity": 5,
+        "length": 220,
+        "width": 296,
+        "height": 267,
+        "weight": 20
+      },
+      {
+        "id": "3",
+        "quantity": 6,
+        "length": 171,
+        "width": 307,
+        "height": 101,
+        "weight": 50
+      },
+      {
+        "id": "4",
+        "quantity": 3,
+        "length": 280,
+        "width": 318,
+        "height": 298,
+        "weight": 50
+      },
+      {
+        "id": "5",
+        "quantity": 2,
+        "length": 265,
+        "width": 321,
+        "height": 138,
+        "weight": 20
+      },
+      {
+        "id": "6",
+        "quantity": 4,
+        "length": 185,
+        "width": 349,
+        "height": 157,
+        "weight": 20
+      },
+      {
+        "id": "7",
+        "quantity": 3,
+        "length": 297,
+        "width": 358,
+        "height": 151,
+        "weight": 20
+      },
+      {
+        "id": "8",
+        "quantity": 4,
+        "length": 207,
+        "width": 362,
+        "height": 107,
+        "weight": 20
+      },
+      {
+        "id": "9",
+        "quantity": 5,
+        "length": 201,
+        "width": 399,
+        "height": 96,
+        "weight": 20
+      }
+    ]
+  },
+  "3dBPP_2": {
+    "key": "3dBPP_2",
+    "name": "3dBPP Benchmark Dataset 2",
+    "binDim": "1200x1200x1200",
+    "maxWeight": "1000",
+    "items": [
+      {
+        "id": "0",
+        "quantity": 1,
+        "length": 127,
+        "width": 167,
+        "height": 161,
+        "weight": 20
+      },
+      {
+        "id": "1",
+        "quantity": 8,
+        "length": 193,
+        "width": 286,
+        "height": 286,
+        "weight": 37
+      },
+      {
+        "id": "2",
+        "quantity": 6,
+        "length": 250,
+        "width": 286,
+        "height": 97,
+        "weight": 20
+      },
+      {
+        "id": "3",
+        "quantity": 4,
+        "length": 214,
+        "width": 341,
+        "height": 249,
+        "weight": 20
+      },
+      {
+        "id": "4",
+        "quantity": 5,
+        "length": 220,
+        "width": 348,
+        "height": 396,
+        "weight": 48
+      },
+      {
+        "id": "5",
+        "quantity": 5,
+        "length": 161,
+        "width": 413,
+        "height": 133,
+        "weight": 20
+      },
+      {
+        "id": "6",
+        "quantity": 3,
+        "length": 302,
+        "width": 439,
+        "height": 101,
+        "weight": 20
+      },
+      {
+        "id": "7",
+        "quantity": 3,
+        "length": 307,
+        "width": 479,
+        "height": 121,
+        "weight": 20
+      },
+      {
+        "id": "8",
+        "quantity": 9,
+        "length": 353,
+        "width": 481,
+        "height": 209,
+        "weight": 50
+      },
+      {
+        "id": "9",
+        "quantity": 7,
+        "length": 340,
+        "width": 545,
+        "height": 228,
+        "weight": 50
+      }
+    ]
+  },
+  "3dBPP_3": {
+    "key": "3dBPP_3",
+    "name": "3dBPP Benchmark Dataset 3",
+    "binDim": "1100x1100x1100",
+    "maxWeight": "",
+    "items": [
+      {
+        "id": "0",
+        "quantity": 6,
+        "length": 144,
+        "width": 186,
+        "height": 149,
+        "weight": 50
+      },
+      {
+        "id": "1",
+        "quantity": 1,
+        "length": 136,
+        "width": 198,
+        "height": 104,
+        "weight": 43
+      },
+      {
+        "id": "2",
+        "quantity": 2,
+        "length": 143,
+        "width": 198,
+        "height": 114,
+        "weight": 37
+      },
+      {
+        "id": "3",
+        "quantity": 6,
+        "length": 182,
+        "width": 284,
+        "height": 397,
+        "weight": 20
+      },
+      {
+        "id": "4",
+        "quantity": 6,
+        "length": 226,
+        "width": 291,
+        "height": 291,
+        "weight": 20
+      },
+      {
+        "id": "5",
+        "quantity": 5,
+        "length": 112,
+        "width": 292,
+        "height": 206,
+        "weight": 20
+      },
+      {
+        "id": "6",
+        "quantity": 9,
+        "length": 263,
+        "width": 349,
+        "height": 159,
+        "weight": 20
+      },
+      {
+        "id": "7",
+        "quantity": 4,
+        "length": 177,
+        "width": 362,
+        "height": 123,
+        "weight": 20
+      },
+      {
+        "id": "8",
+        "quantity": 7,
+        "length": 232,
+        "width": 411,
+        "height": 214,
+        "weight": 20
+      },
+      {
+        "id": "9",
+        "quantity": 6,
+        "length": 316,
+        "width": 439,
+        "height": 229,
+        "weight": 46
+      }
+    ]
+  },
+  "3dBPP_4": {
+    "key": "3dBPP_4",
+    "name": "3dBPP Benchmark Dataset 4",
+    "binDim": "1100x1100x1100",
+    "maxWeight": "",
+    "items": [
+      {
+        "id": "0",
+        "quantity": 6,
+        "length": 144,
+        "width": 186,
+        "height": 149,
+        "weight": 50
+      },
+      {
+        "id": "1",
+        "quantity": 1,
+        "length": 136,
+        "width": 198,
+        "height": 104,
+        "weight": 43
+      },
+      {
+        "id": "2",
+        "quantity": 2,
+        "length": 143,
+        "width": 198,
+        "height": 114,
+        "weight": 37
+      },
+      {
+        "id": "3",
+        "quantity": 6,
+        "length": 182,
+        "width": 284,
+        "height": 397,
+        "weight": 20
+      },
+      {
+        "id": "4",
+        "quantity": 6,
+        "length": 226,
+        "width": 291,
+        "height": 291,
+        "weight": 20
+      },
+      {
+        "id": "5",
+        "quantity": 5,
+        "length": 112,
+        "width": 292,
+        "height": 206,
+        "weight": 20
+      },
+      {
+        "id": "6",
+        "quantity": 9,
+        "length": 263,
+        "width": 349,
+        "height": 159,
+        "weight": 20
+      },
+      {
+        "id": "7",
+        "quantity": 4,
+        "length": 177,
+        "width": 362,
+        "height": 123,
+        "weight": 20
+      },
+      {
+        "id": "8",
+        "quantity": 7,
+        "length": 232,
+        "width": 411,
+        "height": 214,
+        "weight": 20
+      },
+      {
+        "id": "9",
+        "quantity": 6,
+        "length": 316,
+        "width": 439,
+        "height": 229,
+        "weight": 46
+      }
+    ]
+  },
+  "3dBPP_5": {
+    "key": "3dBPP_5",
+    "name": "3dBPP Benchmark Dataset 5",
+    "binDim": "1100x1100x1100",
+    "maxWeight": "",
+    "items": [
+      {
+        "id": "0",
+        "quantity": 2,
+        "length": 83,
+        "width": 156,
+        "height": 224,
+        "weight": 20
+      },
+      {
+        "id": "1",
+        "quantity": 5,
+        "length": 185,
+        "width": 231,
+        "height": 109,
+        "weight": 38
+      },
+      {
+        "id": "2",
+        "quantity": 9,
+        "length": 188,
+        "width": 305,
+        "height": 232,
+        "weight": 21
+      },
+      {
+        "id": "3",
+        "quantity": 9,
+        "length": 246,
+        "width": 336,
+        "height": 157,
+        "weight": 43
+      },
+      {
+        "id": "4",
+        "quantity": 9,
+        "length": 254,
+        "width": 361,
+        "height": 193,
+        "weight": 20
+      },
+      {
+        "id": "5",
+        "quantity": 1,
+        "length": 279,
+        "width": 411,
+        "height": 236,
+        "weight": 20
+      },
+      {
+        "id": "6",
+        "quantity": 3,
+        "length": 239,
+        "width": 456,
+        "height": 205,
+        "weight": 50
+      },
+      {
+        "id": "7",
+        "quantity": 5,
+        "length": 320,
+        "width": 462,
+        "height": 87,
+        "weight": 20
+      },
+      {
+        "id": "8",
+        "quantity": 5,
+        "length": 342,
+        "width": 561,
+        "height": 137,
+        "weight": 20
+      },
+      {
+        "id": "9",
+        "quantity": 5,
+        "length": 391,
+        "width": 593,
+        "height": 125,
+        "weight": 50
+      }
+    ]
+  },
+  "3dBPP_6": {
+    "key": "3dBPP_6",
+    "name": "3dBPP Benchmark Dataset 6",
+    "binDim": "1100x1100x1100",
+    "maxWeight": "",
+    "items": [
+      {
+        "id": "0",
+        "quantity": 2,
+        "length": 83,
+        "width": 156,
+        "height": 224,
+        "weight": 20
+      },
+      {
+        "id": "1",
+        "quantity": 5,
+        "length": 185,
+        "width": 231,
+        "height": 109,
+        "weight": 38
+      },
+      {
+        "id": "2",
+        "quantity": 9,
+        "length": 188,
+        "width": 305,
+        "height": 232,
+        "weight": 21
+      },
+      {
+        "id": "3",
+        "quantity": 9,
+        "length": 246,
+        "width": 336,
+        "height": 157,
+        "weight": 43
+      },
+      {
+        "id": "4",
+        "quantity": 9,
+        "length": 254,
+        "width": 361,
+        "height": 193,
+        "weight": 20
+      },
+      {
+        "id": "5",
+        "quantity": 1,
+        "length": 279,
+        "width": 411,
+        "height": 236,
+        "weight": 20
+      },
+      {
+        "id": "6",
+        "quantity": 3,
+        "length": 239,
+        "width": 456,
+        "height": 205,
+        "weight": 50
+      },
+      {
+        "id": "7",
+        "quantity": 5,
+        "length": 320,
+        "width": 462,
+        "height": 87,
+        "weight": 20
+      },
+      {
+        "id": "8",
+        "quantity": 5,
+        "length": 342,
+        "width": 561,
+        "height": 137,
+        "weight": 20
+      },
+      {
+        "id": "9",
+        "quantity": 5,
+        "length": 391,
+        "width": 593,
+        "height": 125,
+        "weight": 50
+      }
+    ]
+  },
+  "3dBPP_7": {
+    "key": "3dBPP_7",
+    "name": "3dBPP Benchmark Dataset 7",
+    "binDim": "1200x1200x1200",
+    "maxWeight": "",
+    "items": [
+      {
+        "id": "0",
+        "quantity": 8,
+        "length": 166,
+        "width": 232,
+        "height": 208,
+        "weight": 50
+      },
+      {
+        "id": "1",
+        "quantity": 7,
+        "length": 280,
+        "width": 300,
+        "height": 279,
+        "weight": 20
+      },
+      {
+        "id": "2",
+        "quantity": 2,
+        "length": 216,
+        "width": 314,
+        "height": 128,
+        "weight": 20
+      },
+      {
+        "id": "3",
+        "quantity": 4,
+        "length": 285,
+        "width": 343,
+        "height": 154,
+        "weight": 28
+      },
+      {
+        "id": "4",
+        "quantity": 4,
+        "length": 244,
+        "width": 350,
+        "height": 460,
+        "weight": 20
+      },
+      {
+        "id": "5",
+        "quantity": 8,
+        "length": 371,
+        "width": 400,
+        "height": 233,
+        "weight": 20
+      },
+      {
+        "id": "6",
+        "quantity": 1,
+        "length": 263,
+        "width": 423,
+        "height": 189,
+        "weight": 20
+      },
+      {
+        "id": "7",
+        "quantity": 5,
+        "length": 159,
+        "width": 426,
+        "height": 284,
+        "weight": 20
+      },
+      {
+        "id": "8",
+        "quantity": 6,
+        "length": 377,
+        "width": 457,
+        "height": 204,
+        "weight": 20
+      },
+      {
+        "id": "9",
+        "quantity": 1,
+        "length": 268,
+        "width": 459,
+        "height": 181,
+        "weight": 20
+      }
+    ]
+  },
+  "3dBPP_8": {
+    "key": "3dBPP_8",
+    "name": "3dBPP Benchmark Dataset 8",
+    "binDim": "1200x1200x1200",
+    "maxWeight": "",
+    "items": [
+      {
+        "id": "0",
+        "quantity": 8,
+        "length": 166,
+        "width": 232,
+        "height": 208,
+        "weight": 50
+      },
+      {
+        "id": "1",
+        "quantity": 7,
+        "length": 280,
+        "width": 300,
+        "height": 279,
+        "weight": 20
+      },
+      {
+        "id": "2",
+        "quantity": 2,
+        "length": 216,
+        "width": 314,
+        "height": 128,
+        "weight": 20
+      },
+      {
+        "id": "3",
+        "quantity": 4,
+        "length": 285,
+        "width": 343,
+        "height": 154,
+        "weight": 28
+      },
+      {
+        "id": "4",
+        "quantity": 4,
+        "length": 244,
+        "width": 350,
+        "height": 460,
+        "weight": 20
+      },
+      {
+        "id": "5",
+        "quantity": 8,
+        "length": 371,
+        "width": 400,
+        "height": 233,
+        "weight": 20
+      },
+      {
+        "id": "6",
+        "quantity": 1,
+        "length": 263,
+        "width": 423,
+        "height": 189,
+        "weight": 20
+      },
+      {
+        "id": "7",
+        "quantity": 5,
+        "length": 159,
+        "width": 426,
+        "height": 284,
+        "weight": 20
+      },
+      {
+        "id": "8",
+        "quantity": 6,
+        "length": 377,
+        "width": 457,
+        "height": 204,
+        "weight": 20
+      },
+      {
+        "id": "9",
+        "quantity": 1,
+        "length": 268,
+        "width": 459,
+        "height": 181,
+        "weight": 20
+      }
+    ]
+  },
+  "3dBPP_9": {
+    "key": "3dBPP_9",
+    "name": "3dBPP Benchmark Dataset 9",
+    "binDim": "1500x1500x1500",
+    "maxWeight": "",
+    "items": [
+      {
+        "id": "0",
+        "quantity": 6,
+        "length": 218,
+        "width": 247,
+        "height": 216,
+        "weight": 20
+      },
+      {
+        "id": "1",
+        "quantity": 1,
+        "length": 215,
+        "width": 265,
+        "height": 64,
+        "weight": 20
+      },
+      {
+        "id": "2",
+        "quantity": 3,
+        "length": 220,
+        "width": 296,
+        "height": 267,
+        "weight": 20
+      },
+      {
+        "id": "3",
+        "quantity": 2,
+        "length": 171,
+        "width": 307,
+        "height": 101,
+        "weight": 50
+      },
+      {
+        "id": "4",
+        "quantity": 3,
+        "length": 280,
+        "width": 318,
+        "height": 298,
+        "weight": 20
+      },
+      {
+        "id": "5",
+        "quantity": 8,
+        "length": 265,
+        "width": 321,
+        "height": 138,
+        "weight": 20
+      },
+      {
+        "id": "6",
+        "quantity": 7,
+        "length": 185,
+        "width": 349,
+        "height": 157,
+        "weight": 20
+      },
+      {
+        "id": "7",
+        "quantity": 6,
+        "length": 297,
+        "width": 358,
+        "height": 151,
+        "weight": 50
+      },
+      {
+        "id": "8",
+        "quantity": 8,
+        "length": 207,
+        "width": 362,
+        "height": 107,
+        "weight": 20
+      },
+      {
+        "id": "9",
+        "quantity": 3,
+        "length": 201,
+        "width": 399,
+        "height": 96,
+        "weight": 20
+      }
+    ]
+  },
+  "3dBPP_test": {
+    "key": "3dBPP_test",
+    "name": "3dBPP Benchmark Dataset test",
+    "binDim": "1500x1500x1500",
+    "maxWeight": "1000",
+    "items": [
+      {
+        "id": "0",
+        "quantity": 3,
+        "length": 171,
+        "width": 237,
+        "height": 99,
+        "weight": 27
+      },
+      {
+        "id": "1",
+        "quantity": 5,
+        "length": 145,
+        "width": 243,
+        "height": 159,
+        "weight": 20
+      },
+      {
+        "id": "2",
+        "quantity": 2,
+        "length": 210,
+        "width": 265,
+        "height": 138,
+        "weight": 20
+      },
+      {
+        "id": "3",
+        "quantity": 5,
+        "length": 217,
+        "width": 298,
+        "height": 120,
+        "weight": 20
+      },
+      {
+        "id": "4",
+        "quantity": 2,
+        "length": 240,
+        "width": 298,
+        "height": 257,
+        "weight": 20
+      },
+      {
+        "id": "5",
+        "quantity": 6,
+        "length": 216,
+        "width": 317,
+        "height": 192,
+        "weight": 20
+      },
+      {
+        "id": "6",
+        "quantity": 3,
+        "length": 185,
+        "width": 330,
+        "height": 139,
+        "weight": 20
+      },
+      {
+        "id": "7",
+        "quantity": 6,
+        "length": 294,
+        "width": 340,
+        "height": 150,
+        "weight": 20
+      },
+      {
+        "id": "8",
+        "quantity": 3,
+        "length": 272,
+        "width": 373,
+        "height": 133,
+        "weight": 50
+      },
+      {
+        "id": "9",
+        "quantity": 3,
+        "length": 291,
+        "width": 392,
+        "height": 178,
+        "weight": 20
+      }
+    ]
+  }
+}
