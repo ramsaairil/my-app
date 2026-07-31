@@ -39,12 +39,9 @@ const getShapeLabel = (dimStr?: string): string => {
 // Types
 interface CargoItem {
   id: string;
-  badge: string;
-  badgeColor: string;
   type: string;
   qty: string;
   dimension: string;
-  method: string;
 }
 
 export default function CargoDatabasePage() {
@@ -66,8 +63,6 @@ export default function CargoDatabasePage() {
   const [customType, setCustomType] = useState("Pallet");
   const [customQty, setCustomQty] = useState("10 Unit");
   const [customDim, setCustomDim] = useState("1.2x0.8x1.4 m");
-  const [customMethod, setCustomMethod] = useState("Forklift");
-  const [customBadge, setCustomBadge] = useState("Standar");
   const [customCounter, setCustomCounter] = useState(1);
 
   // Baseline profiles definitions
@@ -76,34 +71,34 @@ export default function CargoDatabasePage() {
       name: "Operasi Default Logistic",
       description: "Muatan kargo default (KRG-9821, KRG-9822, KRG-9823) dengan beberapa slot terisi sebelumnya.",
       shipments: [
-        { id: "KRG-9821", badge: "Standar", badgeColor: "bg-slate-100 text-slate-700 border-slate-200", type: "Pallet", qty: "10 palet", dimension: "0.8x0.6x1 m", method: "Forklift" },
-        { id: "KRG-9822", badge: "Prioritas", badgeColor: "bg-green-50 text-green-700 border-green-200", type: "Kotak", qty: "15 kotak", dimension: "0.4x0.2x1 m", method: "Manual" },
-        { id: "KRG-9823", badge: "Volume Tinggi", badgeColor: "bg-blue-50 text-blue-700 border-blue-200", type: "Kotak", qty: "12 kotak", dimension: "1.5x1.2x0.4 m", method: "Forklift" }
+        { id: "KRG-9821", type: "Pallet", qty: "10 palet", dimension: "0.8x0.6x1 m" },
+        { id: "KRG-9822", type: "Kotak", qty: "15 kotak", dimension: "0.4x0.2x1 m" },
+        { id: "KRG-9823", type: "Kotak", qty: "12 kotak", dimension: "1.5x1.2x0.4 m" }
       ] as CargoItem[]
     },
     br1: {
       name: "Bischoff & Ratcliff (BR1) - Heterogen Lemah",
       description: "Dataset patokan standar BR1 untuk masalah pengepakan kontainer yang berisi kargo dengan jenis heterogen lemah.",
       shipments: [
-        { id: "KRG-BR1-01", badge: "Standar", badgeColor: "bg-slate-100 text-slate-700 border-slate-200", type: "Pallet", qty: "8 palet", dimension: "1.2x0.8x1.6 m", method: "Forklift" },
-        { id: "KRG-BR1-02", badge: "Prioritas", badgeColor: "bg-green-50 text-green-700 border-green-200", type: "Kotak", qty: "5 kotak", dimension: "0.8x0.6x1.0 m", method: "Manual" },
-        { id: "KRG-BR1-03", badge: "Volume Tinggi", badgeColor: "bg-blue-50 text-blue-700 border-blue-200", type: "Kotak", qty: "10 kotak", dimension: "0.4x0.4x0.4 m", method: "Manual" }
+        { id: "KRG-BR1-01", type: "Pallet", qty: "8 palet", dimension: "1.2x0.8x1.6 m" },
+        { id: "KRG-BR1-02", type: "Kotak", qty: "5 kotak", dimension: "0.8x0.6x1.0 m" },
+        { id: "KRG-BR1-03", type: "Kotak", qty: "10 kotak", dimension: "0.4x0.4x0.4 m" }
       ] as CargoItem[]
     },
     br5: {
       name: "Bischoff & Ratcliff (BR5) - Heterogen Sedang",
       description: "Dataset patokan BR5 dengan lebih banyak variasi dalam ukuran kotak dan batasan, ideal untuk pengujian distribusi berat.",
       shipments: [
-        { id: "KRG-BR5-01", badge: "Prioritas", badgeColor: "bg-green-50 text-green-700 border-green-200", type: "Pallet", qty: "4 palet", dimension: "2.0x0.8x1.2 m", method: "Forklift" },
-        { id: "KRG-BR5-02", badge: "Volume Tinggi", badgeColor: "bg-blue-50 text-blue-700 border-blue-200", type: "Kotak", qty: "6 kotak", dimension: "0.8x0.8x1.8 m", method: "Manual" },
-        { id: "KRG-BR5-03", badge: "Standar", badgeColor: "bg-slate-100 text-slate-700 border-slate-200", type: "Kotak", qty: "12 kotak", dimension: "0.5x0.5x0.5 m", method: "Manual" }
+        { id: "KRG-BR5-01", type: "Pallet", qty: "4 palet", dimension: "2.0x0.8x1.2 m" },
+        { id: "KRG-BR5-02", type: "Kotak", qty: "6 kotak", dimension: "0.8x0.8x1.8 m" },
+        { id: "KRG-BR5-03", type: "Kotak", qty: "12 kotak", dimension: "0.5x0.5x0.5 m" }
       ] as CargoItem[]
     },
     homogeneous: {
       name: "Profil Europallet Homogen",
       description: "Europallet standar seragam untuk optimalisasi muatan kontainer seragam dan pengepakan volume maksimum.",
       shipments: [
-        { id: "KRG-HOM-01", badge: "Standar", badgeColor: "bg-slate-100 text-slate-700 border-slate-200", type: "Pallet", qty: "18 palet", dimension: "1.2x0.8x1.4 m", method: "Forklift" }
+        { id: "KRG-HOM-01", type: "Pallet", qty: "18 palet", dimension: "1.2x0.8x1.4 m" }
       ] as CargoItem[]
     }
   };
@@ -122,8 +117,6 @@ export default function CargoDatabasePage() {
     return customShipments[activeBaseline] || [];
   }, [customShipments, activeBaseline]);
 
-
-
   // Sync cargos from Supabase PostgreSQL database
   useEffect(() => {
     async function syncDb() {
@@ -131,17 +124,9 @@ export default function CargoDatabasePage() {
       if (dbCargos && dbCargos.length > 0) {
         const mappedFromDb: CargoItem[] = dbCargos.map((item) => ({
           id: item.id,
-          badge: item.priority || "Standar",
-          badgeColor:
-            item.priority === "Prioritas" || item.priority === "Express" || item.priority === "Same day"
-              ? "bg-green-50 text-green-700 border-green-200"
-              : item.priority === "Volume Tinggi"
-              ? "bg-blue-50 text-blue-700 border-blue-200"
-              : "bg-slate-100 text-slate-700 border-slate-200",
           type: item.category || "Pallet",
           qty: `${item.quantity || 1} unit`,
-          dimension: item.dimension || "1.2x0.8x1.4 m",
-          method: item.handling_method || "Forklift"
+          dimension: item.dimension || "1.2x0.8x1.4 m"
         }));
 
         setCustomShipments((prev) => ({
@@ -165,21 +150,11 @@ export default function CargoDatabasePage() {
       return;
     }
 
-    const badgeColor =
-      customBadge === "Prioritas"
-        ? "bg-green-50 text-green-700 border-green-200"
-        : customBadge === "Volume Tinggi"
-          ? "bg-blue-50 text-blue-700 border-blue-200"
-          : "bg-slate-100 text-slate-700 border-slate-200";
-
     const newItem: CargoItem = {
       id: idToUse,
-      badge: customBadge,
-      badgeColor,
       type: customType,
       qty: customQty,
-      dimension: customDim,
-      method: customMethod
+      dimension: customDim
     };
 
     // Save to Supabase PostgreSQL database
@@ -189,11 +164,9 @@ export default function CargoDatabasePage() {
       id: idToUse,
       name: `Kargo ${idToUse}`,
       category: customType,
-      priority: customBadge,
       quantity: qtyNumber,
       dimension: customDim,
       volume_m3: volM3,
-      handling_method: customMethod,
       status: "Unassigned"
     });
 
@@ -218,11 +191,6 @@ export default function CargoDatabasePage() {
     showToast(`Kargo ${id} berhasil dihapus!`, "success");
   };
 
-  const handleBaselineChange = (val: keyof typeof baselines) => {
-    setActiveBaseline(val);
-    showToast(`Memuat dataset kargo: ${baselines[val].name}`, "success");
-  };
-
   const showToast = (message: string, type: "success" | "error" = "success") => {
     setToast({ show: true, message, type });
     setTimeout(() => {
@@ -235,8 +203,7 @@ export default function CargoDatabasePage() {
     return availableShipments.filter((shipment) => {
       return (
         shipment.id.toLowerCase().includes(searchQuery.toLowerCase().trim()) ||
-        shipment.type.toLowerCase().includes(searchQuery.toLowerCase().trim()) ||
-        shipment.badge.toLowerCase().includes(searchQuery.toLowerCase().trim())
+        shipment.type.toLowerCase().includes(searchQuery.toLowerCase().trim())
       );
     });
   }, [availableShipments, searchQuery]);
@@ -333,7 +300,7 @@ export default function CargoDatabasePage() {
                   </button>
                 </div>
                 
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-xs font-medium">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4 text-xs font-medium">
                   <div>
                     <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">ID Kargo (Opsional)</label>
                     <input
@@ -370,8 +337,6 @@ export default function CargoDatabasePage() {
                     />
                   </div>
 
-
-
                   <div>
                     <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">Dimensi (P x L x T)</label>
                     <input
@@ -382,31 +347,6 @@ export default function CargoDatabasePage() {
                       className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-emerald-700 text-slate-800 font-mono"
                       required
                     />
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">Prioritas / Badge</label>
-                    <select
-                      value={customBadge}
-                      onChange={(e) => setCustomBadge(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-emerald-700 text-slate-800 cursor-pointer"
-                    >
-                      <option value="Standar">Standar</option>
-                      <option value="Prioritas">Prioritas</option>
-                      <option value="Volume Tinggi">Volume Tinggi</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">Metode Muat</label>
-                    <select
-                      value={customMethod}
-                      onChange={(e) => setCustomMethod(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-emerald-700 text-slate-800 cursor-pointer"
-                    >
-                      <option value="Forklift">Forklift</option>
-                      <option value="Manual">Manual</option>
-                    </select>
                   </div>
 
                   <div className="flex items-end">
@@ -421,21 +361,17 @@ export default function CargoDatabasePage() {
               </form>
             )}
 
-
-
             {/* Inventory Table List */}
             <div className="overflow-x-auto rounded-xl border border-slate-200/80 bg-white shadow-2xs">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
                   <tr className="border-b border-slate-200 text-slate-400 font-bold uppercase tracking-wider bg-slate-50/70">
                     <th className="py-3 px-4">ID Kargo</th>
-                    <th className="py-3 px-4">Prioritas</th>
                     <th className="py-3 px-4">Jenis Paket</th>
                     <th className="py-3 px-4">Jumlah</th>
                     <th className="py-3 px-4">Dimensi (P x L x T)</th>
                     <th className="py-3 px-4">Total Volume</th>
                     <th className="py-3 px-4">Bentuk</th>
-                    <th className="py-3 px-4">Metode Muat</th>
                     <th className="py-3 px-4 text-right">Aksi</th>
                   </tr>
                 </thead>
@@ -448,11 +384,6 @@ export default function CargoDatabasePage() {
                           <span>{shipment.id}</span>
                         </div>
                       </td>
-                      <td className="py-3.5 px-4">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${shipment.badgeColor}`}>
-                          {shipment.badge}
-                        </span>
-                      </td>
                       <td className="py-3.5 px-4 font-semibold text-slate-800">{shipment.type}</td>
                       <td className="py-3.5 px-4 font-bold text-slate-900">{shipment.qty}</td>
                       <td className="py-3.5 px-4 font-mono text-slate-700">{shipment.dimension}</td>
@@ -460,7 +391,6 @@ export default function CargoDatabasePage() {
                         {(getVolume(shipment.dimension) * (parseInt(shipment.qty) || 1)).toFixed(2)} m³
                       </td>
                       <td className="py-3.5 px-4 font-semibold text-slate-700">{getShapeLabel(shipment.dimension)}</td>
-                      <td className="py-3.5 px-4 font-medium text-slate-600">{shipment.method}</td>
                       <td className="py-3.5 px-4 text-right">
                         <button
                           onClick={() => handleDeleteCargo(shipment.id)}
@@ -474,7 +404,7 @@ export default function CargoDatabasePage() {
                   ))}
                   {filteredShipments.length === 0 && (
                     <tr>
-                      <td colSpan={9} className="text-center py-16 text-slate-400 text-sm font-semibold bg-slate-50/30">
+                      <td colSpan={7} className="text-center py-16 text-slate-400 text-sm font-semibold bg-slate-50/30">
                         <Inbox size={32} className="mx-auto text-slate-300 mb-2" />
                         Tidak ada data kargo yang cocok dengan &quot;{searchQuery}&quot; dalam kategori ini.
                       </td>
@@ -490,3 +420,4 @@ export default function CargoDatabasePage() {
     </div>
   );
 }
+

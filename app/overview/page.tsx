@@ -200,7 +200,6 @@ export default function HomeOverviewPage() {
                     <thead>
                       <tr className="border-b border-slate-100 text-slate-400 font-bold uppercase tracking-wider">
                         <th className="pb-3 pl-2">ID Truk</th>
-                        <th className="pb-3">Dok/Lokasi</th>
                         <th className="pb-3">Status</th>
                         <th className="pb-3">Muatan Kargo</th>
                         <th className="pb-3 text-right pr-2">Aksi</th>
@@ -214,12 +213,6 @@ export default function HomeOverviewPage() {
                               <img src={truck.image} alt={truck.id} className="w-8 h-6 rounded object-cover border border-slate-100 flex-shrink-0" />
                               <span>{truck.id}</span>
                             </div>
-                          </td>
-                          <td className="py-3.5">
-                            <span className="flex items-center gap-1">
-                              <MapPin size={12} className="text-slate-400" />
-                              {truck.dock}
-                            </span>
                           </td>
                           <td className="py-3.5">
                             <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
