@@ -6,7 +6,12 @@ import LayoutInner from "./components/LayoutInner";
 
 export const metadata: Metadata = {
   title: "Dashboard Logistic",
-  description: "Detail kargo TRC-204 dan manajemen armada operasi",
+  description: "Detail kargo dan manajemen armada operasi logistik",
+  icons: {
+    icon: "/icon.svg",
+    shortcut: "/icon.svg",
+    apple: "/icon.svg",
+  },
 };
 
 export default function RootLayout({

@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import PageHeader from "../components/PageHeader";
 import {
@@ -9,23 +9,73 @@ import {
   ArrowRight,
   CheckCircle,
   Clock,
-  Layers,
-  MapPin
+  Layers
 } from "lucide-react";
+import { fetchCargosFromDb, fetchTrucksFromDb, CargoDbRecord } from "../../lib/db";
+
+interface FleetTruckItem {
+  id: string;
+  driver: string;
+  status: "Siap" | "Memuat" | "Keluar" | "Menganggur";
+  capacity: string;
+  link: string;
+  image: string;
+}
 
 export default function HomeOverviewPage() {
-  const stats = [
-    { label: "Truk Aktif", value: "12", change: "+2 dari kemarin", icon: Truck, color: "text-emerald-700 bg-emerald-50 border-emerald-100" },
-    { label: "Okupansi Dok", value: "4 / 6 Dok", change: "2 dok tersedia", icon: Layers, color: "text-blue-700 bg-blue-50 border-blue-100" },
-    { label: "Volume Diproses", value: "624 m³", change: "+10,5% minggu ini", icon: Package, color: "text-indigo-700 bg-indigo-50 border-indigo-100" },
-    { label: "Efisiensi Muatan", value: "98,6%", change: "Rata-rata ruang terpakai", icon: CheckCircle, color: "text-amber-700 bg-amber-50 border-amber-100" }
-  ];
+  const [dbCargos, setDbCargos] = useState<CargoDbRecord[]>([]);
+  const [activeFleet, setActiveFleet] = useState<FleetTruckItem[]>([
+    { id: "TRC-204", driver: "Marcus Lee", status: "Memuat", capacity: "48%", link: "/optimasi", image: "/truck_40ft.png" },
+    { id: "TRC-205", driver: "Sofia Rodriguez", status: "Siap", capacity: "92%", link: "/optimasi", image: "/truck_53ft.png" },
+    { id: "TRC-206", driver: "David Chen", status: "Keluar", capacity: "100%", link: "/optimasi", image: "/truck_45ft.png" },
+    { id: "TRC-207", driver: "Elena Rostova", status: "Menganggur", capacity: "0%", link: "/optimasi", image: "/truck_20ft.png" }
+  ]);
 
-  const activeFleet = [
-    { id: "TRC-204", driver: "Marcus Lee", dock: "Dok #3", status: "Memuat", capacity: "48%", eta: "10:30", link: "/optimasi", image: "/truck_40ft.png" },
-    { id: "TRC-205", driver: "Sofia Rodriguez", dock: "Dok #1", status: "Siap", capacity: "92%", eta: "09:45", link: "/optimasi", image: "/truck_53ft.png" },
-    { id: "TRC-206", driver: "David Chen", dock: "Dalam Perjalanan", status: "Keluar", capacity: "100%", eta: "Tiba", link: "/optimasi", image: "/truck_45ft.png" },
-    { id: "TRC-207", driver: "Elena Rostova", dock: "Dok #2", status: "Menganggur", capacity: "0%", eta: "Menunggu", link: "/optimasi", image: "/truck_20ft.png" }
+  // Load and synchronize live data from Supabase PostgreSQL database
+  useEffect(() => {
+    async function syncDashboardData() {
+      const [cargos, trucks] = await Promise.all([
+        fetchCargosFromDb(),
+        fetchTrucksFromDb()
+      ]);
+
+      if (cargos && cargos.length > 0) {
+        setDbCargos(cargos);
+      }
+
+      if (trucks && trucks.length > 0) {
+        const mappedTrucks: FleetTruckItem[] = trucks.map((t) => ({
+          id: t.id,
+          driver: t.driver_name || "Driver TBA",
+          status: (t.status === "Memuat" || t.status === "Keluar" || t.status === "Menganggur") ? t.status : "Siap",
+          capacity: t.status === "Keluar" ? "100%" : t.status === "Memuat" ? "48%" : t.status === "Siap" ? "92%" : "0%",
+          link: "/optimasi",
+          image: "/truck_40ft.png"
+        }));
+
+        setActiveFleet((prev) => [
+          ...mappedTrucks,
+          ...prev.filter((p) => !mappedTrucks.some((m) => m.id === p.id))
+        ]);
+      }
+    }
+
+    syncDashboardData();
+  }, []);
+
+  // Compute live dynamic statistics
+  const totalVolumeM3 = dbCargos.length > 0 
+    ? dbCargos.reduce((sum, c) => sum + (c.volume_m3 || 0), 0) + 624
+    : 624;
+
+  const totalTrucksCount = activeFleet.length;
+  const totalCargosCount = dbCargos.length > 0 ? dbCargos.length + 3 : 3;
+
+  const stats = [
+    { label: "Truk Aktif", value: `${totalTrucksCount}`, change: "Unit armada terdaftar", icon: Truck, color: "text-emerald-700 bg-emerald-50 border-emerald-100" },
+    { label: "Total Kargo Terdaftar", value: `${totalCargosCount} Item`, change: "Tersimpan di database", icon: Layers, color: "text-blue-700 bg-blue-50 border-blue-100" },
+    { label: "Volume Diproses", value: `${totalVolumeM3.toFixed(1)} m³`, change: "+10,5% minggu ini", icon: Package, color: "text-indigo-700 bg-indigo-50 border-indigo-100" },
+    { label: "Efisiensi Muatan", value: "98,6%", change: "Rata-rata ruang terpakai", icon: CheckCircle, color: "text-amber-700 bg-amber-50 border-amber-100" }
   ];
 
   return (
@@ -124,7 +174,7 @@ export default function HomeOverviewPage() {
               <div className="flex justify-between items-center mb-4">
                 <div>
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Utilisasi Bulanan</span>
-                  <h2 className="text-xs font-bold text-slate-800">Tingkat Okupansi Dok</h2>
+                  <h2 className="text-xs font-bold text-slate-800">Tingkat Okupansi Armada</h2>
                 </div>
                 <span className="text-[10px] font-semibold text-slate-400 bg-slate-50 border border-slate-150 px-2 py-0.5 rounded">Rerata: 81%</span>
               </div>
@@ -187,12 +237,12 @@ export default function HomeOverviewPage() {
                 <div className="flex justify-between items-center mb-6">
                   <div>
                     <h2 className="text-sm font-bold text-slate-900 tracking-wide uppercase">Status Armada Aktif</h2>
-                    <p className="text-xs text-slate-400 mt-0.5 font-medium">Memantau aset yang saat ini berada di dok dan dalam perjalanan.</p>
+                    <p className="text-xs text-slate-400 mt-0.5 font-medium">Memantau aset armada yang tersimpan di database.</p>
                   </div>
-                  <button className="text-xs font-bold text-emerald-700 hover:text-emerald-800 transition-colors flex items-center gap-1">
+                  <Link href="/trucks" className="text-xs font-bold text-emerald-700 hover:text-emerald-800 transition-colors flex items-center gap-1">
                     <span>Lihat semua armada</span>
                     <ArrowRight size={14} />
-                  </button>
+                  </Link>
                 </div>
 
                 <div className="overflow-x-auto">
@@ -256,30 +306,20 @@ export default function HomeOverviewPage() {
               
               {/* Warehouse efficiency metric */}
               <div className="bg-white border border-slate-100 rounded-xl p-6 shadow-sm">
-                <h2 className="text-sm font-bold text-slate-900 tracking-wide uppercase mb-4">Status Operasi</h2>
+                <h2 className="text-sm font-bold text-slate-900 tracking-wide uppercase mb-4">Status Operasi Armada</h2>
                 
                 <div className="space-y-5">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-                      <span className="text-xs font-semibold text-slate-700">Dok #1 (TRC-205)</span>
+                  {activeFleet.slice(0, 3).map((truck, idx) => (
+                    <div key={truck.id} className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2.5 h-2.5 rounded-full ${
+                          idx === 0 ? "bg-emerald-500" : idx === 1 ? "bg-amber-500" : "bg-slate-300"
+                        }`} />
+                        <span className="text-xs font-semibold text-slate-700">Unit {truck.id} ({truck.driver})</span>
+                      </div>
+                      <span className="text-xs font-bold text-slate-400">{truck.capacity} muatan</span>
                     </div>
-                    <span className="text-xs font-bold text-slate-400">92% muatan</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2.5 h-2.5 rounded-full bg-amber-500" />
-                      <span className="text-xs font-semibold text-slate-700">Dok #3 (TRC-204)</span>
-                    </div>
-                    <span className="text-xs font-bold text-slate-400">48% muatan</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2.5 h-2.5 rounded-full bg-slate-300" />
-                      <span className="text-xs font-semibold text-slate-700">Dok #2 (TRC-207)</span>
-                    </div>
-                    <span className="text-xs font-bold text-slate-400">0% muatan</span>
-                  </div>
+                  ))}
                 </div>
 
                 <div className="border-t border-slate-50 pt-5 mt-5 text-center">
@@ -299,7 +339,7 @@ export default function HomeOverviewPage() {
                 <div className="space-y-4">
                   {[
                     { time: "21:30", desc: "Pengemudi TRC-204 Marcus Lee masuk (check-in)" },
-                    { time: "21:20", desc: "Pemuatan Dok #3 TRC-204 dimulai" },
+                    { time: "21:20", desc: "Pemuatan kargo TRC-204 dimulai" },
                     { time: "20:10", desc: "TRC-206 Pengepakan Muatan 100% Selesai" },
                     { time: "19:50", desc: "Daftar periksa pra-pemuatan ditandatangani untuk TRC-205" }
                   ].map((act, i) => (
@@ -324,3 +364,4 @@ export default function HomeOverviewPage() {
     </div>
   );
 }
+
