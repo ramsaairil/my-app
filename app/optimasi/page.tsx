@@ -1251,7 +1251,7 @@ export default function CargoDetailsDashboardPage() {
                       }`}
                   >
                     <Cpu size={13} className={solverState === "solving" ? "animate-spin" : ""} />
-                    <span>Jalankan Pengepakan Heuristik</span>
+                    <span>Jalankan</span>
                   </button>
 
                   {/* Reset/Clear button */}
