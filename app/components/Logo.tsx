@@ -73,7 +73,6 @@ export default function Logo({
           >
             Logistic
           </span>
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse flex-shrink-0"></span>
         </div>
       )}
     </div>

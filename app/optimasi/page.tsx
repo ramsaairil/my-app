@@ -1128,10 +1128,358 @@ export default function CargoDetailsDashboardPage() {
       <div className="flex-grow overflow-y-auto custom-scrollbar p-4 sm:p-8 bg-[#f8fafc]">
         <div className="max-w-[1400px] mx-auto grid grid-cols-12 gap-6 items-start">
 
-          {/* ==================== LEFT COLUMN ==================== */}
-          <div className="col-span-12 lg:col-span-4 space-y-6">
+          {/* ==================== 12-COL MAIN 3D VISUALIZER CARD ==================== */}
+          <div className="col-span-12 space-y-6">
 
+            {/* Truck Container Diagram Card with unified 3D Viewport & Volumetric Panel */}
+            <section className="bg-white border border-slate-100 rounded-xl p-6 shadow-sm flex flex-col relative overflow-hidden">
 
+              {/* HEURISTIC SOLVER RUNNING OVERLAY */}
+              {solverState === "solving" && (
+                <div className="absolute inset-0 bg-white/95 z-30 flex flex-col items-center justify-center text-center p-6 backdrop-blur-xs animate-fade-in">
+                  <div className="w-10 h-10 border-3 border-emerald-700 border-t-transparent rounded-full animate-spin mb-3" />
+                  <h3 className="text-xs font-bold text-slate-900 tracking-wide uppercase">Bin Packing Solver Running</h3>
+                  <p className="text-[11px] text-slate-500 mt-1 font-medium animate-pulse">{solverProgressMsg}</p>
+                </div>
+              )}
+              
+              <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6">
+                <div>
+                  <h2 className="text-sm font-bold text-slate-900 tracking-wide uppercase">Visualisator Pengepakan Kargo</h2>
+                  <p className="text-xs text-slate-400 mt-0.5 font-medium">Rotasi dan pantau simulasi peletakan kontainer 3D beserta dimensi volumetrik secara presisi.</p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3">
+                  {/* Heuristic optimize button */}
+                  <button
+                    onClick={handleRunBinPackingSolver}
+                    disabled={solverState === "solved"}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${solverState === "solved"
+                        ? "bg-slate-100 border border-slate-200 text-slate-400 cursor-not-allowed"
+                        : "bg-emerald-700 hover:bg-emerald-800 text-white shadow-xs"
+                      }`}
+                  >
+                    <Cpu size={13} className={solverState === "solving" ? "animate-spin" : ""} />
+                    <span>Jalankan</span>
+                  </button>
+
+                  {/* Reset/Clear button */}
+                  <button
+                    onClick={handleClearContainer}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer border border-rose-200 hover:bg-rose-50 text-rose-700 bg-white"
+                  >
+                    <RotateCw size={13} />
+                    <span>Kosongkan Kontainer</span>
+                  </button>
+
+                  {/* Baseline dataset selector */}
+                  <div className="flex items-center gap-1.5 text-xs text-slate-500 font-bold border border-slate-200 px-2.5 py-1 bg-slate-50 rounded-lg shadow-inner">
+                    <span className="text-[10px] text-slate-400 uppercase tracking-wider">Dataset:</span>
+                    <select
+                      value={activeBaseline}
+                      onChange={(e) => handleBaselineChange(e.target.value)}
+                      className="bg-transparent border-none text-slate-750 font-bold focus:outline-none cursor-pointer text-xs pr-1 max-w-[280px] truncate"
+                    >
+                      <optgroup label="Preset Standard">
+                        <option value="default">Default Hold (TRC-204)</option>
+                        <option value="br1">Bischoff BR1 (Heterogen Lemah)</option>
+                        <option value="br5">Bischoff BR5 (Heterogen Sedang)</option>
+                        <option value="homogeneous">Europallet Homogen</option>
+                      </optgroup>
+                      <optgroup label="Benchmark Datasets (Folder Dataset)">
+                        {Object.entries(benchmarkBaselines).map(([k, v]) => (
+                          <option key={k} value={k}>
+                            {v.name}
+                          </option>
+                        ))}
+                      </optgroup>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* 3D Visualizer Container Box (Dark background frame containing both Volumetric Panel on Left + 3D Scene Viewport on Right) */}
+              <div className="w-full p-4 sm:p-5 bg-slate-950 text-white border border-slate-900 rounded-xl select-none overflow-hidden relative shadow-inner space-y-4">
+                
+                {/* Viewport Top Header & Axis Legend Badges */}
+                <div className="w-full flex flex-wrap items-center justify-between gap-2 z-20 pb-3 border-b border-slate-900">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-slate-400 font-semibold bg-slate-900 px-2.5 py-1 rounded-md border border-slate-800 flex items-center gap-2">
+                      <span>🔄 Drag mouse untuk memutar 3D</span>
+                      <button
+                        type="button"
+                        onClick={() => setRotation({ x: -22, y: -45 })}
+                        className="text-emerald-400 hover:text-emerald-300 font-bold transition-colors cursor-pointer"
+                      >
+                        Reset View
+                      </button>
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2 text-[10px] font-bold">
+                    <span className="px-2.5 py-1 bg-rose-950/80 text-rose-300 border border-rose-800/60 rounded-md flex items-center gap-1.5 shadow-xs">
+                      <span className="w-2 h-2 rounded-full bg-rose-500" />
+                      X: 12.0m
+                    </span>
+                    <span className="px-2.5 py-1 bg-cyan-950/80 text-cyan-300 border border-cyan-800/60 rounded-md flex items-center gap-1.5 shadow-xs">
+                      <span className="w-2 h-2 rounded-full bg-cyan-400" />
+                      Y: 2.4m
+                    </span>
+                    <span className="px-2.5 py-1 bg-amber-950/80 text-amber-300 border border-amber-800/60 rounded-md flex items-center gap-1.5 shadow-xs">
+                      <span className="w-2 h-2 rounded-full bg-amber-400" />
+                      Z: 2.4m
+                    </span>
+                  </div>
+                </div>
+
+                {/* Main Inside Grid: Dimensi Volumetrik on Left + 3D Viewport on Right */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
+                  
+                  {/* Left Side Panel: Dimensi Volumetrik */}
+                  <div className="lg:col-span-4 bg-slate-900/90 border border-slate-800 rounded-lg p-3.5 flex flex-col justify-between space-y-2.5">
+                    <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                        <h3 className="font-extrabold text-slate-200 uppercase tracking-wider text-[10px]">
+                          Dimensi Volumetrik
+                        </h3>
+                      </div>
+                      <span className="text-[9px] text-slate-400 font-semibold bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800">
+                        1.0m = 36px
+                      </span>
+                    </div>
+
+                    <div className="space-y-2 flex-1 flex flex-col justify-between">
+                      {/* Sumbu X */}
+                      <div className="bg-slate-950/80 p-2.5 rounded-md border border-slate-800/80">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold text-rose-400 uppercase tracking-wider">Sumbu X (Panjang)</span>
+                          <span className="text-[10px] font-black text-rose-200">{containerMetrics.maxX.toFixed(2)} <span className="text-slate-500 text-[9px] font-normal">/ 12.0m</span></span>
+                        </div>
+                        <div className="w-full bg-slate-900 h-1.5 rounded-full mt-1.5 overflow-hidden border border-slate-800">
+                          <div className="bg-rose-500 h-full transition-all duration-300" style={{ width: `${(containerMetrics.maxX / 12) * 100}%` }} />
+                        </div>
+                        <div className="flex justify-between items-center text-[9px] text-slate-400 mt-1 font-semibold">
+                          <span>Terisi: {((containerMetrics.maxX / 12) * 100).toFixed(0)}%</span>
+                          <span className="text-rose-400">Sisa: {containerMetrics.remainingX.toFixed(2)}m</span>
+                        </div>
+                      </div>
+
+                      {/* Sumbu Y */}
+                      <div className="bg-slate-950/80 p-2.5 rounded-md border border-slate-800/80">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-wider">Sumbu Y (Lebar)</span>
+                          <span className="text-[10px] font-black text-cyan-200">{containerMetrics.maxY.toFixed(2)} <span className="text-slate-500 text-[9px] font-normal">/ 2.4m</span></span>
+                        </div>
+                        <div className="w-full bg-slate-900 h-1.5 rounded-full mt-1.5 overflow-hidden border border-slate-800">
+                          <div className="bg-cyan-400 h-full transition-all duration-300" style={{ width: `${(containerMetrics.maxY / 2.4) * 100}%` }} />
+                        </div>
+                        <div className="flex justify-between items-center text-[9px] text-slate-400 mt-1 font-semibold">
+                          <span>Span Kedalaman:</span>
+                          <span className="text-cyan-400">{((containerMetrics.maxY / 2.4) * 100).toFixed(0)}%</span>
+                        </div>
+                      </div>
+
+                      {/* Sumbu Z */}
+                      <div className="bg-slate-950/80 p-2.5 rounded-md border border-slate-800/80">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">Sumbu Z (Tinggi)</span>
+                          <span className="text-[10px] font-black text-amber-200">{containerMetrics.maxZ.toFixed(2)} <span className="text-slate-500 text-[9px] font-normal">/ 2.4m</span></span>
+                        </div>
+                        <div className="w-full bg-slate-900 h-1.5 rounded-full mt-1.5 overflow-hidden border border-slate-800">
+                          <div className="bg-amber-400 h-full transition-all duration-300" style={{ width: `${(containerMetrics.maxZ / 2.4) * 100}%` }} />
+                        </div>
+                        <div className="flex justify-between items-center text-[9px] text-slate-400 mt-1 font-semibold">
+                          <span>Span Ketinggian:</span>
+                          <span className="text-amber-400">{((containerMetrics.maxZ / 2.4) * 100).toFixed(0)}%</span>
+                        </div>
+                      </div>
+
+                      {/* Volume */}
+                      <div className="bg-slate-950/80 p-2.5 rounded-md border border-slate-800/80">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">Perhitungan Volume</span>
+                          <span className="text-[10px] font-black text-emerald-200">{containerMetrics.usedVol.toFixed(2)} <span className="text-slate-500 text-[9px] font-normal">/ 69.12m³</span></span>
+                        </div>
+                        <div className="w-full bg-slate-900 h-1.5 rounded-full mt-1.5 overflow-hidden border border-slate-800">
+                          <div className="bg-emerald-500 h-full transition-all duration-300" style={{ width: `${containerMetrics.occupancyPercent}%` }} />
+                        </div>
+                        <div className="flex justify-between items-center text-[9px] text-slate-400 mt-1 font-semibold">
+                          <span>Total Items: {containerMetrics.boxCount}</span>
+                          <span className="text-emerald-400 font-bold">{containerMetrics.occupancyPercent}%</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 3D Scene Viewport on Right */}
+                  <div
+                    className="lg:col-span-8 h-[380px] flex items-center justify-center cursor-grab active:cursor-grabbing relative bg-slate-900/60 rounded-lg p-2 border border-slate-800/60 overflow-hidden"
+                    onMouseDown={handleMouseDown}
+                    onMouseMove={handleMouseMove}
+                    onMouseUp={handleMouseUp}
+                    onMouseLeave={handleMouseUp}
+                    style={{ perspective: "1200px" }}
+                  >
+                    {/* Container 3D Bounds */}
+                    <div
+                      className="relative"
+                      style={{
+                        width: "432px",
+                        height: "86px",
+                        transformStyle: "preserve-3d",
+                        transform: `rotateX(${rotation.x}deg) rotateY(${rotation.y}deg)`,
+                        transition: isDragging ? "none" : "transform 0.1s ease-out"
+                      }}
+                    >
+                      {/* Floor Grid Plane */}
+                      <div className="absolute top-0 left-0 border border-slate-400/50 bg-[#ebf3ff]/90 shadow-inner"
+                        style={{
+                          width: "432px",
+                          height: "86px",
+                          transform: "translateY(86px) rotateX(-90deg)",
+                          transformOrigin: "top",
+                          backgroundImage: "linear-gradient(to right, rgba(255,255,255,0.95) 1.5px, transparent 1.5px), linear-gradient(to bottom, rgba(255,255,255,0.95) 1.5px, transparent 1.5px)",
+                          backgroundSize: "36px 36px"
+                        }}
+                      >
+                        {/* SUMBU X */}
+                        <div className="absolute top-0 left-0 right-0 h-[2px] bg-red-600 z-20 pointer-events-none" />
+                        {[0, 200, 400, 600, 800, 1000, 1200].map((val, idx) => {
+                          const m = (idx * 2);
+                          return (
+                            <div
+                              key={`x-tick-${val}`}
+                              className="absolute top-0 flex flex-col items-center pointer-events-none z-20"
+                              style={{ left: `${m * 36}px` }}
+                            >
+                              <div className="w-[1px] h-2 bg-slate-600 font-bold" />
+                              <span className="text-[9px] font-bold text-slate-200 mt-1 font-mono select-none">
+                                {val}
+                              </span>
+                            </div>
+                          );
+                        })}
+                        <div className="absolute -top-7 left-1/2 -translate-x-1/2 text-slate-200 font-serif italic text-xs font-bold pointer-events-none">
+                          x
+                        </div>
+
+                        {/* SUMBU Y */}
+                        <div className="absolute top-0 left-0 bottom-0 w-[2px] bg-slate-600 z-20 pointer-events-none" />
+                        {[0, 200, 400, 600, 800, 1000].map((val, idx) => {
+                          const topPx = (idx * 0.48 * 36);
+                          return (
+                            <div
+                              key={`y-tick-${val}`}
+                              className="absolute left-0 flex items-center pointer-events-none z-20"
+                              style={{ top: `${topPx}px` }}
+                            >
+                              <div className="h-[1px] w-2 bg-slate-600 font-bold" />
+                              <span className="text-[9px] font-bold text-slate-200 -translate-x-9 font-mono select-none">
+                                {val}
+                              </span>
+                            </div>
+                          );
+                        })}
+                        <div className="absolute -left-8 top-1/2 -translate-y-1/2 text-slate-200 font-serif italic text-xs font-bold pointer-events-none">
+                          y
+                        </div>
+                      </div>
+
+                      {/* SUMBU Z */}
+                      <div className="absolute top-0 left-0 h-[86px] w-[2px] bg-red-600 z-30 pointer-events-none">
+                        {[0, 200, 400, 600, 800, 1000, 1200].map((val) => {
+                          const norm = val / 1200;
+                          const topPx = (1 - norm) * 86;
+                          return (
+                            <div
+                              key={`z-tick-${val}`}
+                              className="absolute left-0 flex items-center pointer-events-none z-30"
+                              style={{ top: `${topPx}px` }}
+                            >
+                              <div className="h-[1px] w-2 bg-red-600 font-bold" />
+                              <span className="text-[9px] font-bold text-slate-200 -translate-x-9 font-mono select-none">
+                                {val}
+                              </span>
+                            </div>
+                          );
+                        })}
+                        <div className="absolute -left-7 top-1/2 -translate-y-1/2 text-slate-200 font-serif italic text-xs font-bold pointer-events-none">
+                          z
+                        </div>
+                      </div>
+
+                      {/* Back Wall Plane */}
+                      <div className="absolute top-0 left-0 border border-slate-400/50 bg-[#ebf3ff]/70"
+                        style={{
+                          width: "432px",
+                          height: "86px",
+                          transform: "translateZ(-86px)",
+                          backgroundImage: "linear-gradient(to right, rgba(255,255,255,0.95) 1.5px, transparent 1.5px), linear-gradient(to bottom, rgba(255,255,255,0.95) 1.5px, transparent 1.5px)",
+                          backgroundSize: "36px 36px"
+                        }}
+                      />
+
+                      {/* Left Wall Plane */}
+                      <div className="absolute top-0 left-0 border border-slate-400/50 bg-[#ebf3ff]/80"
+                        style={{
+                          width: "86px",
+                          height: "86px",
+                          transform: "rotateY(90deg)",
+                          transformOrigin: "left",
+                          backgroundImage: "linear-gradient(to right, rgba(255,255,255,0.95) 1.5px, transparent 1.5px), linear-gradient(to bottom, rgba(255,255,255,0.95) 1.5px, transparent 1.5px)",
+                          backgroundSize: "36px 36px"
+                        }}
+                      />
+
+                      {/* Right Wall Plane */}
+                      <div className="absolute top-0 left-0 border border-slate-400/30 bg-[#ebf3ff]/30"
+                        style={{
+                          width: "86px",
+                          height: "86px",
+                          transform: "translateX(432px) rotateY(90deg)",
+                          transformOrigin: "left"
+                        }}
+                      />
+
+                      {/* Ceiling */}
+                      <div className="absolute top-0 left-0 border border-slate-400/20 bg-slate-950/5"
+                        style={{
+                          width: "432px",
+                          height: "86px",
+                          transform: "rotateX(-90deg)",
+                          transformOrigin: "top"
+                        }}
+                      />
+
+                      {/* Render Packed Boxes */}
+                      {[...packedBoxes]
+                        .sort((a, b) => (b.y + b.d) - (a.y + a.d) || a.z - b.z || a.x - b.x)
+                        .map((box, index) => (
+                          <Box3D
+                            key={`${box.id}-${index}`}
+                            w={box.w}
+                            h={box.h}
+                            d={box.d}
+                            x={box.x}
+                            y={box.y}
+                            z={box.z}
+                            color={box.color}
+                            label={box.label}
+                          />
+                        ))}
+                    </div>
+                  </div>
+
+                </div>
+
+              </div>
+            </section>
+
+          </div>
+
+          {/* ==================== BOTTOM GRID (12 COLS: CAPACITY & ACTIVITY LOG) ==================== */}
+          <div className="col-span-12 grid grid-cols-1 md:grid-cols-2 gap-6">
 
             {/* Capacity & load Card */}
             <section className="bg-white border border-slate-100 rounded-xl p-5 shadow-xs space-y-4">
@@ -1198,364 +1546,6 @@ export default function CargoDetailsDashboardPage() {
                     </div>
                   </div>
                 ))}
-              </div>
-            </section>
-
-          </div>
-
-          {/* ==================== RIGHT COLUMN ==================== */}
-          <div className="col-span-12 lg:col-span-8 space-y-6">
-
-            {/* Truck Container Diagram Card with direct slots overlay */}
-            <section className="bg-white border border-slate-100 rounded-xl p-6 shadow-sm flex flex-col relative overflow-hidden">
-
-              {/* HEURISTIC SOLVER RUNNING OVERLAY */}
-              {solverState === "solving" && (
-                <div className="absolute inset-0 bg-white/95 z-30 flex flex-col items-center justify-center text-center p-6 backdrop-blur-xs animate-fade-in">
-                  <div className="w-10 h-10 border-3 border-emerald-700 border-t-transparent rounded-full animate-spin mb-3" />
-                  <h3 className="text-xs font-bold text-slate-900 tracking-wide uppercase">Bin Packing Solver Running</h3>
-                  <p className="text-[11px] text-slate-500 mt-1 font-medium animate-pulse">{solverProgressMsg}</p>
-                </div>
-              )}
-              
-              <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6">
-                <div>
-                  <h2 className="text-sm font-bold text-slate-900 tracking-wide uppercase">Visualisator Pengepakan Kargo</h2>
-                  <p className="text-xs text-slate-400 mt-0.5 font-medium">Klik slot pada kontainer di bawah untuk mengedit, memuat, atau membongkar kargo secara volumetrik.</p>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-3">
-                  {/* Heuristic optimize button */}
-                  <button
-                    onClick={handleRunBinPackingSolver}
-                    disabled={solverState === "solved"}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${solverState === "solved"
-                        ? "bg-slate-100 border border-slate-200 text-slate-400 cursor-not-allowed"
-                        : "bg-emerald-700 hover:bg-emerald-800 text-white shadow-xs"
-                      }`}
-                  >
-                    <Cpu size={13} className={solverState === "solving" ? "animate-spin" : ""} />
-                    <span>Jalankan</span>
-                  </button>
-
-                  {/* Reset/Clear button */}
-                  <button
-                    onClick={handleClearContainer}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer border border-rose-200 hover:bg-rose-50 text-rose-700 bg-white"
-                  >
-                    <RotateCw size={13} />
-                    <span>Kosongkan Kontainer</span>
-                  </button>
-
-                  {/* Baseline dataset selector */}
-                  <div className="flex items-center gap-1.5 text-xs text-slate-500 font-bold border border-slate-200 px-2.5 py-1 bg-slate-50 rounded-lg shadow-inner">
-                    <span className="text-[10px] text-slate-400 uppercase tracking-wider">Dataset:</span>
-                    <select
-                      value={activeBaseline}
-                      onChange={(e) => handleBaselineChange(e.target.value)}
-                      className="bg-transparent border-none text-slate-750 font-bold focus:outline-none cursor-pointer text-xs pr-1 max-w-[280px] truncate"
-                    >
-                      <optgroup label="Preset Standard">
-                        <option value="default">Default Hold (TRC-204)</option>
-                        <option value="br1">Bischoff BR1 (Heterogen Lemah)</option>
-                        <option value="br5">Bischoff BR5 (Heterogen Sedang)</option>
-                        <option value="homogeneous">Europallet Homogen</option>
-                      </optgroup>
-                      <optgroup label="Benchmark Datasets (Folder Dataset)">
-                        {Object.entries(benchmarkBaselines).map(([k, v]) => (
-                          <option key={k} value={k}>
-                            {v.name}
-                          </option>
-                        ))}
-                      </optgroup>
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              {/* 3D Visualizer Container */}
-              <div className="w-full flex flex-col items-center justify-center p-5 bg-slate-950 text-white border border-slate-900 rounded-xl min-h-[420px] select-none overflow-hidden relative shadow-inner">
-                
-                {/* Viewport Top Header & Axis Legend Badges */}
-                <div className="w-full flex flex-wrap items-center justify-between gap-2 z-20 pb-3 mb-2 border-b border-slate-900">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] text-slate-400 font-semibold bg-slate-900 px-2.5 py-1 rounded-md border border-slate-800 flex items-center gap-2">
-                      <span>🔄 Drag mouse untuk memutar 3D</span>
-                      <button
-                        type="button"
-                        onClick={() => setRotation({ x: -22, y: -45 })}
-                        className="text-emerald-400 hover:text-emerald-300 font-bold transition-colors cursor-pointer"
-                      >
-                        Reset View
-                      </button>
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-2 text-[10px] font-bold">
-                    <span className="px-2.5 py-1 bg-rose-950/80 text-rose-300 border border-rose-800/60 rounded-md flex items-center gap-1.5 shadow-xs">
-                      <span className="w-2 h-2 rounded-full bg-rose-500" />
-                      Sumbu X (Panjang): 12.0m
-                    </span>
-                    <span className="px-2.5 py-1 bg-cyan-950/80 text-cyan-300 border border-cyan-800/60 rounded-md flex items-center gap-1.5 shadow-xs">
-                      <span className="w-2 h-2 rounded-full bg-cyan-400" />
-                      Sumbu Y (Lebar): 2.4m
-                    </span>
-                    <span className="px-2.5 py-1 bg-amber-950/80 text-amber-300 border border-amber-800/60 rounded-md flex items-center gap-1.5 shadow-xs">
-                      <span className="w-2 h-2 rounded-full bg-amber-400" />
-                      Sumbu Z (Tinggi): 2.4m
-                    </span>
-                  </div>
-                </div>
-
-                {/* 3D Scene Viewport (Plotly 3D Style) */}
-                <div
-                  className="w-full h-[320px] flex items-center justify-center cursor-grab active:cursor-grabbing relative bg-slate-950/80 rounded-lg p-2"
-                  onMouseDown={handleMouseDown}
-                  onMouseMove={handleMouseMove}
-                  onMouseUp={handleMouseUp}
-                  onMouseLeave={handleMouseUp}
-                  style={{ perspective: "1200px" }}
-                >
-                  {/* Container 3D Bounds */}
-                  <div
-                    className="relative"
-                    style={{
-                      width: "432px",
-                      height: "86px",
-                      transformStyle: "preserve-3d",
-                      transform: `rotateX(${rotation.x}deg) rotateY(${rotation.y}deg)`,
-                      transition: isDragging ? "none" : "transform 0.1s ease-out"
-                    }}
-                  >
-                    {/* Floor Grid Plane (Plotly Soft Blue Background with White Grid) */}
-                    <div className="absolute top-0 left-0 border border-slate-400/50 bg-[#ebf3ff]/90 shadow-inner"
-                      style={{
-                        width: "432px",
-                        height: "86px",
-                        transform: "translateY(86px) rotateX(-90deg)",
-                        transformOrigin: "top",
-                        backgroundImage: "linear-gradient(to right, rgba(255,255,255,0.95) 1.5px, transparent 1.5px), linear-gradient(to bottom, rgba(255,255,255,0.95) 1.5px, transparent 1.5px)",
-                        backgroundSize: "36px 36px"
-                      }}
-                    >
-                      {/* SUMBU X (PANJANG AXIS LINE & NUMERICAL TICKS LIKE PLOTLY) */}
-                      <div className="absolute top-0 left-0 right-0 h-[2px] bg-red-600 z-20 pointer-events-none" />
-                      {[0, 200, 400, 600, 800, 1000, 1200].map((val, idx) => {
-                        const m = (idx * 2);
-                        return (
-                          <div
-                            key={`x-tick-${val}`}
-                            className="absolute top-0 flex flex-col items-center pointer-events-none z-20"
-                            style={{ left: `${m * 36}px` }}
-                          >
-                            <div className="w-[1px] h-2 bg-slate-600 font-bold" />
-                            <span className="text-[9px] font-bold text-slate-200 mt-1 font-mono select-none">
-                              {val}
-                            </span>
-                          </div>
-                        );
-                      })}
-                      {/* Sumbu X Label */}
-                      <div className="absolute -top-7 left-1/2 -translate-x-1/2 text-slate-200 font-serif italic text-xs font-bold pointer-events-none">
-                        x
-                      </div>
-
-                      {/* SUMBU Y (LEBAR AXIS LINE & NUMERICAL TICKS LIKE PLOTLY) */}
-                      <div className="absolute top-0 left-0 bottom-0 w-[2px] bg-slate-600 z-20 pointer-events-none" />
-                      {[0, 200, 400, 600, 800, 1000].map((val, idx) => {
-                        const topPx = (idx * 0.48 * 36);
-                        return (
-                          <div
-                            key={`y-tick-${val}`}
-                            className="absolute left-0 flex items-center pointer-events-none z-20"
-                            style={{ top: `${topPx}px` }}
-                          >
-                            <div className="h-[1px] w-2 bg-slate-600 font-bold" />
-                            <span className="text-[9px] font-bold text-slate-200 -translate-x-9 font-mono select-none">
-                              {val}
-                            </span>
-                          </div>
-                        );
-                      })}
-                      {/* Sumbu Y Label */}
-                      <div className="absolute -left-8 top-1/2 -translate-y-1/2 text-slate-200 font-serif italic text-xs font-bold pointer-events-none">
-                        y
-                      </div>
-                    </div>
-
-                    {/* SUMBU Z (TINGGI AXIS LINE & TICKS ON BACK-LEFT WALL LIKE PLOTLY) */}
-                    <div className="absolute top-0 left-0 h-[86px] w-[2px] bg-red-600 z-30 pointer-events-none">
-                      {[0, 200, 400, 600, 800, 1000, 1200].map((val) => {
-                        const norm = val / 1200; // 0 to 1
-                        const topPx = (1 - norm) * 86;
-                        return (
-                          <div
-                            key={`z-tick-${val}`}
-                            className="absolute left-0 flex items-center pointer-events-none z-30"
-                            style={{ top: `${topPx}px` }}
-                          >
-                            <div className="h-[1px] w-2 bg-red-600 font-bold" />
-                            <span className="text-[9px] font-bold text-slate-200 -translate-x-9 font-mono select-none">
-                              {val}
-                            </span>
-                          </div>
-                        );
-                      })}
-                      {/* Sumbu Z Label */}
-                      <div className="absolute -left-7 top-1/2 -translate-y-1/2 text-slate-200 font-serif italic text-xs font-bold pointer-events-none">
-                        z
-                      </div>
-                    </div>
-
-                    {/* Back Wall Plane (Plotly Soft Blue Background with White Grid) */}
-                    <div className="absolute top-0 left-0 border border-slate-400/50 bg-[#ebf3ff]/70"
-                      style={{
-                        width: "432px",
-                        height: "86px",
-                        transform: "translateZ(-86px)",
-                        backgroundImage: "linear-gradient(to right, rgba(255,255,255,0.95) 1.5px, transparent 1.5px), linear-gradient(to bottom, rgba(255,255,255,0.95) 1.5px, transparent 1.5px)",
-                        backgroundSize: "36px 36px"
-                      }}
-                    />
-
-                    {/* Left Wall Plane (Plotly Soft Blue Background with White Grid) */}
-                    <div className="absolute top-0 left-0 border border-slate-400/50 bg-[#ebf3ff]/80"
-                      style={{
-                        width: "86px",
-                        height: "86px",
-                        transform: "rotateY(90deg)",
-                        transformOrigin: "left",
-                        backgroundImage: "linear-gradient(to right, rgba(255,255,255,0.95) 1.5px, transparent 1.5px), linear-gradient(to bottom, rgba(255,255,255,0.95) 1.5px, transparent 1.5px)",
-                        backgroundSize: "36px 36px"
-                      }}
-                    />
-
-                    {/* Right Wall Plane */}
-                    <div className="absolute top-0 left-0 border border-slate-400/30 bg-[#ebf3ff]/30"
-                      style={{
-                        width: "86px",
-                        height: "86px",
-                        transform: "translateX(432px) rotateY(90deg)",
-                        transformOrigin: "left"
-                      }}
-                    />
-
-                    {/* Ceiling */}
-                    <div className="absolute top-0 left-0 border border-slate-400/20 bg-slate-950/5"
-                      style={{
-                        width: "432px",
-                        height: "86px",
-                        transform: "rotateX(-90deg)",
-                        transformOrigin: "top"
-                      }}
-                    />
-
-                    {/* Render Packed Boxes */}
-                    {[...packedBoxes]
-                      .sort((a, b) => (b.y + b.d) - (a.y + a.d) || a.z - b.z || a.x - b.x)
-                      .map((box, index) => (
-                        <Box3D
-                          key={`${box.id}-${index}`}
-                          w={box.w}
-                          h={box.h}
-                          d={box.d}
-                          x={box.x}
-                          y={box.y}
-                          z={box.z}
-                          color={box.color}
-                          label={box.label}
-                        />
-                      ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* PANEL PERHITUNGAN METER KONTAINER (SUMBU X, Y, Z) */}
-                <div className="w-full mt-3 bg-slate-900/95 border border-slate-800 rounded-xl p-4 text-xs shadow-lg">
-                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3 mb-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                      <h3 className="font-extrabold text-slate-200 uppercase tracking-wider text-[11px]">
-                        Dashboard Perhitungan Meter & Dimensi Volumetrik
-                      </h3>
-                    </div>
-                    <div className="text-[10px] text-slate-400 font-semibold bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
-                      Rasio Skala: 1.0 m = 36 px
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-slate-300">
-                    <div className="bg-slate-950 p-3 rounded-lg border border-slate-800/80">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-[10px] font-bold text-rose-400 uppercase tracking-wider">Sumbu X (Panjang)</span>
-                        <span className="text-[9px] font-bold text-rose-300 bg-rose-950/80 px-1.5 py-0.2 rounded border border-rose-900/60">X-Axis</span>
-                      </div>
-                      <div className="flex items-baseline gap-1 mt-1">
-                        <span className="text-lg font-black text-rose-200">{containerMetrics.maxX.toFixed(2)}</span>
-                        <span className="text-[10px] text-slate-400">/ 12.00 m</span>
-                      </div>
-                      <div className="w-full bg-slate-900 h-1.5 rounded-full mt-2 overflow-hidden border border-slate-800">
-                        <div className="bg-rose-500 h-full transition-all duration-300" style={{ width: `${(containerMetrics.maxX / 12) * 100}%` }} />
-                      </div>
-                      <div className="flex justify-between items-center text-[9px] text-slate-400 mt-1.5 font-semibold">
-                        <span>Terisi: {((containerMetrics.maxX / 12) * 100).toFixed(0)}%</span>
-                        <span className="text-rose-400">Sisa: {containerMetrics.remainingX.toFixed(2)}m</span>
-                      </div>
-                    </div>
-
-                    <div className="bg-slate-950 p-3 rounded-lg border border-slate-800/80">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-wider">Sumbu Y (Lebar)</span>
-                        <span className="text-[9px] font-bold text-cyan-300 bg-cyan-950/80 px-1.5 py-0.2 rounded border border-cyan-900/60">Y-Axis</span>
-                      </div>
-                      <div className="flex items-baseline gap-1 mt-1">
-                        <span className="text-lg font-black text-cyan-200">{containerMetrics.maxY.toFixed(2)}</span>
-                        <span className="text-[10px] text-slate-400">/ 2.40 m</span>
-                      </div>
-                      <div className="w-full bg-slate-900 h-1.5 rounded-full mt-2 overflow-hidden border border-slate-800">
-                        <div className="bg-cyan-400 h-full transition-all duration-300" style={{ width: `${(containerMetrics.maxY / 2.4) * 100}%` }} />
-                      </div>
-                      <div className="flex justify-between items-center text-[9px] text-slate-400 mt-1.5 font-semibold">
-                        <span>Span Kedalaman:</span>
-                        <span className="text-cyan-400">{((containerMetrics.maxY / 2.4) * 100).toFixed(0)}%</span>
-                      </div>
-                    </div>
-
-                    <div className="bg-slate-950 p-3 rounded-lg border border-slate-800/80">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">Sumbu Z (Tinggi)</span>
-                        <span className="text-[9px] font-bold text-amber-300 bg-amber-950/80 px-1.5 py-0.2 rounded border border-amber-900/60">Z-Axis</span>
-                      </div>
-                      <div className="flex items-baseline gap-1 mt-1">
-                        <span className="text-lg font-black text-amber-200">{containerMetrics.maxZ.toFixed(2)}</span>
-                        <span className="text-[10px] text-slate-400">/ 2.40 m</span>
-                      </div>
-                      <div className="w-full bg-slate-900 h-1.5 rounded-full mt-2 overflow-hidden border border-slate-800">
-                        <div className="bg-amber-400 h-full transition-all duration-300" style={{ width: `${(containerMetrics.maxZ / 2.4) * 100}%` }} />
-                      </div>
-                      <div className="flex justify-between items-center text-[9px] text-slate-400 mt-1.5 font-semibold">
-                        <span>Span Ketinggian:</span>
-                        <span className="text-amber-400">{((containerMetrics.maxZ / 2.4) * 100).toFixed(0)}%</span>
-                      </div>
-                    </div>
-
-                    <div className="bg-slate-950 p-3 rounded-lg border border-slate-800/80">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">Perhitungan Volume</span>
-                        <span className="text-[9px] font-bold text-emerald-300 bg-emerald-950/80 px-1.5 py-0.2 rounded border border-emerald-900/60">m³</span>
-                      </div>
-                      <div className="flex items-baseline gap-1 mt-1">
-                        <span className="text-lg font-black text-emerald-200">{containerMetrics.usedVol.toFixed(2)}</span>
-                        <span className="text-[10px] text-slate-400">/ 69.12 m³</span>
-                      </div>
-                      <div className="w-full bg-slate-900 h-1.5 rounded-full mt-2 overflow-hidden border border-slate-800">
-                        <div className="bg-emerald-500 h-full transition-all duration-300" style={{ width: `${containerMetrics.occupancyPercent}%` }} />
-                      </div>
-                      <div className="flex justify-between items-center text-[9px] text-slate-400 mt-1.5 font-semibold">
-                        <span>Total Items: {containerMetrics.boxCount}</span>
-                    </div>
-                  </div>
-                </div>
               </div>
             </section>
 

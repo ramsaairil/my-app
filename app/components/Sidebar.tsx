@@ -19,10 +19,10 @@ export default function Sidebar() {
   const { isOpen, toggle } = useSidebar();
 
   const navigationItems = [
-    { id: "overview", label: "Dashboard", icon: Home, href: "/overview" },
-    { id: "optimasi", label: "3D Visualizer", icon: Layers, href: "/optimasi" },
-    { id: "cargo", label: "Cargo Database", icon: Package, href: "/cargo" },
-    { id: "fleet", label: "Fleet Operations", icon: Truck, href: "/trucks" },
+    { id: "dashboard", label: "Dashboard", icon: Home, href: "/dashboard" },
+    { id: "optimasi", label: "Optimasi", icon: Layers, href: "/optimasi" },
+    { id: "cargo", label: "Data Muatan", icon: Package, href: "/cargo" },
+    { id: "fleet", label: "Operasional Armada", icon: Truck, href: "/trucks" },
   ] as { id: string; label: string; icon: React.ComponentType<{ size?: number; className?: string }>; href: string; badge?: string }[];
 
   return (
@@ -50,7 +50,7 @@ export default function Sidebar() {
           const isActive =
             item.href === "/"
               ? pathname === "/"
-              : pathname.startsWith(item.href);
+              : pathname.startsWith(item.href) || (item.id === "dashboard" && pathname.startsWith("/overview"));
 
           return (
             <Link

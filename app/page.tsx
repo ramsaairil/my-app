@@ -47,20 +47,23 @@ export default function LandingPage() {
     }
     profile.setInitials(init);
     
-    router.push("/overview");
+    router.push("/dashboard");
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 font-sans antialiased flex flex-col justify-between">
+    <div className="min-h-screen bg-slate-50 text-slate-800 font-sans antialiased flex flex-col justify-between relative overflow-hidden">
       
+      {/* Ambient background glow */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[350px] bg-gradient-to-b from-emerald-100/40 via-emerald-50/20 to-transparent blur-3xl pointer-events-none -z-10" />
+
       {/* Navbar */}
-      <header className="bg-white border-b border-slate-200">
+      <header className="bg-white/80 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-40">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded bg-emerald-700 flex items-center justify-center text-white font-bold text-xs">
-              <Box size={16} />
+          <Link href="/" className="flex items-center gap-2.5 group">
+            <div className="w-8 h-8 rounded-lg bg-emerald-700 flex items-center justify-center text-white font-bold text-xs shadow-sm group-hover:scale-105 transition-transform">
+              <Box size={17} />
             </div>
-            <span className="font-extrabold text-sm tracking-wider uppercase text-slate-900">
+            <span className="font-extrabold text-sm tracking-wider uppercase text-slate-900 group-hover:text-emerald-800 transition-colors">
               Sistem Muatan 3D
             </span>
           </Link>
@@ -72,7 +75,7 @@ export default function LandingPage() {
                 setError("");
                 setIsLoginOpen(true);
               }}
-              className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold transition-colors cursor-pointer inline-flex items-center gap-1.5 shadow-xs"
+              className="px-4.5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold transition-all cursor-pointer inline-flex items-center gap-1.5 shadow-sm hover:shadow-emerald-700/20"
             >
               <span>Login</span>
             </button>
@@ -81,192 +84,51 @@ export default function LandingPage() {
       </header>
 
       {/* Hero Section */}
-      <main className="flex-grow flex flex-col justify-center py-12 sm:py-16 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto w-full space-y-12">
-        <div className="text-center space-y-5 max-w-3xl mx-auto">
+      <main className="flex-grow flex flex-col justify-center py-12 sm:py-16 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto w-full space-y-12 z-10">
+        <div className="text-center space-y-5 max-w-2xl mx-auto">
           
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-slate-100 border border-slate-200 text-slate-700 text-xs font-semibold">
-            <span>Sistem Perencanaan Muatan & Armada Logistik</span>
-          </div>
-
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-slate-900 tracking-tight leading-tight">
-            Perencanaan Tata Letak Kargo & Ruang Kontainer Truk
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-slate-900 tracking-tight leading-tight">
+            Perencanaan & Optimasi <br className="hidden sm:block" />
+            <span className="bg-gradient-to-r from-emerald-800 via-emerald-700 to-teal-700 bg-clip-text text-transparent">
+              Muatan 3D
+            </span>
           </h1>
 
-          <p className="text-slate-600 text-sm sm:text-base max-w-2xl mx-auto font-medium leading-relaxed">
-            Optimalkan okupansi volume kontainer, hitung kubikasi kargo secara volumetrik, dan alokasikan slot muatan armada logistik secara presisi.
+          <p className="text-slate-600 text-xs sm:text-sm font-medium leading-relaxed max-w-xl mx-auto">
+            Optimalkan okupansi volume kontainer, kalkulasi kubikasi volumetrik, dan kelola alokasi armada logistik secara presisi.
           </p>
 
-          {/* CTA Buttons */}
-          <div className="flex justify-center pt-2">
-            <button
-              onClick={() => {
-                setError("");
-                setIsLoginOpen(true);
-              }}
-              className="px-7 py-3 rounded-lg font-bold text-xs sm:text-sm bg-emerald-700 hover:bg-emerald-800 text-white transition-colors shadow-xs cursor-pointer inline-flex items-center gap-2"
-            >
-              <Lock size={16} />
-              <span>Masuk Ke Sistem</span>
-            </button>
-          </div>
-
-          {/* Highlights */}
-          <div className="flex flex-wrap items-center justify-center gap-6 pt-3 text-xs font-semibold text-slate-500">
-            <span className="flex items-center gap-1.5">
-              <Check size={14} className="text-emerald-700" />
-              Simulasi Viewport 3D
-            </span>
-            <span className="flex items-center gap-1.5">
-              <Check size={14} className="text-emerald-700" />
-              Kalkulasi Kubikasi Volumetrik
-            </span>
-            <span className="flex items-center gap-1.5">
-              <Check size={14} className="text-emerald-700" />
-              Manajemen Armada Real-time
-            </span>
-          </div>
-
         </div>
 
-        {/* Product Workspace Preview */}
-        <div id="simulasi" className="max-w-4xl mx-auto w-full">
-          <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
-            
-            {/* Titlebar */}
-            <div className="bg-slate-50 border-b border-slate-200 px-4 py-2.5 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-slate-300" />
-                <span className="w-2.5 h-2.5 rounded-full bg-slate-300" />
-                <span className="w-2.5 h-2.5 rounded-full bg-slate-300" />
-                <span className="text-xs font-bold text-slate-700 ml-2">Simulasi Unit TRC-204 — Tampilan 3D Logistik</span>
-              </div>
-            </div>
-
-            {/* Viewport Area */}
-            <div className="p-6 bg-slate-50/50">
-              <div className="h-[210px] bg-white border border-slate-200 rounded-lg flex items-center justify-center relative overflow-hidden p-4">
-                <div
-                  className="relative w-[280px] h-[65px] transition-transform duration-500 ease-out transform scale-110"
-                  style={{
-                    transformStyle: "preserve-3d",
-                    transform: "rotateX(-18deg) rotateY(-35deg)"
-                  }}
-                >
-                  {/* Back Wall */}
-                  <div
-                    className="absolute inset-0 bg-blue-500/5 border border-blue-500/60 rounded"
-                    style={{
-                      transformStyle: "preserve-3d",
-                      transform: "translate3d(0,0,-40px)",
-                      backgroundImage: "linear-gradient(to right, #cbd5e1 1px, transparent 1px), linear-gradient(to bottom, #cbd5e1 1px, transparent 1px)",
-                      backgroundSize: "20px 20px"
-                    }}
-                  />
-                  {/* Floor */}
-                  <div
-                    className="absolute bg-blue-500/5 border-2 border-blue-500/60"
-                    style={{
-                      width: "280px",
-                      height: "80px",
-                      left: 0,
-                      top: "calc(50% - 40px)",
-                      transform: "rotateX(90deg) translate3d(0,0,32px)",
-                      backgroundImage: "linear-gradient(to right, #cbd5e1 1px, transparent 1px), linear-gradient(to bottom, #cbd5e1 1px, transparent 1px)",
-                      backgroundSize: "20px 20px"
-                    }}
-                  />
-                  {/* Cargo Box 1 */}
-                  <div
-                    className="absolute bg-rose-500/70 border border-rose-700 text-[8px] font-black text-slate-900 flex items-center justify-center rounded shadow-xs"
-                    style={{ width: "75px", height: "20px", left: "20px", top: "10px", transform: "translate3d(0,0,10px)" }}
-                  >
-                    KRG-5839
-                  </div>
-                  {/* Cargo Box 2 */}
-                  <div
-                    className="absolute bg-cyan-500/70 border border-cyan-700 text-[8px] font-black text-slate-900 flex items-center justify-center rounded shadow-xs"
-                    style={{ width: "105px", height: "20px", left: "105px", top: "10px", transform: "translate3d(0,0,10px)" }}
-                  >
-                    KRG-4434
-                  </div>
-                  {/* Cargo Box 3 */}
-                  <div
-                    className="absolute bg-fuchsia-500/70 border border-fuchsia-700 text-[8px] font-black text-slate-900 flex items-center justify-center rounded shadow-xs"
-                    style={{ width: "70px", height: "20px", left: "105px", top: "35px", transform: "translate3d(0,0,10px)" }}
-                  >
-                    KRG-0040
-                  </div>
-                </div>
-              </div>
-
-              {/* Status metrics strip */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4 text-xs font-semibold text-slate-700">
-                <div className="bg-white p-2.5 rounded-lg border border-slate-200 flex justify-between items-center">
-                  <span className="text-slate-400 font-normal">Okupansi:</span>
-                  <span className="font-bold text-emerald-700">88.5%</span>
-                </div>
-                <div className="bg-white p-2.5 rounded-lg border border-slate-200 flex justify-between items-center">
-                  <span className="text-slate-400 font-normal">Total Volume:</span>
-                  <span className="font-bold text-slate-900">59.9 m³</span>
-                </div>
-                <div className="bg-white p-2.5 rounded-lg border border-slate-200 flex justify-between items-center">
-                  <span className="text-slate-400 font-normal">Efisiensi Ruang:</span>
-                  <span className="font-bold text-slate-900">Sangat Baik</span>
-                </div>
-                <div className="bg-white p-2.5 rounded-lg border border-slate-200 flex justify-between items-center">
-                  <span className="text-slate-400 font-normal">Status Pemuatan:</span>
-                  <span className="font-bold text-emerald-700">Memuat</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Footer Bar inside product frame */}
-            <div className="bg-white border-t border-slate-200 px-4 py-3 flex items-center justify-between text-xs font-medium">
-              <span className="text-slate-500">Profil Patokan: Operasi Default</span>
-              <button
-                onClick={() => {
-                  setError("");
-                  setIsLoginOpen(true);
-                }}
-                className="text-emerald-700 font-bold hover:underline inline-flex items-center gap-1 cursor-pointer"
-              >
-                <span>Masuk Ke Sistem</span>
-                <ArrowRight size={12} />
-              </button>
-            </div>
-
-          </div>
-        </div>
-
-        {/* Feature Cards Section */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 pt-4">
-          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-2xs space-y-2.5">
-            <div className="w-9 h-9 rounded-lg bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-700 font-bold">
+        {/* Feature Highlights */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 pt-2">
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-5 hover:border-emerald-300/80 hover:shadow-md transition-all space-y-2 group">
+            <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-700 font-bold group-hover:bg-emerald-700 group-hover:text-white transition-colors">
               <Box size={18} />
             </div>
-            <h3 className="text-sm font-bold text-slate-900">Visualisasi Kargo 3D</h3>
-            <p className="text-xs text-slate-500 font-medium leading-relaxed">
-              Tampilkan peletakan kargo secara volumetrik 3D interaktif untuk memaksimalkan okupansi ruang kontainer.
+            <h3 className="text-xs font-bold text-slate-900">Visualisasi 3D</h3>
+            <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
+              Simulasi peletakan kargo secara volumetrik 3D interaktif untuk efisiensi ruang maksimum.
             </p>
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-2xs space-y-2.5">
-            <div className="w-9 h-9 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-700 font-bold">
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-5 hover:border-emerald-300/80 hover:shadow-md transition-all space-y-2 group">
+            <div className="w-9 h-9 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-700 font-bold group-hover:bg-blue-700 group-hover:text-white transition-colors">
               <Database size={18} />
             </div>
-            <h3 className="text-sm font-bold text-slate-900">Database Inventaris</h3>
-            <p className="text-xs text-slate-500 font-medium leading-relaxed">
-              Kelola periferal manifes kargo, dimensi palet/box, serta integrasi langsung dengan database PostgreSQL.
+            <h3 className="text-xs font-bold text-slate-900">Database Muatan</h3>
+            <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
+              Kelola periferal manifes kargo dan dimensi secara terstruktur dalam database terpusat.
             </p>
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-2xs space-y-2.5">
-            <div className="w-9 h-9 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-700 font-bold">
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-5 hover:border-emerald-300/80 hover:shadow-md transition-all space-y-2 group">
+            <div className="w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-700 font-bold group-hover:bg-indigo-700 group-hover:text-white transition-colors">
               <Truck size={18} />
             </div>
-            <h3 className="text-sm font-bold text-slate-900">Manajemen Armada</h3>
-            <p className="text-xs text-slate-500 font-medium leading-relaxed">
-              Pantau status unit truk dan tingkat okupansi volume kontainer secara real-time dari satu dashboard terpusat.
+            <h3 className="text-xs font-bold text-slate-900">Manajemen Armada</h3>
+            <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
+              Pantau status unit truk dan alokasi kapasitas muatan armada secara real-time.
             </p>
           </div>
         </div>
@@ -274,10 +136,10 @@ export default function LandingPage() {
       </main>
 
       {/* Footer */}
-      <footer className="bg-white border-t border-slate-200 py-5 px-4 sm:px-6 lg:px-8 text-xs text-slate-500 font-medium">
+      <footer className="bg-white/80 backdrop-blur-md border-t border-slate-200/80 py-5 px-4 sm:px-6 lg:px-8 text-xs text-slate-500 font-medium z-10">
         <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div>
-            <span>&copy; {new Date().getFullYear()} Sistem Perencanaan Muatan Logistik. All rights reserved.</span>
+            <span>&copy; {new Date().getFullYear()} Sistem Muatan 3D. All rights reserved.</span>
           </div>
 
           <div>

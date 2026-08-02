@@ -296,7 +296,7 @@ export default function CargoDatabasePage() {
                   </button>
                 </div>
                 
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4 text-xs font-medium">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-xs font-medium">
                   <div>
                     <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">ID Kargo (Opsional)</label>
                     <input
@@ -306,19 +306,6 @@ export default function CargoDatabasePage() {
                       placeholder={`KRG-CST-${String(customCounter).padStart(3, "0")}`}
                       className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-emerald-700 text-slate-800"
                     />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">Jenis Paket</label>
-                    <select
-                      value={customType}
-                      onChange={(e) => setCustomType(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-emerald-700 text-slate-800 cursor-pointer"
-                    >
-                      <option value="Pallet">Pallet</option>
-                      <option value="Box">Box</option>
-                      <option value="Peti">Peti</option>
-                    </select>
                   </div>
 
                   <div>
@@ -363,7 +350,6 @@ export default function CargoDatabasePage() {
                 <thead>
                   <tr className="border-b border-slate-200 text-slate-400 font-bold uppercase tracking-wider bg-slate-50/70">
                     <th className="py-3 px-4">ID Kargo</th>
-                    <th className="py-3 px-4">Jenis Paket</th>
                     <th className="py-3 px-4">Jumlah</th>
                     <th className="py-3 px-4">Dimensi (P x L x T)</th>
                     <th className="py-3 px-4">Total Volume</th>
@@ -380,7 +366,6 @@ export default function CargoDatabasePage() {
                           <span>{shipment.id}</span>
                         </div>
                       </td>
-                      <td className="py-3.5 px-4 font-semibold text-slate-800">{shipment.type}</td>
                       <td className="py-3.5 px-4 font-bold text-slate-900">{shipment.qty}</td>
                       <td className="py-3.5 px-4 font-mono text-slate-700">{shipment.dimension}</td>
                       <td className="py-3.5 px-4 font-bold text-slate-900">
@@ -400,7 +385,7 @@ export default function CargoDatabasePage() {
                   ))}
                   {filteredShipments.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="text-center py-16 text-slate-400 text-sm font-semibold bg-slate-50/30">
+                      <td colSpan={6} className="text-center py-16 text-slate-400 text-sm font-semibold bg-slate-50/30">
                         <Inbox size={32} className="mx-auto text-slate-300 mb-2" />
                         Tidak ada data kargo yang cocok dengan &quot;{searchQuery}&quot; dalam kategori ini.
                       </td>
