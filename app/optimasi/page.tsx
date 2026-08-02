@@ -20,7 +20,6 @@ import {
   Plus,
   RotateCw,
   Printer,
-  Send,
   Search,
   X,
   Scale,
@@ -1109,10 +1108,6 @@ export default function CargoDetailsDashboardPage() {
       {/* Page Header */}
       <PageHeader
         title="TRC-204 Cargo details"
-        breadcrumbs={[
-          { label: "Warehouse Operations" },
-          { label: "Cargo details" }
-        ]}
         badge={
           <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-1">
             <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
@@ -1126,17 +1121,6 @@ export default function CargoDetailsDashboardPage() {
         >
           <Printer size={13} className="text-slate-400" />
           <span>View manifest</span>
-        </button>
-
-        <button
-          onClick={() => {
-            setSolverState("idle");
-            showToast("TRC-204 cargo load finalized for dispatch!", "success");
-          }}
-          className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors cursor-pointer"
-        >
-          <span>Dispatch truck</span>
-          <Send size={13} />
         </button>
       </PageHeader>
 

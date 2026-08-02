@@ -132,10 +132,6 @@ export default function TrucksPage() {
       {/* Header */}
       <PageHeader
         title="Operasi & Manajemen Armada Truk"
-        breadcrumbs={[
-          { label: "Operasi Gudang" },
-          { label: "Armada" }
-        ]}
       >
         <button
           onClick={() => setIsAddFormOpen(!isAddFormOpen)}

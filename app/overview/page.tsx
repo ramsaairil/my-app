@@ -84,10 +84,6 @@ export default function HomeOverviewPage() {
       {/* Header */}
       <PageHeader
         title="Ringkasan Operasi"
-        breadcrumbs={[
-          { label: "Operasi Gudang" },
-          { label: "Ringkasan" }
-        ]}
       />
 
       {/* Page Body */}

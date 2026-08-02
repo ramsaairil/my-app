@@ -229,10 +229,6 @@ export default function CargoDatabasePage() {
       {/* Page Header */}
       <PageHeader
         title="Database Kargo & Inventaris Barang"
-        breadcrumbs={[
-          { label: "Operasi Gudang" },
-          { label: "Kargo" }
-        ]}
         badge={
           <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100 flex items-center gap-1">
             <Database size={12} />

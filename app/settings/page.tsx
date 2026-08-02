@@ -9,6 +9,18 @@ export default function SettingsPage() {
   const { name, initials, avatarColor, setName, setInitials, setAvatarColor } = useProfile();
   const [toast, setToast] = useState<{ show: boolean; message: string }>({ show: false, message: "" });
 
+  const handleNameChange = (newName: string) => {
+    setName(newName);
+    const words = newName.trim().split(/\s+/).filter(Boolean);
+    let init = "L";
+    if (words.length >= 2) {
+      init = (words[0][0] + words[1][0]).toUpperCase();
+    } else if (words.length === 1 && words[0].length > 0) {
+      init = words[0].slice(0, 2).toUpperCase();
+    }
+    setInitials(init);
+  };
+
   const handleSave = () => {
     setToast({ show: true, message: "Preferensi dan profil berhasil disimpan!" });
     setTimeout(() => {
@@ -24,10 +36,6 @@ export default function SettingsPage() {
     <div className="flex-grow flex flex-col h-full overflow-hidden">
       <PageHeader
         title="Pengaturan & Profil"
-        breadcrumbs={[
-          { label: "Operasi Gudang" },
-          { label: "Pengaturan" }
-        ]}
       />
 
       {/* Toast Feedback */}
@@ -102,27 +110,14 @@ export default function SettingsPage() {
                   Identitas Operasional
                 </h3>
                 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1.5">Nama Lengkap</label>
-                    <input
-                      type="text"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-emerald-600 focus:bg-white transition-all font-medium text-slate-800"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1.5">Inisial Logo (Maks 2 Karakter)</label>
-                    <input
-                      type="text"
-                      value={initials}
-                      maxLength={2}
-                      onChange={(e) => setInitials(e.target.value.slice(0, 2).toUpperCase())}
-                      className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-emerald-600 focus:bg-white transition-all font-semibold text-slate-800 tracking-wider uppercase"
-                    />
-                  </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">Nama Lengkap</label>
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => handleNameChange(e.target.value)}
+                    className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-emerald-600 focus:bg-white transition-all font-medium text-slate-800"
+                  />
                 </div>
               </div>
 

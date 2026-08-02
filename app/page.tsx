@@ -75,7 +75,6 @@ export default function LandingPage() {
               className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold transition-colors cursor-pointer inline-flex items-center gap-1.5 shadow-xs"
             >
               <span>Login</span>
-              <ArrowRight size={13} />
             </button>
           </div>
         </div>
