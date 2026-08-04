@@ -12,7 +12,7 @@ import {
   Inbox,
   Trash2
 } from "lucide-react";
-import { fetchCargosFromDb, insertCargoToDb, deleteCargoFromDb } from "../../lib/db";
+import { fetchCargosFromDb, insertCargoToDb, deleteCargoFromDb, deleteAllCargosFromDb } from "../../lib/db";
 
 // Helper to calculate volume (m³) from dimension string like "1.2x0.8x1.4 m"
 const getVolume = (dimStr: string): number => {
@@ -59,6 +59,7 @@ export default function CargoDatabasePage() {
 
   // State for new custom cargo input form
   const [isAddFormOpen, setIsAddFormOpen] = useState(false);
+  const [isConfirmClearOpen, setIsConfirmClearOpen] = useState(false);
   const [customId, setCustomId] = useState("");
   const [customType, setCustomType] = useState("Pallet");
   const [customQty, setCustomQty] = useState("10 Unit");
@@ -69,12 +70,8 @@ export default function CargoDatabasePage() {
   const baselines = {
     default: {
       name: "Operasi Default Logistic",
-      description: "Muatan kargo default (KRG-9821, KRG-9822, KRG-9823) dengan beberapa slot terisi sebelumnya.",
-      shipments: [
-        { id: "KRG-9821", type: "Pallet", qty: "10 palet", dimension: "0.8x0.6x1 m" },
-        { id: "KRG-9822", type: "Kotak", qty: "15 kotak", dimension: "0.4x0.2x1 m" },
-        { id: "KRG-9823", type: "Kotak", qty: "12 kotak", dimension: "1.5x1.2x0.4 m" }
-      ] as CargoItem[]
+      description: "Muatan kargo tersimpan di database.",
+      shipments: [] as CargoItem[]
     },
     br1: {
       name: "Bischoff & Ratcliff (BR1) - Heterogen Lemah",
@@ -107,7 +104,7 @@ export default function CargoDatabasePage() {
 
   // Dynamic state for baseline/custom shipments
   const [customShipments, setCustomShipments] = useState<Record<string, CargoItem[]>>({
-    default: [...baselines.default.shipments],
+    default: [],
     br1: [...baselines.br1.shipments],
     br5: [...baselines.br5.shipments],
     homogeneous: [...baselines.homogeneous.shipments]
@@ -131,7 +128,12 @@ export default function CargoDatabasePage() {
 
         setCustomShipments((prev) => ({
           ...prev,
-          default: [...mappedFromDb, ...prev.default.filter(d => !mappedFromDb.some(m => m.id === d.id))]
+          default: mappedFromDb
+        }));
+      } else {
+        setCustomShipments((prev) => ({
+          ...prev,
+          default: []
         }));
       }
     }
@@ -191,6 +193,16 @@ export default function CargoDatabasePage() {
     showToast(`Kargo ${id} berhasil dihapus!`, "success");
   };
 
+  const handleClearAllCargo = async () => {
+    await deleteAllCargosFromDb();
+    setCustomShipments((prev) => ({
+      ...prev,
+      [activeBaseline]: []
+    }));
+    setIsConfirmClearOpen(false);
+    showToast("Semua data kargo berhasil dikosongkan!", "success");
+  };
+
   const showToast = (message: string, type: "success" | "error" = "success") => {
     setToast({ show: true, message, type });
     setTimeout(() => {
@@ -228,21 +240,26 @@ export default function CargoDatabasePage() {
 
       {/* Page Header */}
       <PageHeader
-        title="Database Kargo & Inventaris Barang"
-        badge={
-          <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100 flex items-center gap-1">
-            <Database size={12} />
-            Data Inventaris
-          </span>
-        }
+        title="Data Muatan"
       >
-        <button
-          onClick={() => setIsAddFormOpen(!isAddFormOpen)}
-          className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold shadow-sm transition-all duration-200 cursor-pointer"
-        >
-          <Plus size={14} />
-          <span>Tambah Kargo</span>
-        </button>
+        <div className="flex items-center gap-2">
+          {availableShipments.length > 0 && (
+            <button
+              onClick={() => setIsConfirmClearOpen(true)}
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-xs font-bold shadow-xs transition-all duration-200 cursor-pointer"
+            >
+              <Trash2 size={14} />
+              <span>Kosongkan Data</span>
+            </button>
+          )}
+          <button
+            onClick={() => setIsAddFormOpen(!isAddFormOpen)}
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold shadow-sm transition-all duration-200 cursor-pointer"
+          >
+            <Plus size={14} />
+            <span>Tambah Kargo</span>
+          </button>
+        </div>
       </PageHeader>
 
       {/* Main Body */}
@@ -386,8 +403,15 @@ export default function CargoDatabasePage() {
                   {filteredShipments.length === 0 && (
                     <tr>
                       <td colSpan={6} className="text-center py-16 text-slate-400 text-sm font-semibold bg-slate-50/30">
-                        <Inbox size={32} className="mx-auto text-slate-300 mb-2" />
-                        Tidak ada data kargo yang cocok dengan &quot;{searchQuery}&quot; dalam kategori ini.
+                        <Inbox size={36} className="mx-auto text-slate-300 mb-2" />
+                        {searchQuery ? (
+                          <p>Tidak ada data kargo yang cocok dengan &quot;{searchQuery}&quot;.</p>
+                        ) : (
+                          <div className="space-y-1">
+                            <p className="text-slate-600 font-bold text-sm">Data kargo saat ini kosong.</p>
+                            <p className="text-xs text-slate-400 font-normal">Klik &quot;Tambah Kargo&quot; di atas untuk menambahkan data baru.</p>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   )}
@@ -398,6 +422,43 @@ export default function CargoDatabasePage() {
 
         </div>
       </div>
+
+      {/* Confirmation Modal for Clear All Data */}
+      {isConfirmClearOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-xs" onClick={() => setIsConfirmClearOpen(false)} />
+          <div className="relative bg-white rounded-xl shadow-xl border border-slate-200 p-6 max-w-sm w-full z-10 space-y-4 animate-scale-in">
+            <div className="flex items-start gap-3.5">
+              <div className="w-10 h-10 rounded-full bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-600 shrink-0 mt-0.5">
+                <Trash2 size={20} />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-sm font-bold text-slate-900">Kosongkan Data Kargo?</h3>
+                <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                  Semua ({availableShipments.length}) item data kargo di tabel dan database akan dihapus secara permanen.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setIsConfirmClearOpen(false)}
+                className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition-colors cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleClearAllCargo}
+                className="px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg transition-colors cursor-pointer shadow-xs"
+              >
+                Ya, Kosongkan Data
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

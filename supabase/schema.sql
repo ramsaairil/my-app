@@ -70,13 +70,6 @@ VALUES
   ('TRC-206', 'Trailer Heavy TRC-206', 'B 8871 PZX', 'Trailer', 'Siti Rahma', 80.00, 'Available', 'Dock #2')
 ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO public.cargos (id, name, shape, category, priority, quantity, dimension, volume_m3, handling_method, status)
-VALUES
-  ('KRG-9821', 'Pallet Barang Elekronik', 'Balok', 'Pallet', 'Standard', 10, '0.8x0.6x1 m', 0.48, 'Forklift', 'Loaded'),
-  ('KRG-9822', 'Kotak Suku Cadang', 'Balok', 'Box', 'Express', 15, '0.4x0.2x1 m', 0.08, 'Manual', 'Loaded'),
-  ('KRG-9823', 'Peti Komponen Industri', 'Kubus', 'Peti', 'Same day', 12, '1.5x1.2x0.4 m', 0.72, 'Forklift', 'Loaded')
-ON CONFLICT (id) DO NOTHING;
-
 -- 7. ENABLE ROW LEVEL SECURITY (RLS) & READ POLICIES
 ALTER TABLE public.cargos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.trucks ENABLE ROW LEVEL SECURITY;

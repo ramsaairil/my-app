@@ -84,6 +84,24 @@ export async function deleteCargoFromDb(id: string): Promise<boolean> {
   }
 }
 
+// Delete all cargo items from Supabase
+export async function deleteAllCargosFromDb(): Promise<boolean> {
+  if (!isSupabaseConfigured || !supabase) return false;
+
+  try {
+    const { error } = await supabase.from("cargos").delete().neq("id", "");
+    if (error) {
+      console.error("❌ [Supabase DB Error] Gagal mengosongkan data kargo:", error.message);
+      return false;
+    }
+    console.log("✅ [Supabase DB] Semua data kargo BERHASIL dikosongkan dari PostgreSQL.");
+    return true;
+  } catch (err: any) {
+    console.error("❌ [Supabase DB Exception]:", err?.message);
+    return false;
+  }
+}
+
 // Fetch trucks from Supabase
 export async function fetchTrucksFromDb(): Promise<TruckDbRecord[]> {
   if (!isSupabaseConfigured || !supabase) {
