@@ -34,13 +34,18 @@ export async function fetchCargosFromDb(): Promise<CargoDbRecord[]> {
   try {
     const { data, error } = await supabase.from("cargos").select("*").order("created_at", { ascending: false });
     if (error) {
-      console.error("❌ [Supabase DB Error] Gagal mengambil data kargo:", error.message);
+      if (error.code === "PGRST205" || error.code === "PGRST301") {
+        console.warn("⚠️ [Supabase DB] Tabel 'cargos' belum dibuat di Supabase. Jalankan supabase/schema.sql pada Supabase SQL Editor.");
+      } else {
+        console.error("❌ [Supabase DB Error] Gagal mengambil data kargo:", error.message);
+      }
       return [];
     }
     console.log(`✅ [Supabase DB] Berhasil mengambil ${data?.length || 0} kargo dari PostgreSQL.`);
     return data as CargoDbRecord[];
-  } catch (err: any) {
-    console.error("❌ [Supabase DB Exception]:", err?.message);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("❌ [Supabase DB Exception]:", msg);
     return [];
   }
 }
@@ -60,8 +65,9 @@ export async function insertCargoToDb(cargo: CargoDbRecord): Promise<boolean> {
     }
     console.log(`✅ [Supabase DB] Kargo ${cargo.id} BERHASIL tersimpan ke PostgreSQL!`);
     return true;
-  } catch (err: any) {
-    console.error("❌ [Supabase DB Exception]:", err?.message);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("❌ [Supabase DB Exception]:", msg);
     return false;
   }
 }
@@ -78,8 +84,9 @@ export async function deleteCargoFromDb(id: string): Promise<boolean> {
     }
     console.log(`✅ [Supabase DB] Kargo ${id} BERHASIL dihapus dari PostgreSQL.`);
     return true;
-  } catch (err: any) {
-    console.error("❌ [Supabase DB Exception]:", err?.message);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("❌ [Supabase DB Exception]:", msg);
     return false;
   }
 }
@@ -96,8 +103,9 @@ export async function deleteAllCargosFromDb(): Promise<boolean> {
     }
     console.log("✅ [Supabase DB] Semua data kargo BERHASIL dikosongkan dari PostgreSQL.");
     return true;
-  } catch (err: any) {
-    console.error("❌ [Supabase DB Exception]:", err?.message);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("❌ [Supabase DB Exception]:", msg);
     return false;
   }
 }
@@ -112,13 +120,18 @@ export async function fetchTrucksFromDb(): Promise<TruckDbRecord[]> {
   try {
     const { data, error } = await supabase.from("trucks").select("*").order("created_at", { ascending: false });
     if (error) {
-      console.error("❌ [Supabase DB Error] Gagal mengambil data armada:", error.message);
+      if (error.code === "PGRST205" || error.code === "PGRST301") {
+        console.warn("⚠️ [Supabase DB] Tabel 'trucks' belum dibuat di Supabase. Jalankan supabase/schema.sql pada Supabase SQL Editor.");
+      } else {
+        console.error("❌ [Supabase DB Error] Gagal mengambil data armada:", error.message);
+      }
       return [];
     }
     console.log(`✅ [Supabase DB] Berhasil mengambil ${data?.length || 0} armada dari PostgreSQL.`);
     return data as TruckDbRecord[];
-  } catch (err: any) {
-    console.error("❌ [Supabase DB Exception]:", err?.message);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("❌ [Supabase DB Exception]:", msg);
     return [];
   }
 }
@@ -138,8 +151,9 @@ export async function insertTruckToDb(truck: TruckDbRecord): Promise<boolean> {
     }
     console.log(`✅ [Supabase DB] Armada ${truck.id} BERHASIL tersimpan ke PostgreSQL!`);
     return true;
-  } catch (err: any) {
-    console.error("❌ [Supabase DB Exception]:", err?.message);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("❌ [Supabase DB Exception]:", msg);
     return false;
   }
 }
@@ -156,8 +170,9 @@ export async function deleteTruckFromDb(id: string): Promise<boolean> {
     }
     console.log(`✅ [Supabase DB] Armada ${id} BERHASIL dihapus dari PostgreSQL.`);
     return true;
-  } catch (err: any) {
-    console.error("❌ [Supabase DB Exception]:", err?.message);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("❌ [Supabase DB Exception]:", msg);
     return false;
   }
 }

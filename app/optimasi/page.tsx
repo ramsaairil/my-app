@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import PageHeader from "../components/PageHeader";
 import { useProfile } from "../context/ProfileContext";
 import { benchmarkBaselines } from "../data/datasets";
@@ -9,16 +9,6 @@ import {
 } from "lucide-react";
 
 // --- HELPER FUNCTIONS ---
-const getVolume = (dimStr?: string): number => {
-  if (!dimStr) return 0;
-  const clean = dimStr.toLowerCase().replace(/[^0-9.x]/g, "");
-  const parts = clean.split("x").map(parseFloat);
-  if (parts.length === 3 && parts.every(p => !isNaN(p))) {
-    return parts[0] * parts[1] * parts[2];
-  }
-  return 0;
-};
-
 const parseDimensions = (dimStr: string) => {
   const clean = dimStr.toLowerCase().replace(/[^0-9.x]/g, "");
   const parts = clean.split("x").map(parseFloat);
@@ -165,7 +155,7 @@ export default function CargoDetailsDashboardPage() {
     // Fungsi Evaluasi Fitness (Decoder)
     const evaluate = (order: number[], orientations: number[]) => {
       const packed: PlacedBox[] = [];
-      let extremePoints = [{ x: 0, y: 0, z: 0 }];
+      const extremePoints = [{ x: 0, y: 0, z: 0 }];
       
       order.forEach((idx, i) => {
         const item = flatItems[idx];
@@ -211,9 +201,8 @@ export default function CargoDetailsDashboardPage() {
       while (nextGen.length < popSize) {
         // Crossover (Sederhana)
         const p1 = population[Math.floor(Math.random() * 5)];
-        const p2 = population[Math.floor(Math.random() * 5)];
-        let childOrder = [...p1.order];
-        let childOrient = [...p1.orientations];
+        const childOrder = [...p1.order];
+        const childOrient = [...p1.orientations];
         
         // Mutasi
         if (Math.random() < 0.2) {

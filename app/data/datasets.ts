@@ -10,9 +10,22 @@ export interface CargoItem {
   method: string;
 }
 
+export interface RawDatasetItem {
+  id: string | number;
+  quantity: number;
+  weight: number;
+  length: number;
+  width: number;
+  height: number;
+}
+
+export interface RawDataset {
+  items: RawDatasetItem[];
+}
+
 export interface BaselineDataset {
   name: string;
-  slots: any[];
+  slots: unknown[];
   shipments: CargoItem[];
 }
 
@@ -32,7 +45,7 @@ const descriptions: Record<string, string> = {
   "3dBPP_test": "Benchmark Test Set"
 };
 
-const convertRawToShipments = (items: any[]): CargoItem[] => {
+const convertRawToShipments = (items: RawDatasetItem[]): CargoItem[] => {
   return items.map((item, idx) => {
     const isHeavy = item.weight >= 40;
     const isLarge = item.quantity >= 5;
@@ -70,7 +83,7 @@ const convertRawToShipments = (items: any[]): CargoItem[] => {
 
 export const benchmarkBaselines: Record<string, BaselineDataset> = {};
 
-Object.entries(rawDatasets).forEach(([key, data]: [string, any]) => {
+Object.entries(rawDatasets as Record<string, RawDataset>).forEach(([key, data]) => {
   const desc = descriptions[key] || `${data.items.length} items`;
   benchmarkBaselines[key] = {
     name: `${key} - ${desc}`,
