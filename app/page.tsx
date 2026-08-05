@@ -32,11 +32,11 @@ export default function LandingPage() {
       return;
     }
     setError("");
-    
+
     // Update profile context with the logged-in username
     const nameInput = username.trim();
     profile.setName(nameInput);
-    
+
     // Calculate initials
     const words = nameInput.split(/\s+/);
     let init = "L";
@@ -46,13 +46,13 @@ export default function LandingPage() {
       init = words[0].slice(0, 2).toUpperCase();
     }
     profile.setInitials(init);
-    
+
     router.push("/dashboard");
   };
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 font-sans antialiased flex flex-col justify-between relative overflow-hidden">
-      
+
       {/* Ambient background glow */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[350px] bg-gradient-to-b from-emerald-100/40 via-emerald-50/20 to-transparent blur-3xl pointer-events-none -z-10" />
 
@@ -86,7 +86,7 @@ export default function LandingPage() {
       {/* Hero Section */}
       <main className="flex-grow flex flex-col justify-center py-12 sm:py-16 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto w-full space-y-12 z-10">
         <div className="text-center space-y-5 max-w-2xl mx-auto">
-          
+
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-slate-900 tracking-tight leading-tight">
             Perencanaan & Optimasi <br className="hidden sm:block" />
             <span className="bg-gradient-to-r from-emerald-800 via-emerald-700 to-teal-700 bg-clip-text text-transparent">
@@ -164,7 +164,7 @@ export default function LandingPage() {
             onClick={() => setIsLoginOpen(false)}
             className="absolute inset-0 bg-slate-900/40 backdrop-blur-xs transition-opacity"
           />
-          
+
           {/* Modal Content */}
           <div className="relative w-full max-w-sm bg-white rounded-xl shadow-xl border border-slate-200 p-6 z-10 transition-all transform scale-100">
             {/* Close Button */}

@@ -1,207 +1,71 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import PageHeader from "../components/PageHeader";
-import { useProfile } from "../context/ProfileContext";
 import {
   Package,
   Plus,
   Search,
   X,
-  Database,
-  Inbox,
-  Trash2
+  Trash2,
+  Edit2,
+  CheckCircle2,
+  Box,
+  Palette,
+  Sparkles
 } from "lucide-react";
-import { fetchCargosFromDb, insertCargoToDb, deleteCargoFromDb, deleteAllCargosFromDb } from "../../lib/db";
+import { CargoMasterItem } from "../../lib/types";
+import {
+  getStoredCargos,
+  saveStoredCargos,
+  calculateVolumeM3
+} from "../../lib/storage";
 
-// Helper to calculate volume (m³) from dimension string like "1.2x0.8x1.4 m"
-const getVolume = (dimStr: string): number => {
-  if (!dimStr) return 0;
-  const clean = dimStr.toLowerCase().replace(/[^0-9.x]/g, "");
-  const parts = clean.split("x").map(parseFloat);
-  if (parts.length === 3 && parts.every(p => !isNaN(p))) {
-    return parts[0] * parts[1] * parts[2];
-  }
-  return 0;
-};
+const COLOR_SWATCHES = [
+  "#3B82F6", // Blue
+  "#10B981", // Emerald
+  "#F59E0B", // Amber
+  "#EC4899", // Pink
+  "#8B5CF6", // Purple
+  "#EF4444", // Red
+  "#06B6D4", // Cyan
+  "#F97316"  // Orange
+];
 
-const getShapeLabel = (dimStr?: string): string => {
-  if (!dimStr) return "Balok";
-  const clean = dimStr.toLowerCase().replace(/[^0-9.x]/g, "");
-  const parts = clean.split("x").map(parseFloat);
-  if (parts.length === 3 && parts.every(p => !isNaN(p))) {
-    const isCube = Math.abs(parts[0] - parts[1]) < 0.05 && Math.abs(parts[1] - parts[2]) < 0.05;
-    return isCube ? "Kubus" : "Balok";
-  }
-  return "Balok";
-};
+export default function CargoMasterDataPage() {
+  const [cargos, setCargos] = useState<CargoMasterItem[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
 
-// Types
-interface CargoItem {
-  id: string;
-  type: string;
-  qty: string;
-  dimension: string;
-}
-
-export default function CargoDatabasePage() {
-  const profile = useProfile();
-
-  // Search query state
-  const [searchQuery, setSearchQuery] = useState<string>("");
-
-  // Toast Notification state
   const [toast, setToast] = useState<{ show: boolean; message: string; type: "success" | "error" }>({
     show: false,
     message: "",
     type: "success"
   });
 
-  // State for new custom cargo input form
-  const [isAddFormOpen, setIsAddFormOpen] = useState(false);
-  const [isConfirmClearOpen, setIsConfirmClearOpen] = useState(false);
-  const [customId, setCustomId] = useState("");
-  const [customType, setCustomType] = useState("Pallet");
-  const [customQty, setCustomQty] = useState("10 Unit");
-  const [customDim, setCustomDim] = useState("1.2x0.8x1.4 m");
-  const [customCounter, setCustomCounter] = useState(1);
+  // Modal State for Add / Edit
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
-  // Baseline profiles definitions
-  const baselines = {
-    default: {
-      name: "Operasi Default Logistic",
-      description: "Muatan kargo tersimpan di database.",
-      shipments: [] as CargoItem[]
-    },
-    br1: {
-      name: "Bischoff & Ratcliff (BR1) - Heterogen Lemah",
-      description: "Dataset patokan standar BR1 untuk masalah pengepakan kontainer yang berisi kargo dengan jenis heterogen lemah.",
-      shipments: [
-        { id: "KRG-BR1-01", type: "Pallet", qty: "8 palet", dimension: "1.2x0.8x1.6 m" },
-        { id: "KRG-BR1-02", type: "Kotak", qty: "5 kotak", dimension: "0.8x0.6x1.0 m" },
-        { id: "KRG-BR1-03", type: "Kotak", qty: "10 kotak", dimension: "0.4x0.4x0.4 m" }
-      ] as CargoItem[]
-    },
-    br5: {
-      name: "Bischoff & Ratcliff (BR5) - Heterogen Sedang",
-      description: "Dataset patokan BR5 dengan lebih banyak variasi dalam ukuran kotak dan batasan, ideal untuk pengujian distribusi berat.",
-      shipments: [
-        { id: "KRG-BR5-01", type: "Pallet", qty: "4 palet", dimension: "2.0x0.8x1.2 m" },
-        { id: "KRG-BR5-02", type: "Kotak", qty: "6 kotak", dimension: "0.8x0.8x1.8 m" },
-        { id: "KRG-BR5-03", type: "Kotak", qty: "12 kotak", dimension: "0.5x0.5x0.5 m" }
-      ] as CargoItem[]
-    },
-    homogeneous: {
-      name: "Profil Europallet Homogen",
-      description: "Europallet standar seragam untuk optimalisasi muatan kontainer seragam dan pengepakan volume maksimum.",
-      shipments: [
-        { id: "KRG-HOM-01", type: "Pallet", qty: "18 palet", dimension: "1.2x0.8x1.4 m" }
-      ] as CargoItem[]
-    }
-  };
+  // Form Fields
+  const [formName, setFormName] = useState("");
+  const [formCode, setFormCode] = useState("");
+  const [formLength, setFormLength] = useState<number>(40);
+  const [formWidth, setFormWidth] = useState<number>(30);
+  const [formHeight, setFormHeight] = useState<number>(30);
+  const [formColor, setFormColor] = useState<string>("#3B82F6");
 
-  const [activeBaseline, setActiveBaseline] = useState<keyof typeof baselines>("default");
+  // Delete Target Modal
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
-  // Dynamic state for baseline/custom shipments
-  const [customShipments, setCustomShipments] = useState<Record<string, CargoItem[]>>({
-    default: [],
-    br1: [...baselines.br1.shipments],
-    br5: [...baselines.br5.shipments],
-    homogeneous: [...baselines.homogeneous.shipments]
-  });
+  // Auto-computed Volume
+  const computedVolumeM3 = useMemo(() => {
+    return calculateVolumeM3(formLength, formWidth, formHeight);
+  }, [formLength, formWidth, formHeight]);
 
-  const availableShipments = useMemo(() => {
-    return customShipments[activeBaseline] || [];
-  }, [customShipments, activeBaseline]);
-
-  // Sync cargos from Supabase PostgreSQL database
   useEffect(() => {
-    async function syncDb() {
-      const dbCargos = await fetchCargosFromDb();
-      if (dbCargos && dbCargos.length > 0) {
-        const mappedFromDb: CargoItem[] = dbCargos.map((item) => ({
-          id: item.id,
-          type: item.category || "Pallet",
-          qty: `${item.quantity || 1} unit`,
-          dimension: item.dimension || "1.2x0.8x1.4 m"
-        }));
-
-        setCustomShipments((prev) => ({
-          ...prev,
-          default: mappedFromDb
-        }));
-      } else {
-        setCustomShipments((prev) => ({
-          ...prev,
-          default: []
-        }));
-      }
-    }
-    syncDb();
+    const loaded = getStoredCargos();
+    setCargos(loaded);
   }, []);
-
-  const handleSaveCustomCargo = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    const idToUse = customId.trim() || `KRG-CST-${String(customCounter).padStart(3, "0")}`;
-    
-    // Check for duplicate ID
-    const exists = availableShipments.some((item) => item.id.toLowerCase() === idToUse.toLowerCase());
-    if (exists) {
-      showToast(`ID Kargo ${idToUse} sudah digunakan!`, "error");
-      return;
-    }
-
-    const newItem: CargoItem = {
-      id: idToUse,
-      type: customType,
-      qty: customQty,
-      dimension: customDim
-    };
-
-    // Save to Supabase PostgreSQL database
-    const qtyNumber = parseInt(customQty) || 1;
-    const volM3 = getVolume(customDim) * qtyNumber;
-    await insertCargoToDb({
-      id: idToUse,
-      name: `Kargo ${idToUse}`,
-      category: customType,
-      quantity: qtyNumber,
-      dimension: customDim,
-      volume_m3: volM3,
-      status: "Unassigned"
-    });
-
-    setCustomShipments((prev) => ({
-      ...prev,
-      [activeBaseline]: [...(prev[activeBaseline] || []), newItem]
-    }));
-
-    // Reset Form
-    setCustomId("");
-    setCustomCounter((c) => c + 1);
-    setIsAddFormOpen(false);
-    showToast(`Kargo Kustom ${idToUse} tersimpan ke database!`, "success");
-  };
-
-  const handleDeleteCargo = async (id: string) => {
-    await deleteCargoFromDb(id);
-    setCustomShipments((prev) => ({
-      ...prev,
-      [activeBaseline]: (prev[activeBaseline] || []).filter((item) => item.id !== id)
-    }));
-    showToast(`Kargo ${id} berhasil dihapus!`, "success");
-  };
-
-  const handleClearAllCargo = async () => {
-    await deleteAllCargosFromDb();
-    setCustomShipments((prev) => ({
-      ...prev,
-      [activeBaseline]: []
-    }));
-    setIsConfirmClearOpen(false);
-    showToast("Semua data kargo berhasil dikosongkan!", "success");
-  };
 
   const showToast = (message: string, type: "success" | "error" = "success") => {
     setToast({ show: true, message, type });
@@ -210,232 +74,474 @@ export default function CargoDatabasePage() {
     }, 4000);
   };
 
-  // Search filtering
-  const filteredShipments = useMemo(() => {
-    return availableShipments.filter((shipment) => {
+  const handleOpenAddModal = () => {
+    setEditingId(null);
+    setFormName("Kardus Standar Baru");
+    setFormCode(`BOX-${String(cargos.length + 1).padStart(3, "0")}`);
+    setFormLength(45);
+    setFormWidth(35);
+    setFormHeight(30);
+    setFormColor("#3B82F6");
+    setIsModalOpen(true);
+  };
+
+  const handleOpenEditModal = (item: CargoMasterItem) => {
+    setEditingId(item.id);
+    setFormName(item.name);
+    setFormCode(item.code);
+    setFormLength(item.lengthCm);
+    setFormWidth(item.widthCm);
+    setFormHeight(item.heightCm);
+    setFormColor(item.color);
+    setIsModalOpen(true);
+  };
+
+  const handleSaveCargo = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!formName.trim()) {
+      showToast("Nama barang wajib diisi!", "error");
+      return;
+    }
+    if (!formCode.trim()) {
+      showToast("Kode barang wajib diisi!", "error");
+      return;
+    }
+    if (formLength <= 0 || formWidth <= 0 || formHeight <= 0) {
+      showToast("Dimensi box harus lebih dari 0 cm!", "error");
+      return;
+    }
+
+    if (editingId) {
+      const updated = cargos.map((c) => {
+        if (c.id === editingId) {
+          return {
+            ...c,
+            name: formName.trim(),
+            code: formCode.trim().toUpperCase(),
+            lengthCm: Number(formLength),
+            widthCm: Number(formWidth),
+            heightCm: Number(formHeight),
+            volumeM3: computedVolumeM3,
+            color: formColor
+          };
+        }
+        return c;
+      });
+      setCargos(updated);
+      saveStoredCargos(updated);
+      showToast(`Barang ${formName} berhasil diperbarui!`, "success");
+    } else {
+      const newId = `CRG-${String(Date.now()).slice(-4)}`;
+      const newCargo: CargoMasterItem = {
+        id: newId,
+        name: formName.trim(),
+        code: formCode.trim().toUpperCase(),
+        lengthCm: Number(formLength),
+        widthCm: Number(formWidth),
+        heightCm: Number(formHeight),
+        volumeM3: computedVolumeM3,
+        color: formColor
+      };
+      const updated = [newCargo, ...cargos];
+      setCargos(updated);
+      saveStoredCargos(updated);
+      showToast(`Barang ${formName} berhasil ditambahkan!`, "success");
+    }
+
+    setIsModalOpen(false);
+  };
+
+  const handleDeleteCargo = (id: string) => {
+    const updated = cargos.filter((c) => c.id !== id);
+    setCargos(updated);
+    saveStoredCargos(updated);
+    setDeleteTargetId(null);
+    showToast("Data barang berhasil dihapus!", "success");
+  };
+
+  const filteredCargos = useMemo(() => {
+    return cargos.filter((c) => {
       return (
-        shipment.id.toLowerCase().includes(searchQuery.toLowerCase().trim()) ||
-        shipment.type.toLowerCase().includes(searchQuery.toLowerCase().trim())
+        c.name.toLowerCase().includes(searchQuery.toLowerCase().trim()) ||
+        c.code.toLowerCase().includes(searchQuery.toLowerCase().trim()) ||
+        c.id.toLowerCase().includes(searchQuery.toLowerCase().trim())
       );
     });
-  }, [availableShipments, searchQuery]);
+  }, [cargos, searchQuery]);
 
   return (
-    <div className="flex-grow flex flex-col h-full overflow-hidden">
-      
+    <div className="flex-grow flex flex-col h-full overflow-hidden bg-slate-50/50">
       {/* Toast Notification */}
       {toast.show && (
-        <div className={`fixed top-4 right-4 z-50 flex items-center gap-3 px-4 py-3 rounded-lg shadow-xl border transition-all duration-300 transform translate-y-0 scale-100 ${
-          toast.type === "success"
-            ? "bg-emerald-50 border-emerald-200 text-emerald-800"
-            : "bg-rose-50 border-rose-200 text-rose-800"
-        }`}>
-          <div className={`w-2 h-2 rounded-full ${toast.type === "success" ? "bg-emerald-500" : "bg-rose-500"}`} />
-          <span className="text-sm font-medium">{toast.message}</span>
-          <button onClick={() => setToast((prev) => ({ ...prev, show: false }))} className="text-slate-400 hover:text-slate-600 transition-colors">
-            <X size={16} />
+        <div
+          className={`fixed top-4 right-4 z-50 flex items-center gap-3 px-4 py-3 rounded-2xl shadow-2xl border backdrop-blur-md transition-all duration-300 ${
+            toast.type === "success"
+              ? "bg-emerald-50/95 border-emerald-300 text-emerald-900"
+              : "bg-rose-50/95 border-rose-300 text-rose-900"
+          }`}
+        >
+          <CheckCircle2 size={18} className="text-emerald-600" />
+          <span className="text-xs font-bold">{toast.message}</span>
+          <button
+            onClick={() => setToast((prev) => ({ ...prev, show: false }))}
+            className="text-slate-400 hover:text-slate-600 cursor-pointer"
+          >
+            <X size={14} />
           </button>
         </div>
       )}
 
-      {/* Page Header */}
-      <PageHeader
-        title="Data Muatan"
-      >
-        <div className="flex items-center gap-2">
-          {availableShipments.length > 0 && (
-            <button
-              onClick={() => setIsConfirmClearOpen(true)}
-              className="flex items-center gap-1.5 px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-xs font-bold shadow-xs transition-all duration-200 cursor-pointer"
-            >
-              <Trash2 size={14} />
-              <span>Kosongkan Data</span>
-            </button>
-          )}
-          <button
-            onClick={() => setIsAddFormOpen(!isAddFormOpen)}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold shadow-sm transition-all duration-200 cursor-pointer"
-          >
-            <Plus size={14} />
-            <span>Tambah Kargo</span>
-          </button>
-        </div>
+      {/* Header */}
+      <PageHeader title="Data Muatan">
+        <button
+          onClick={handleOpenAddModal}
+          className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-emerald-700 to-emerald-800 hover:from-emerald-800 hover:to-emerald-900 text-white rounded-xl text-xs font-black shadow-md shadow-emerald-700/20 hover:shadow-lg transition-all duration-200 cursor-pointer group"
+        >
+          <Plus size={15} className="group-hover:rotate-90 transition-transform duration-300" />
+          <span>Tambah Barang</span>
+        </button>
       </PageHeader>
 
       {/* Main Body */}
-      <div className="flex-grow overflow-y-auto p-4 sm:p-8 custom-scrollbar">
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-6 lg:p-8 space-y-6">
         <div className="max-w-[1400px] mx-auto space-y-6">
-          
-          {/* Search, Filter, and Dataset selectors */}
-          <div className="bg-white border border-slate-100 rounded-xl p-6 shadow-sm space-y-6">
-            <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
+          {/* Quick Stats Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+            <div className="glass-card glass-card-hover rounded-2xl p-5 flex items-center justify-between group">
               <div>
-                <h2 className="text-sm font-bold text-slate-900 tracking-wide uppercase">Inventaris & Manifes Kargo</h2>
-                <p className="text-xs text-slate-400 mt-0.5 font-medium">Daftar manifes kargo yang terdaftar di hub pergudangan untuk dioptimalkan.</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Total Jenis Barang</p>
+                <p className="text-3xl font-black text-slate-900 mt-1 tracking-tight">{cargos.length} <span className="text-sm font-bold text-slate-500">Box</span></p>
               </div>
-
-              <div className="flex flex-wrap items-center gap-3">
-                {/* Search query */}
-                <div className="relative min-w-[200px]">
-                  <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                    <Search size={14} />
-                  </span>
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Cari ID atau nama barang..."
-                    className="pl-8 pr-8 py-2 w-full border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-emerald-700 bg-white placeholder-slate-400 text-slate-700 font-medium"
-                  />
-                  {searchQuery && (
-                    <button
-                      onClick={() => setSearchQuery("")}
-                      className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-400 hover:text-slate-650"
-                    >
-                      <X size={12} />
-                    </button>
-                  )}
-                </div>
-
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 border border-slate-200 flex items-center justify-center text-slate-700 shadow-inner group-hover:scale-110 transition-transform">
+                <Package size={22} />
               </div>
             </div>
 
-            {/* Custom Cargo Addition Form */}
-            {isAddFormOpen && (
-              <form onSubmit={handleSaveCustomCargo} className="bg-slate-50 border border-slate-200 rounded-xl p-4 sm:p-6 space-y-4 animate-fade-in">
-                <div className="flex justify-between items-center border-b border-slate-200 pb-2">
-                  <h3 className="text-xs font-bold text-slate-850 uppercase tracking-wider flex items-center gap-2">
-                    <Plus size={16} className="text-emerald-700" />
-                    Tambah Item Kargo Kustom Baru
-                  </h3>
-                  <button type="button" onClick={() => setIsAddFormOpen(false)} className="text-slate-400 hover:text-slate-650 transition-colors">
-                    <X size={16} />
+            <div className="glass-card glass-card-hover rounded-2xl p-5 flex items-center justify-between group border-emerald-200/60">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-emerald-800">Bentuk Geometri</p>
+                <p className="text-3xl font-black text-emerald-700 mt-1 tracking-tight">100% <span className="text-sm font-bold text-emerald-800">Box (Cuboid)</span></p>
+              </div>
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-50 to-emerald-100/80 border border-emerald-200 flex items-center justify-center text-emerald-700 shadow-inner group-hover:scale-110 transition-transform">
+                <Box size={22} />
+              </div>
+            </div>
+
+            <div className="glass-card glass-card-hover rounded-2xl p-5 flex items-center justify-between group border-indigo-200/60">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-indigo-800">Rata-rata Volume Unit</p>
+                <p className="text-3xl font-black text-indigo-900 mt-1 tracking-tight">
+                  {cargos.length > 0
+                    ? (cargos.reduce((a, b) => a + b.volumeM3, 0) / cargos.length).toFixed(3)
+                    : 0}{" "}
+                  <span className="text-sm font-bold text-indigo-700">m³</span>
+                </p>
+              </div>
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-50 to-indigo-100/80 border border-indigo-200 flex items-center justify-center text-indigo-700 shadow-inner group-hover:scale-110 transition-transform">
+                <Palette size={22} />
+              </div>
+            </div>
+          </div>
+
+          {/* Master Table Container */}
+          <div className="glass-card rounded-2xl p-6 space-y-5">
+            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 border-b border-slate-100 pb-4">
+              <div>
+                <h2 className="text-xs font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
+                  <Package size={16} className="text-emerald-700" />
+                  Master Data Barang Box
+                </h2>
+                <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                  Seluruh barang direpresentasikan dalam bentuk Box (Cuboid) untuk algoritma 3D Bin Packing.
+                </p>
+              </div>
+
+              {/* Search input */}
+              <div className="relative min-w-[260px]">
+                <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Cari kode atau nama barang..."
+                  className="w-full pl-9 pr-8 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-600/30 focus:border-emerald-600 bg-white font-medium shadow-2xs"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  >
+                    <X size={12} />
                   </button>
-                </div>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-xs font-medium">
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">ID Kargo (Opsional)</label>
-                    <input
-                      type="text"
-                      value={customId}
-                      onChange={(e) => setCustomId(e.target.value)}
-                      placeholder={`KRG-CST-${String(customCounter).padStart(3, "0")}`}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-emerald-700 text-slate-800"
-                    />
-                  </div>
+                )}
+              </div>
+            </div>
 
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">Jumlah</label>
-                    <input
-                      type="text"
-                      value={customQty}
-                      onChange={(e) => setCustomQty(e.target.value)}
-                      placeholder="Contoh: 10 Unit"
-                      className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-emerald-700 text-slate-800"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">Dimensi (P x L x T)</label>
-                    <input
-                      type="text"
-                      value={customDim}
-                      onChange={(e) => setCustomDim(e.target.value)}
-                      placeholder="Contoh: 1.2x0.8x1.4 m"
-                      className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-emerald-700 text-slate-800 font-mono"
-                      required
-                    />
-                  </div>
-
-                  <div className="flex items-end">
-                    <button
-                      type="submit"
-                      className="w-full py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg font-bold shadow-xs transition-colors cursor-pointer text-center"
-                    >
-                      Simpan Kargo ke Database
-                    </button>
-                  </div>
-                </div>
-              </form>
-            )}
-
-            {/* Inventory Table List */}
+            {/* Table */}
             <div className="overflow-x-auto rounded-xl border border-slate-200/80 bg-white shadow-2xs">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
-                  <tr className="border-b border-slate-200 text-slate-400 font-bold uppercase tracking-wider bg-slate-50/70">
-                    <th className="py-3 px-4">ID Kargo</th>
-                    <th className="py-3 px-4">Jumlah</th>
-                    <th className="py-3 px-4">Dimensi (P x L x T)</th>
-                    <th className="py-3 px-4">Total Volume</th>
-                    <th className="py-3 px-4">Bentuk</th>
-                    <th className="py-3 px-4 text-right">Aksi</th>
+                  <tr className="border-b border-slate-200 text-slate-400 font-extrabold uppercase tracking-wider bg-slate-50/80 text-[10px]">
+                    <th className="py-3.5 px-4">Kode Barang</th>
+                    <th className="py-3.5 px-4">Nama Barang</th>
+                    <th className="py-3.5 px-4">Dimensi Box (P x L x T)</th>
+                    <th className="py-3.5 px-4">Volume Unit</th>
+                    <th className="py-3.5 px-4">Warna Box 3D</th>
+                    <th className="py-3.5 px-4 text-right">Aksi</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                  {filteredShipments.map((shipment) => (
-                    <tr key={shipment.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="py-3.5 px-4 font-bold text-slate-900">
-                        <div className="flex items-center gap-2">
-                          <Package size={15} className="text-slate-400" />
-                          <span>{shipment.id}</span>
-                        </div>
-                      </td>
-                      <td className="py-3.5 px-4 font-bold text-slate-900">{shipment.qty}</td>
-                      <td className="py-3.5 px-4 font-mono text-slate-700">{shipment.dimension}</td>
-                      <td className="py-3.5 px-4 font-bold text-slate-900">
-                        {(getVolume(shipment.dimension) * (parseInt(shipment.qty) || 1)).toFixed(2)} m³
-                      </td>
-                      <td className="py-3.5 px-4 font-semibold text-slate-700">{getShapeLabel(shipment.dimension)}</td>
-                      <td className="py-3.5 px-4 text-right">
-                        <button
-                          onClick={() => handleDeleteCargo(shipment.id)}
-                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                          title={`Hapus Kargo ${shipment.id}`}
-                        >
-                          <Trash2 size={15} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                  {filteredShipments.length === 0 && (
+                  {filteredCargos.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="text-center py-16 text-slate-400 text-sm font-semibold bg-slate-50/30">
-                        <Inbox size={36} className="mx-auto text-slate-300 mb-2" />
-                        {searchQuery ? (
-                          <p>Tidak ada data kargo yang cocok dengan &quot;{searchQuery}&quot;.</p>
-                        ) : (
-                          <div className="space-y-1">
-                            <p className="text-slate-600 font-bold text-sm">Data kargo saat ini kosong.</p>
-                            <p className="text-xs text-slate-400 font-normal">Klik &quot;Tambah Kargo&quot; di atas untuk menambahkan data baru.</p>
-                          </div>
-                        )}
+                      <td colSpan={6} className="py-14 text-center text-slate-400">
+                        <Package className="mx-auto mb-2 text-slate-300" size={36} />
+                        <p className="font-bold text-xs text-slate-700">Tidak ada data barang ditemukan</p>
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                          Klik &quot;Tambah Barang&quot; untuk mendaftarkan barang box baru.
+                        </p>
                       </td>
                     </tr>
+                  ) : (
+                    filteredCargos.map((item) => (
+                      <tr key={item.id} className="hover:bg-slate-50/80 transition-colors group">
+                        <td className="py-3.5 px-4">
+                          <span className="font-mono font-extrabold text-slate-900 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200 shadow-2xs">
+                            {item.code}
+                          </span>
+                        </td>
+
+                        <td className="py-3.5 px-4 font-extrabold text-slate-900">
+                          <div className="flex items-center gap-3">
+                            <div
+                              className="w-4 h-4 rounded-md shrink-0 border border-slate-950/20 shadow-xs group-hover:scale-110 transition-transform"
+                              style={{ backgroundColor: item.color }}
+                            />
+                            <span>{item.name}</span>
+                          </div>
+                        </td>
+
+                        <td className="py-3.5 px-4 font-mono font-bold text-slate-800">
+                          {item.lengthCm} x {item.widthCm} x {item.heightCm} cm
+                        </td>
+
+                        <td className="py-3.5 px-4 font-black text-emerald-800 text-sm">
+                          {item.volumeM3.toFixed(3)} m³
+                        </td>
+
+                        <td className="py-3.5 px-4">
+                          <div className="flex items-center gap-2.5">
+                            <div
+                              className="w-6 h-6 rounded-lg border border-slate-950/30 shadow-xs shrink-0"
+                              style={{ backgroundColor: item.color }}
+                            />
+                            <span className="font-mono text-[11px] font-bold text-slate-600 uppercase">
+                              {item.color}
+                            </span>
+                          </div>
+                        </td>
+
+                        <td className="py-3.5 px-4 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              onClick={() => handleOpenEditModal(item)}
+                              className="p-1.5 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                              title="Edit Barang"
+                            >
+                              <Edit2 size={14} />
+                            </button>
+                            <button
+                              onClick={() => setDeleteTargetId(item.id)}
+                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                              title="Hapus Barang"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
                   )}
                 </tbody>
               </table>
             </div>
           </div>
-
         </div>
       </div>
 
-      {/* Confirmation Modal for Clear All Data */}
-      {isConfirmClearOpen && (
+      {/* Modal Add / Edit Cargo Item */}
+      {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-xs" onClick={() => setIsConfirmClearOpen(false)} />
-          <div className="relative bg-white rounded-xl shadow-xl border border-slate-200 p-6 max-w-sm w-full z-10 space-y-4 animate-scale-in">
-            <div className="flex items-start gap-3.5">
-              <div className="w-10 h-10 rounded-full bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-600 shrink-0 mt-0.5">
-                <Trash2 size={20} />
+          <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-xs" onClick={() => setIsModalOpen(false)} />
+          <div className="relative bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-lg w-full p-6 sm:p-7 z-10 space-y-6 animate-scale-in">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-3.5">
+              <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
+                <Box size={18} className="text-emerald-700" />
+                {editingId ? "Edit Master Barang Box" : "Tambah Barang Box Baru"}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveCargo} className="space-y-5 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">
+                    Kode Barang
+                  </label>
+                  <input
+                    type="text"
+                    value={formCode}
+                    onChange={(e) => setFormCode(e.target.value)}
+                    placeholder="Contoh: BOX-A"
+                    className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-600/30 focus:border-emerald-600 text-slate-900 font-black font-mono uppercase"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">
+                    Nama Barang
+                  </label>
+                  <input
+                    type="text"
+                    value={formName}
+                    onChange={(e) => setFormName(e.target.value)}
+                    placeholder="Contoh: Kardus Indomie Standard"
+                    className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-600/30 focus:border-emerald-600 text-slate-900 font-bold"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Dimensions Section */}
+              <div className="bg-gradient-to-br from-emerald-50/70 to-emerald-100/40 border border-emerald-200/80 rounded-2xl p-4 space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-[11px] font-black text-emerald-950 uppercase tracking-wider">
+                    Dimensi Box (Cuboid)
+                  </span>
+                  <span className="text-[11px] font-black text-emerald-800 bg-white px-3 py-1 rounded-lg border border-emerald-300 shadow-2xs">
+                    Volume Unit: {computedVolumeM3} m³
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1">
+                      Panjang (cm)
+                    </label>
+                    <input
+                      type="number"
+                      value={formLength || ""}
+                      onChange={(e) => setFormLength(Number(e.target.value))}
+                      placeholder="40"
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600/30 focus:border-emerald-600 text-slate-900 font-black font-mono text-center"
+                      required
+                      min={1}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1">
+                      Lebar (cm)
+                    </label>
+                    <input
+                      type="number"
+                      value={formWidth || ""}
+                      onChange={(e) => setFormWidth(Number(e.target.value))}
+                      placeholder="30"
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600/30 focus:border-emerald-600 text-slate-900 font-black font-mono text-center"
+                      required
+                      min={1}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1">
+                      Tinggi (cm)
+                    </label>
+                    <input
+                      type="number"
+                      value={formHeight || ""}
+                      onChange={(e) => setFormHeight(Number(e.target.value))}
+                      placeholder="30"
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600/30 focus:border-emerald-600 text-slate-900 font-black font-mono text-center"
+                      required
+                      min={1}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Color Picker section */}
+              <div className="space-y-2.5">
+                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider">
+                  Warna Box untuk Visualisasi 3D
+                </label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="color"
+                    value={formColor}
+                    onChange={(e) => setFormColor(e.target.value)}
+                    className="w-10 h-10 p-1 border border-slate-200 rounded-xl cursor-pointer bg-white shadow-2xs"
+                  />
+                  <div className="flex flex-wrap gap-2">
+                    {COLOR_SWATCHES.map((swatch) => (
+                      <button
+                        key={swatch}
+                        type="button"
+                        onClick={() => setFormColor(swatch)}
+                        className={`w-7 h-7 rounded-xl border transition-all cursor-pointer ${
+                          formColor.toLowerCase() === swatch.toLowerCase()
+                            ? "scale-110 border-slate-900 shadow-md ring-2 ring-emerald-500"
+                            : "border-slate-300 hover:scale-105"
+                        }`}
+                        style={{ backgroundColor: swatch }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Action buttons */}
+              <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors cursor-pointer text-xs"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="px-6 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold rounded-xl shadow-md transition-colors cursor-pointer text-xs"
+                >
+                  {editingId ? "Simpan Perubahan" : "Tambah Barang"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal Delete */}
+      {deleteTargetId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-xs" onClick={() => setDeleteTargetId(null)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl border border-slate-200 p-6 max-w-sm w-full z-10 space-y-4 animate-scale-in">
+            <div className="flex items-start gap-4">
+              <div className="w-11 h-11 rounded-2xl bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-600 shrink-0">
+                <Trash2 size={22} />
               </div>
               <div className="space-y-1">
-                <h3 className="text-sm font-bold text-slate-900">Kosongkan Data Kargo?</h3>
+                <h3 className="text-sm font-black text-slate-900">Hapus Data Barang Ini?</h3>
                 <p className="text-xs text-slate-500 font-medium leading-relaxed">
-                  Semua ({availableShipments.length}) item data kargo di tabel dan database akan dihapus secara permanen.
+                  Data barang box akan dihapus secara permanen dari master inventaris.
                 </p>
               </div>
             </div>
@@ -443,17 +549,17 @@ export default function CargoDatabasePage() {
             <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
               <button
                 type="button"
-                onClick={() => setIsConfirmClearOpen(false)}
-                className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition-colors cursor-pointer"
+                onClick={() => setDeleteTargetId(null)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-colors cursor-pointer"
               >
                 Batal
               </button>
               <button
                 type="button"
-                onClick={handleClearAllCargo}
-                className="px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg transition-colors cursor-pointer shadow-xs"
+                onClick={() => handleDeleteCargo(deleteTargetId)}
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl transition-colors cursor-pointer shadow-md"
               >
-                Ya, Kosongkan Data
+                Ya, Hapus
               </button>
             </div>
           </div>
@@ -462,4 +568,3 @@ export default function CargoDatabasePage() {
     </div>
   );
 }
-

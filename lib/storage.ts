@@ -1,0 +1,269 @@
+import { Vehicle, VehiclePreset, CargoMasterItem } from "./types";
+
+export const VEHICLE_PRESETS: VehiclePreset[] = [
+  {
+    type: "Pick Up",
+    name: "Pick Up Standar",
+    lengthCm: 200,
+    widthCm: 140,
+    heightCm: 120,
+    description: "Kapasitas muatan ringan lokal (3,36 m³)"
+  },
+  {
+    type: "Gran Max Pick Up",
+    name: "Daihatsu Gran Max Pick Up",
+    lengthCm: 235,
+    widthCm: 155,
+    heightCm: 130,
+    description: "Pick Up bak luas favorit angkutan kota (4,74 m³)"
+  },
+  {
+    type: "L300 Pick Up",
+    name: "Mitsubishi L300 Pick Up",
+    lengthCm: 242,
+    widthCm: 160,
+    heightCm: 135,
+    description: "Pick Up legenda angkutan barang medium (5,23 m³)"
+  },
+  {
+    type: "Box Kecil",
+    name: "Blind Van / Box Kecil",
+    lengthCm: 240,
+    widthCm: 140,
+    heightCm: 140,
+    description: "Kendaraan tertutup kurir perkotaan (4,70 m³)"
+  },
+  {
+    type: "Colt Diesel Engkel (CDE)",
+    name: "CDE 4 Roda (Engkel Box)",
+    lengthCm: 310,
+    widthCm: 170,
+    heightCm: 170,
+    description: "Truk engkel 4 roda antar kota (8,96 m³)"
+  },
+  {
+    type: "Box Sedang",
+    name: "Truk Box Sedang (6 Roda)",
+    lengthCm: 420,
+    widthCm: 190,
+    heightCm: 190,
+    description: "Truk medium distribusi logistik (15,16 m³)"
+  },
+  {
+    type: "Colt Diesel Double (CDD)",
+    name: "CDD 6 Roda (Double Box)",
+    lengthCm: 450,
+    widthCm: 200,
+    heightCm: 200,
+    description: "Truk double 6 roda standar industri (18,00 m³)"
+  },
+  {
+    type: "Box Besar",
+    name: "Truk Box Besar (CDD Long)",
+    lengthCm: 570,
+    widthCm: 210,
+    heightCm: 220,
+    description: "Truk box panjang volume ekstra (26,33 m³)"
+  },
+  {
+    type: "Fuso",
+    name: "Truk Fuso Engkel",
+    lengthCm: 600,
+    widthCm: 230,
+    heightCm: 230,
+    description: "Truk heavy duty angkutan berat (31,74 m³)"
+  },
+  {
+    type: "Trailer 20 Feet",
+    name: "Kontainer Trailer 20 Feet",
+    lengthCm: 590,
+    widthCm: 235,
+    heightCm: 239,
+    description: "Kontainer standar 20 Feet (33,13 m³)"
+  },
+  {
+    type: "Wingbox",
+    name: "Truk Tronton Wingbox",
+    lengthCm: 940,
+    widthCm: 240,
+    heightCm: 240,
+    description: "Truk wingbox 3 pintu kapasitas besar (54,14 m³)"
+  },
+  {
+    type: "Trailer 40 Feet",
+    name: "Kontainer Trailer 40 Feet",
+    lengthCm: 1203,
+    widthCm: 235,
+    heightCm: 239,
+    description: "Kontainer standar 40 Feet (67,54 m³)"
+  }
+];
+
+export const DEFAULT_VEHICLES: Vehicle[] = [
+  {
+    id: "TRK-001",
+    name: "Gran Max Pick Up #1",
+    type: "Gran Max Pick Up",
+    lengthCm: 235,
+    widthCm: 155,
+    heightCm: 130,
+    volumeM3: 4.74,
+    status: "Aktif",
+    notes: "Armada pengiriman area Jabodetabek"
+  },
+  {
+    id: "TRK-002",
+    name: "CDE Box Logistics",
+    type: "Colt Diesel Engkel (CDE)",
+    lengthCm: 310,
+    widthCm: 170,
+    heightCm: 170,
+    volumeM3: 8.96,
+    status: "Aktif",
+    notes: "Rute Jakarta - Bandung"
+  },
+  {
+    id: "TRK-003",
+    name: "CDD Double Box Express",
+    type: "Colt Diesel Double (CDD)",
+    lengthCm: 450,
+    widthCm: 200,
+    heightCm: 200,
+    volumeM3: 18.00,
+    status: "Aktif",
+    notes: "Armada utama pengiriman kargo antarkota"
+  },
+  {
+    id: "TRK-004",
+    name: "Fuso Heavy Duty",
+    type: "Fuso",
+    lengthCm: 600,
+    widthCm: 230,
+    heightCm: 230,
+    volumeM3: 31.74,
+    status: "Aktif",
+    notes: "Distribusi pulau Jawa & Sumatra"
+  },
+  {
+    id: "TRK-005",
+    name: "Tronton Wingbox Utama",
+    type: "Wingbox",
+    lengthCm: 940,
+    widthCm: 240,
+    heightCm: 240,
+    volumeM3: 54.14,
+    status: "Aktif",
+    notes: "Kapasitas muatan maksimum pabrik"
+  }
+];
+
+export const DEFAULT_CARGO_ITEMS: CargoMasterItem[] = [
+  {
+    id: "CRG-001",
+    code: "BOX-A",
+    name: "Box Standard Indomie",
+    lengthCm: 40,
+    widthCm: 30,
+    heightCm: 30,
+    volumeM3: 0.036,
+    color: "#3B82F6" // Vibrant Blue
+  },
+  {
+    id: "CRG-002",
+    code: "BOX-B",
+    name: "Kardus Elektronik Sedang",
+    lengthCm: 60,
+    widthCm: 40,
+    heightCm: 40,
+    volumeM3: 0.096,
+    color: "#10B981" // Vibrant Emerald/Green
+  },
+  {
+    id: "CRG-003",
+    code: "BOX-C",
+    name: "Kardus Jumbo Sparepart",
+    lengthCm: 80,
+    widthCm: 60,
+    heightCm: 50,
+    volumeM3: 0.24,
+    color: "#F59E0B" // Vibrant Amber
+  },
+  {
+    id: "CRG-004",
+    code: "BOX-D",
+    name: "Box Sepatu / Aksesoris",
+    lengthCm: 30,
+    widthCm: 20,
+    heightCm: 20,
+    volumeM3: 0.012,
+    color: "#EC4899" // Vibrant Pink
+  },
+  {
+    id: "CRG-005",
+    code: "BOX-E",
+    name: "Kardus Makanan Ringan",
+    lengthCm: 50,
+    widthCm: 35,
+    heightCm: 35,
+    volumeM3: 0.061,
+    color: "#8B5CF6" // Purple
+  }
+];
+
+// Helper to calculate volume in cubic meters rounded to 3 decimal places
+export function calculateVolumeM3(lengthCm: number, widthCm: number, heightCm: number): number {
+  const vol = (lengthCm * widthCm * heightCm) / 1000000;
+  return Number(vol.toFixed(3));
+}
+
+// Storage Keys
+const STORAGE_KEY_VEHICLES = "antrigravity_vehicles_v2";
+const STORAGE_KEY_CARGOS = "antrigravity_cargos_v2";
+
+export function getStoredVehicles(): Vehicle[] {
+  if (typeof window === "undefined") return DEFAULT_VEHICLES;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_VEHICLES);
+    if (!raw) {
+      localStorage.setItem(STORAGE_KEY_VEHICLES, JSON.stringify(DEFAULT_VEHICLES));
+      return DEFAULT_VEHICLES;
+    }
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_VEHICLES;
+  } catch {
+    return DEFAULT_VEHICLES;
+  }
+}
+
+export function saveStoredVehicles(vehicles: Vehicle[]): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(STORAGE_KEY_VEHICLES, JSON.stringify(vehicles));
+  } catch (e) {
+    console.error("Failed to save vehicles to LocalStorage:", e);
+  }
+}
+
+export function getStoredCargos(): CargoMasterItem[] {
+  if (typeof window === "undefined") return DEFAULT_CARGO_ITEMS;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_CARGOS);
+    if (!raw) {
+      localStorage.setItem(STORAGE_KEY_CARGOS, JSON.stringify(DEFAULT_CARGO_ITEMS));
+      return DEFAULT_CARGO_ITEMS;
+    }
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_CARGO_ITEMS;
+  } catch {
+    return DEFAULT_CARGO_ITEMS;
+  }
+}
+
+export function saveStoredCargos(cargos: CargoMasterItem[]): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(STORAGE_KEY_CARGOS, JSON.stringify(cargos));
+  } catch (e) {
+    console.error("Failed to save cargos to LocalStorage:", e);
+  }
+}
