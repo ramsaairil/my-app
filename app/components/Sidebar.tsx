@@ -19,9 +19,9 @@ export default function Sidebar() {
   const pathname = usePathname();
   const { isOpen, toggle } = useSidebar();
 
-  const navigationItems = [
+  const navigationItems: { id: string; label: string; icon: React.ComponentType<{ size?: number; className?: string }>; href: string; badge?: string }[] = [
     { id: "dashboard", label: "Dashboard", icon: Home, href: "/dashboard" },
-    { id: "optimasi", label: "Optimasi 3D", icon: Layers, href: "/optimasi", badge: "Live" },
+    { id: "optimasi", label: "Optimasi 3D", icon: Layers, href: "/optimasi" },
     { id: "cargo", label: "Data Muatan", icon: Package, href: "/cargo" },
     { id: "fleet", label: "Operasional Armada", icon: Truck, href: "/trucks" },
   ];
