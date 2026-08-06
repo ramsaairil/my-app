@@ -21,7 +21,16 @@ import {
   Zap,
   Box as BoxIcon,
   ShieldCheck,
-  Compass
+  Compass,
+  Table as TableIcon,
+  LayoutGrid,
+  BarChart3,
+  Search,
+  Plus,
+  Minus,
+  Check,
+  ChevronRight,
+  ArrowUpRight
 } from "lucide-react";
 import {
   Vehicle,
@@ -158,6 +167,9 @@ export default function CustomOptimizationPage() {
 
   // Step 2: Cargo Item Quantities Input (cargoId -> quantity)
   const [itemQuantities, setItemQuantities] = useState<Record<string, number>>({});
+
+  // Notion View State Tab
+  const [activeViewTab, setActiveViewTab] = useState<"simulator" | "manifest" | "report">("simulator");
 
   // Optimization Status & Results
   const [isSolving, setIsSolving] = useState(false);
@@ -353,653 +365,282 @@ export default function CustomOptimizationPage() {
   const containerLpx = (activeVehicle?.lengthCm || 450) * baseScale;
 
   return (
-    <div className="flex-grow flex flex-col h-full overflow-hidden bg-slate-50/50">
-      {/* Page Header */}
-      <PageHeader title="Optimasi Muatan 3D">
-        <div className="flex items-center gap-2">
-          {activeResult && (
-            <button
-              onClick={() => setIsManifestOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-slate-100 text-slate-800 border border-slate-200/90 rounded-xl text-xs font-black shadow-2xs transition-all cursor-pointer"
-            >
-              <Printer size={14} className="text-slate-500" />
-              <span>Cetak Manifes</span>
-            </button>
-          )}
-        </div>
-      </PageHeader>
-
-      {/* Main Body */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-6 lg:p-8 space-y-6">
-        <div className="max-w-[1400px] mx-auto space-y-6">
-          {/* STEP INPUT PANEL CARD */}
-          <div className="glass-card rounded-2xl p-6 space-y-6">
-            <div className="border-b border-slate-100 pb-4 flex flex-col sm:flex-row justify-between sm:items-center gap-3">
+    <div className="flex-grow flex flex-col h-full overflow-hidden bg-[#fafafa] text-slate-800 font-sans antialiased">
+      
+      {/* Main Scroll Container */}
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-6 sm:p-8 space-y-6">
+        <div className="max-w-[1300px] mx-auto space-y-6">
+          
+          {/* ---------------------------------------------------- */}
+          {/* NOTION PAGE HEADER */}
+          {/* ---------------------------------------------------- */}
+          <div className="space-y-3 pb-2 border-b border-slate-200/60">
+            
+            {/* Notion Large Page Title */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
-                <h2 className="text-xs font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
-                  <Layers size={16} className="text-emerald-700" />
-                  Simulasi Custom Optimasi Muatan 3D
-                </h2>
-                <p className="text-[11px] text-slate-500 font-medium mt-0.5">
-                  Pilih armada dan atur kuantitas barang box untuk mendapatkan susunan 3D paling efisien.
+                <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+                  Optimasi Muatan 3D
+                </h1>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">
+                  Simulasi algoritma 3D Bin Packing, kalkulasi okupansi ruang kontainer, dan urutan peletakan kargo.
                 </p>
               </div>
 
-              {/* Action Button */}
+              {/* Action Buttons */}
+              <div className="flex items-center gap-2">
+                {activeResult && (
+                  <button
+                    onClick={() => setIsManifestOpen(true)}
+                    className="px-3.5 py-1.5 bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 text-xs font-bold rounded-md shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Printer size={14} className="text-slate-500" />
+                    <span>Cetak Manifes</span>
+                  </button>
+                )}
+
+                <button
+                  onClick={handleRunOptimization}
+                  disabled={isSolving || requestedStats.totalBoxes === 0}
+                  className={`px-4 py-1.5 text-white text-xs font-bold rounded-md shadow-xs transition-all flex items-center gap-1.5 cursor-pointer ${
+                    isSolving || requestedStats.totalBoxes === 0
+                      ? "bg-slate-300 text-slate-500 cursor-not-allowed"
+                      : "bg-[#2383e2] hover:bg-[#1d70c4]"
+                  }`}
+                >
+                  {isSolving ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <span>Processing 3D...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Zap size={14} />
+                      <span>Optimalkan Muatan</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+          </div>
+
+          {/* ---------------------------------------------------- */}
+          {/* NOTION TOOLBAR & VIEW TABS BAR */}
+          {/* ---------------------------------------------------- */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-white p-2.5 rounded-xl border border-slate-200/80 shadow-2xs">
+            
+            {/* View Tabs Selector */}
+            <div className="flex items-center gap-1 bg-slate-100/70 p-1 rounded-lg">
               <button
-                onClick={handleRunOptimization}
-                disabled={isSolving || requestedStats.totalBoxes === 0}
-                className={`flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-black text-xs shadow-md transition-all cursor-pointer ${
-                  isSolving || requestedStats.totalBoxes === 0
-                    ? "bg-slate-200 text-slate-400 cursor-not-allowed"
-                    : "bg-gradient-to-r from-emerald-700 to-emerald-800 hover:from-emerald-800 hover:to-emerald-900 text-white shadow-emerald-700/20 hover:scale-[1.02]"
+                onClick={() => setActiveViewTab("simulator")}
+                className={`px-3 py-1 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  activeViewTab === "simulator"
+                    ? "bg-white text-slate-900 shadow-2xs font-bold"
+                    : "text-slate-500 hover:text-slate-800"
                 }`}
               >
-                {isSolving ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    <span>Menghitung 3D Bin Packing...</span>
-                  </>
-                ) : (
-                  <>
-                    <Zap size={16} className="fill-white" />
-                    <span>Optimalkan Muatan</span>
-                  </>
-                )}
+                <Zap size={14} className={activeViewTab === "simulator" ? "text-[#2383e2]" : "text-slate-400"} />
+                <span>3D Simulator & Config</span>
+              </button>
+
+              <button
+                onClick={() => setActiveViewTab("manifest")}
+                className={`px-3 py-1 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  activeViewTab === "manifest"
+                    ? "bg-white text-slate-900 shadow-2xs font-bold"
+                    : "text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                <Package size={14} className={activeViewTab === "manifest" ? "text-[#2383e2]" : "text-slate-400"} />
+                <span>Cargo Input Manifest</span>
+              </button>
+
+              <button
+                onClick={() => setActiveViewTab("report")}
+                className={`px-3 py-1 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  activeViewTab === "report"
+                    ? "bg-white text-slate-900 shadow-2xs font-bold"
+                    : "text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                <BarChart3 size={14} className={activeViewTab === "report" ? "text-[#2383e2]" : "text-slate-400"} />
+                <span>Analytics Report</span>
               </button>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-              {/* LANGKAH 1: PILIH KENDARAAN (5 cols) */}
-              <div className="lg:col-span-5 bg-gradient-to-br from-slate-50 to-slate-100/70 border border-slate-200/80 rounded-2xl p-5 space-y-4">
-                <div className="flex items-center gap-2.5 border-b border-slate-200/80 pb-3">
-                  <span className="w-6 h-6 rounded-full bg-emerald-700 text-white font-black text-xs flex items-center justify-center shadow-xs">
-                    1
+            {/* Quick Volume Badges */}
+            <div className="flex items-center gap-2 text-xs font-mono">
+              <span className="bg-slate-100 border border-slate-200 text-slate-700 px-2.5 py-1 rounded-md font-semibold">
+                Requested: <span className="font-bold">{requestedStats.totalBoxes} Boxes</span> ({requestedStats.totalVolM3} m³)
+              </span>
+            </div>
+
+          </div>
+
+          {/* ---------------------------------------------------- */}
+          {/* STEP INPUT CARDS GRID (STEP 1 & STEP 2) */}
+          {/* ---------------------------------------------------- */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            {/* STEP 1: VEHICLE SELECTION (5 Cols) */}
+            <div className="lg:col-span-5 bg-white border border-slate-200 rounded-xl p-5 space-y-4 shadow-2xs">
+              
+              <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+                <span className="w-5 h-5 rounded bg-[#2383e2] text-white font-bold text-xs flex items-center justify-center">
+                  1
+                </span>
+                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                  Mode Pemilihan Kendaraan
+                </h3>
+              </div>
+
+              {/* Options */}
+              <div className="space-y-3">
+                <label
+                  className={`flex items-start gap-3 p-3 rounded-lg border transition-all cursor-pointer ${
+                    vehicleMode === "recommend"
+                      ? "bg-emerald-50/60 border-emerald-300 ring-1 ring-emerald-400"
+                      : "bg-slate-50/50 border-slate-200 hover:bg-slate-100/60"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="vehicleMode"
+                    value="recommend"
+                    checked={vehicleMode === "recommend"}
+                    onChange={() => setVehicleMode("recommend")}
+                    className="mt-0.5 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                  />
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1.5">
+                      <Sparkles size={14} className="text-amber-500 fill-amber-500" />
+                      <span className="text-xs font-bold text-slate-900">
+                        Rekomendasikan Terbaik
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 leading-relaxed">
+                      Sistem menguji seluruh armada aktif & memilih unit paling efisien.
+                    </p>
+                  </div>
+                </label>
+
+                <label
+                  className={`flex items-start gap-3 p-3 rounded-lg border transition-all cursor-pointer ${
+                    vehicleMode === "manual"
+                      ? "bg-blue-50/60 border-[#2383e2] ring-1 ring-[#2383e2]"
+                      : "bg-slate-50/50 border-slate-200 hover:bg-slate-100/60"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="vehicleMode"
+                    value="manual"
+                    checked={vehicleMode === "manual"}
+                    onChange={() => setVehicleMode("manual")}
+                    className="mt-0.5 text-[#2383e2] focus:ring-[#2383e2] cursor-pointer"
+                  />
+                  <div className="space-y-2 flex-1">
+                    <span className="text-xs font-bold text-slate-900 block">
+                      Pilih Kendaraan Manual
+                    </span>
+
+                    {vehicleMode === "manual" && (
+                      <select
+                        value={selectedVehicleId}
+                        onChange={(e) => setSelectedVehicleId(e.target.value)}
+                        className="w-full px-3 py-2 text-xs border border-slate-200 rounded-md bg-white font-semibold text-slate-800 focus:outline-none focus:border-[#2383e2] cursor-pointer"
+                      >
+                        {vehicles
+                          .filter((v) => v.status === "Aktif")
+                          .map((v) => (
+                            <option key={v.id} value={v.id}>
+                              {v.name} - {v.type} ({v.volumeM3} m³ | {v.lengthCm}x{v.widthCm}x{v.heightCm} cm)
+                            </option>
+                          ))}
+                      </select>
+                    )}
+                  </div>
+                </label>
+              </div>
+
+            </div>
+
+            {/* STEP 2: CARGO ITEM QUANTITIES INPUT (7 Cols) */}
+            <div className="lg:col-span-7 bg-white border border-slate-200 rounded-xl p-5 space-y-4 shadow-2xs">
+              
+              <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2">
+                  <span className="w-5 h-5 rounded bg-[#2383e2] text-white font-bold text-xs flex items-center justify-center">
+                    2
                   </span>
-                  <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">
-                    Pilih Kendaraan
+                  <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                    Jumlah Barang Muatan Box
                   </h3>
                 </div>
 
-                {/* Option Radios */}
-                <div className="space-y-3">
-                  {/* Radio 1: Rekomendasikan Kendaraan Terbaik */}
-                  <label
-                    className={`flex items-start gap-3.5 p-3.5 rounded-2xl border transition-all cursor-pointer ${
-                      vehicleMode === "recommend"
-                        ? "bg-gradient-to-r from-emerald-50 to-emerald-100/80 border-emerald-400 ring-2 ring-emerald-500/20 shadow-xs"
-                        : "bg-white border-slate-200/80 hover:bg-slate-100/80"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="vehicleMode"
-                      value="recommend"
-                      checked={vehicleMode === "recommend"}
-                      onChange={() => setVehicleMode("recommend")}
-                      className="mt-1 text-emerald-700 focus:ring-emerald-600 cursor-pointer"
-                    />
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-1.5">
-                        <Sparkles size={15} className="text-amber-500 fill-amber-500" />
-                        <span className="text-xs font-black text-slate-900">
-                          Rekomendasikan Kendaraan Terbaik
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
-                        Sistem menguji seluruh armada aktif dan memilih kendaraan dengan pemanfaatan ruang paling optimal.
-                      </p>
-                    </div>
-                  </label>
-
-                  {/* Radio 2: Pilih Kendaraan Manual */}
-                  <label
-                    className={`flex items-start gap-3.5 p-3.5 rounded-2xl border transition-all cursor-pointer ${
-                      vehicleMode === "manual"
-                        ? "bg-gradient-to-r from-emerald-50 to-emerald-100/80 border-emerald-400 ring-2 ring-emerald-500/20 shadow-xs"
-                        : "bg-white border-slate-200/80 hover:bg-slate-100/80"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="vehicleMode"
-                      value="manual"
-                      checked={vehicleMode === "manual"}
-                      onChange={() => setVehicleMode("manual")}
-                      className="mt-1 text-emerald-700 focus:ring-emerald-600 cursor-pointer"
-                    />
-                    <div className="space-y-2.5 flex-1">
-                      <span className="text-xs font-black text-slate-900 block">
-                        Pilih Kendaraan Secara Manual
-                      </span>
-
-                      {vehicleMode === "manual" && (
-                        <select
-                          value={selectedVehicleId}
-                          onChange={(e) => setSelectedVehicleId(e.target.value)}
-                          className="w-full px-3.5 py-2.5 text-xs border border-slate-200 rounded-xl bg-white font-extrabold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-600/30 focus:border-emerald-600 cursor-pointer shadow-2xs"
-                        >
-                          {vehicles
-                            .filter((v) => v.status === "Aktif")
-                            .map((v) => (
-                              <option key={v.id} value={v.id}>
-                                {v.name} - {v.type} ({v.volumeM3} m³ | {v.lengthCm}x{v.widthCm}x{v.heightCm} cm)
-                              </option>
-                            ))}
-                        </select>
-                      )}
-                    </div>
-                  </label>
+                <div className="text-[11px] font-mono text-slate-500">
+                  Total Vol: <span className="font-bold text-emerald-700">{requestedStats.totalVolM3} m³</span>
                 </div>
               </div>
 
-              {/* LANGKAH 2: TAMBAH BARANG (7 cols) */}
-              <div className="lg:col-span-7 bg-gradient-to-br from-slate-50 to-slate-100/70 border border-slate-200/80 rounded-2xl p-5 space-y-4">
-                <div className="flex justify-between items-center border-b border-slate-200/80 pb-3">
-                  <div className="flex items-center gap-2.5">
-                    <span className="w-6 h-6 rounded-full bg-emerald-700 text-white font-black text-xs flex items-center justify-center shadow-xs">
-                      2
-                    </span>
-                    <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">
-                      Tambah Barang Muatan
-                    </h3>
-                  </div>
-
-                  <div className="flex items-center gap-3 text-[11px] font-black">
-                    <span className="text-slate-600 bg-white px-2.5 py-1 rounded-lg border border-slate-200 shadow-2xs">
-                      Total Box: {requestedStats.totalBoxes}
-                    </span>
-                    <span className="text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 shadow-2xs">
-                      Total Volume: {requestedStats.totalVolM3} m³
-                    </span>
-                  </div>
-                </div>
-
-                {/* Cargo Item Quantities Table Input */}
-                <div className="overflow-x-auto max-h-[220px] custom-scrollbar border border-slate-200/90 rounded-2xl bg-white shadow-2xs">
-                  <table className="w-full text-left text-xs border-collapse">
-                    <thead>
-                      <tr className="bg-slate-100/90 text-slate-400 font-extrabold uppercase tracking-wider text-[10px] border-b border-slate-200">
-                        <th className="py-3 px-3.5">Barang Box</th>
-                        <th className="py-3 px-3.5">Dimensi Unit</th>
-                        <th className="py-3 px-3.5">Vol. Unit</th>
-                        <th className="py-3 px-3.5 w-32 text-center">Jumlah Box</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 font-medium">
-                      {cargoMaster.map((cargo) => {
-                        const qty = itemQuantities[cargo.id] || 0;
-                        return (
-                          <tr key={cargo.id} className="hover:bg-slate-50/80 transition-colors">
-                            <td className="py-2.5 px-3.5 font-bold text-slate-900">
-                              <div className="flex items-center gap-2.5">
-                                <div
-                                  className="w-4 h-4 rounded-md border border-slate-950/20 shadow-2xs shrink-0"
-                                  style={{ backgroundColor: cargo.color }}
-                                />
-                                <div>
-                                  <span className="text-slate-900 font-black">{cargo.code}</span>
-                                  <span className="text-slate-500 font-medium ml-1.5">({cargo.name})</span>
-                                </div>
-                              </div>
-                            </td>
-
-                            <td className="py-2.5 px-3.5 font-mono text-slate-700 text-[11px]">
-                              {cargo.lengthCm}x{cargo.widthCm}x{cargo.heightCm} cm
-                            </td>
-
-                            <td className="py-2.5 px-3.5 text-slate-800 font-bold">
-                              {cargo.volumeM3} m³
-                            </td>
-
-                            <td className="py-2.5 px-3.5 text-center">
-                              <div className="flex items-center justify-center gap-1.5">
-                                <button
-                                  type="button"
-                                  onClick={() => handleQuantityChange(cargo.id, qty - 1)}
-                                  className="w-6 h-6 rounded-lg bg-slate-100 hover:bg-slate-200 font-black text-slate-700 cursor-pointer flex items-center justify-center transition-colors"
-                                >
-                                  -
-                                </button>
-                                <input
-                                  type="number"
-                                  value={qty}
-                                  onChange={(e) => handleQuantityChange(cargo.id, Number(e.target.value))}
-                                  className="w-14 px-1 py-1 text-center border border-slate-200 rounded-lg font-black font-mono text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-600/30 focus:border-emerald-600 bg-white"
-                                  min={0}
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() => handleQuantityChange(cargo.id, qty + 1)}
-                                  className="w-6 h-6 rounded-lg bg-slate-100 hover:bg-slate-200 font-black text-slate-700 cursor-pointer flex items-center justify-center transition-colors"
-                                >
-                                  +
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* VISUALISASI 3D INTERAKTIF & ANIMASI CARD */}
-          <div className="glass-card rounded-2xl p-6 space-y-5">
-            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 border-b border-slate-100 pb-3.5">
-              <div>
-                <h2 className="text-xs font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
-                  <BoxIcon size={16} className="text-emerald-700" />
-                  Visualisasi 3D Ruang & Penyusunan Box
-                </h2>
-                <p className="text-[11px] text-slate-500 font-medium mt-0.5">
-                  Visualisasi posisi koordinat 3D Bin Packing secara otomatis & teranimasi.
-                </p>
-              </div>
-
-              {/* 3D Viewport Controls Toolbar */}
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="flex items-center bg-slate-100 border border-slate-200 rounded-xl p-1 gap-1">
-                  <button
-                    onClick={() => setZoomScale((z) => Math.max(0.4, z - 0.1))}
-                    className="p-1 text-slate-600 hover:text-slate-900 hover:bg-white rounded-lg transition-colors cursor-pointer"
-                    title="Zoom Out"
-                  >
-                    <ZoomOut size={14} />
-                  </button>
-                  <span className="text-[10px] font-black text-slate-700 px-1 font-mono">
-                    {Math.round(zoomScale * 100)}%
-                  </span>
-                  <button
-                    onClick={() => setZoomScale((z) => Math.min(1.6, z + 0.1))}
-                    className="p-1 text-slate-600 hover:text-slate-900 hover:bg-white rounded-lg transition-colors cursor-pointer"
-                    title="Zoom In"
-                  >
-                    <ZoomIn size={14} />
-                  </button>
-                </div>
-
-                {/* Preset View Angles */}
-                <button
-                  onClick={() => setRotation({ x: -22, y: -45 })}
-                  className="px-3 py-1.5 text-[11px] font-black bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition-colors cursor-pointer"
-                >
-                  Isometric
-                </button>
-                <button
-                  onClick={() => setRotation({ x: -90, y: 0 })}
-                  className="px-3 py-1.5 text-[11px] font-black bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition-colors cursor-pointer"
-                >
-                  Atas
-                </button>
-                <button
-                  onClick={() => setRotation({ x: 0, y: -90 })}
-                  className="px-3 py-1.5 text-[11px] font-black bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition-colors cursor-pointer"
-                >
-                  Samping
-                </button>
-
-                {/* Animation Controls */}
-                {activeResult && (
-                  <div className="flex items-center gap-1.5 ml-2 border-l border-slate-200 pl-3">
-                    <button
-                      onClick={handlePlayPauseAnim}
-                      className="flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-[11px] font-black shadow-xs transition-colors cursor-pointer"
-                    >
-                      <Play size={13} className={isPlayingAnim ? "animate-pulse" : ""} />
-                      <span>{isPlayingAnim ? "Pause" : "Play Animasi"}</span>
-                    </button>
-                    <button
-                      onClick={handleResetAnim}
-                      className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition-colors cursor-pointer"
-                      title="Reset Tampilkan Semua"
-                    >
-                      <RotateCcw size={14} />
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* 3D Viewport Area */}
-            <div className="w-full bg-slate-950 text-white rounded-3xl p-5 sm:p-6 overflow-hidden relative shadow-2xl select-none space-y-4 border border-slate-900">
-              {/* Viewport Top Header Info */}
-              <div className="flex justify-between items-center z-20 pb-3 border-b border-slate-900 text-[10px] font-semibold">
-                <span className="text-slate-400 bg-slate-900 px-3 py-1 rounded-xl border border-slate-800/80">
-                  🖱️ Drag mouse untuk memutar 3D Orbit
-                </span>
-
-                <div className="flex items-center gap-2 font-mono font-bold">
-                  <span className="px-3 py-1 bg-emerald-950 text-emerald-300 border border-emerald-800 rounded-xl shadow-2xs">
-                    Utilisasi: {activeResult ? activeResult.utilizationPercent : 0}%
-                  </span>
-                  <span className="px-3 py-1 bg-slate-900 text-slate-300 border border-slate-800 rounded-xl">
-                    P: {activeVehicle?.lengthCm || 0} cm
-                  </span>
-                  <span className="px-3 py-1 bg-slate-900 text-slate-300 border border-slate-800 rounded-xl">
-                    L: {activeVehicle?.widthCm || 0} cm
-                  </span>
-                  <span className="px-3 py-1 bg-slate-900 text-slate-300 border border-slate-800 rounded-xl">
-                    T: {activeVehicle?.heightCm || 0} cm
-                  </span>
-                </div>
-              </div>
-
-              {/* 3D Scene Container */}
-              <div
-                className="w-full h-[430px] flex items-center justify-center cursor-grab active:cursor-grabbing relative bg-gradient-to-b from-slate-900/80 to-slate-950 rounded-2xl border border-slate-800/80 overflow-hidden"
-                style={{ perspective: "1200px" }}
-                onMouseDown={handleMouseDown}
-                onMouseMove={handleMouseMove}
-                onMouseUp={handleMouseUp}
-                onMouseLeave={handleMouseUp}
-              >
-                {/* Vehicle 3D Container Bounding Frame */}
-                <div
-                  className="relative transition-transform duration-100 ease-out"
-                  style={{
-                    width: `${containerWpx}px`,
-                    height: `${containerHpx}px`,
-                    transformStyle: "preserve-3d",
-                    transform: `rotateX(${rotation.x}deg) rotateY(${rotation.y}deg)`
-                  }}
-                >
-                  {/* Container Floor (Bottom Grid) */}
-                  <div
-                    className="absolute top-0 left-0 border-2 border-emerald-500/50 bg-emerald-950/30"
-                    style={{
-                      width: `${containerWpx}px`,
-                      height: `${containerLpx}px`,
-                      transform: `translateY(${containerHpx}px) rotateX(-90deg)`,
-                      transformOrigin: "top",
-                      backgroundImage:
-                        "linear-gradient(to right, rgba(16, 185, 129, 0.25) 1px, transparent 1px), linear-gradient(to bottom, rgba(16, 185, 129, 0.25) 1px, transparent 1px)",
-                      backgroundSize: "20px 20px"
-                    }}
-                  />
-
-                  {/* Back Wall */}
-                  <div
-                    className="absolute top-0 left-0 border border-slate-700/40 bg-slate-900/30 pointer-events-none"
-                    style={{
-                      width: `${containerWpx}px`,
-                      height: `${containerHpx}px`,
-                      transform: `translateZ(${-containerLpx}px)`
-                    }}
-                  />
-
-                  {/* Left Wireframe Wall */}
-                  <div
-                    className="absolute top-0 left-0 border border-slate-700/40 bg-slate-900/20 pointer-events-none"
-                    style={{
-                      width: `${containerLpx}px`,
-                      height: `${containerHpx}px`,
-                      transform: `rotateY(90deg)`,
-                      transformOrigin: "left"
-                    }}
-                  />
-
-                  {/* Render Placed Boxes */}
-                  {activeResult &&
-                    activeResult.packedBoxes.map((box, i) => (
-                      <Box3DItem
-                        key={box.id}
-                        box={box}
-                        containerW={activeVehicle?.widthCm || 200}
-                        containerH={activeVehicle?.heightCm || 200}
-                        containerL={activeVehicle?.lengthCm || 450}
-                        scale={baseScale}
-                        isAnimatedVisible={i < animCurrentStep}
-                      />
-                    ))}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* DASHBOARD HASIL OPTIMASI CARD */}
-          {activeResult && (
-            <div className="glass-card rounded-2xl p-6 space-y-5">
-              <div className="border-b border-slate-100 pb-3.5 flex justify-between items-center">
-                <div>
-                  <h2 className="text-xs font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
-                    <CheckCircle2 size={16} className="text-emerald-700" />
-                    Dashboard Hasil Optimasi
-                  </h2>
-                  <p className="text-[11px] text-slate-500 font-medium mt-0.5">
-                    Ringkasan performa penyusunan barang dan tingkat utilisasi ruang kendaraan.
-                  </p>
-                </div>
-
-                <span
-                  className={`px-3.5 py-1 rounded-full text-xs font-black border uppercase tracking-wider ${
-                    activeResult.statusLabel === "⭐ Paling Optimal"
-                      ? "bg-emerald-50 text-emerald-800 border-emerald-300 shadow-2xs"
-                      : activeResult.statusLabel === "Cocok Digunakan"
-                      ? "bg-blue-50 text-blue-800 border-blue-300"
-                      : activeResult.statusLabel === "Kapasitas Berlebih"
-                      ? "bg-amber-50 text-amber-800 border-amber-300"
-                      : "bg-rose-50 text-rose-800 border-rose-300"
-                  }`}
-                >
-                  {activeResult.statusLabel}
-                </span>
-              </div>
-
-              {/* 3 Summary Columns Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                {/* Info Kendaraan */}
-                <div className="bg-slate-50/80 border border-slate-200/80 rounded-2xl p-4.5 space-y-3">
-                  <div className="flex items-center gap-2 border-b border-slate-200/80 pb-2.5">
-                    <Truck size={16} className="text-emerald-700" />
-                    <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">
-                      Informasi Kendaraan
-                    </h3>
-                  </div>
-
-                  <div className="space-y-2.5 text-xs">
-                    <div className="flex justify-between">
-                      <span className="text-slate-500 font-medium">Nama Kendaraan</span>
-                      <span className="font-extrabold text-slate-900">{activeResult.vehicle.name}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-500 font-medium">Jenis Kendaraan</span>
-                      <span className="font-bold text-slate-800">{activeResult.vehicle.type}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-500 font-medium">Dimensi Ruang</span>
-                      <span className="font-mono font-bold text-slate-800">
-                        {activeResult.vehicle.lengthCm}x{activeResult.vehicle.widthCm}x
-                        {activeResult.vehicle.heightCm} cm
-                      </span>
-                    </div>
-                    <div className="flex justify-between pt-2 border-t border-slate-200/80">
-                      <span className="text-slate-500 font-medium">Volume Kendaraan</span>
-                      <span className="font-black text-emerald-800">
-                        {activeResult.vehicleVolumeM3} m³
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Info Muatan */}
-                <div className="bg-slate-50/80 border border-slate-200/80 rounded-2xl p-4.5 space-y-3">
-                  <div className="flex items-center gap-2 border-b border-slate-200/80 pb-2.5">
-                    <Package size={16} className="text-indigo-700" />
-                    <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">
-                      Informasi Muatan
-                    </h3>
-                  </div>
-
-                  <div className="space-y-2.5 text-xs">
-                    <div className="flex justify-between">
-                      <span className="text-slate-500 font-medium">Jumlah Jenis Barang</span>
-                      <span className="font-extrabold text-slate-900">
-                        {requestedStats.distinctTypes} Jenis Box
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-500 font-medium">Total Box Diinput</span>
-                      <span className="font-extrabold text-slate-900">
-                        {activeResult.totalBoxesRequested} Box
-                      </span>
-                    </div>
-                    <div className="flex justify-between pt-2 border-t border-slate-200/80">
-                      <span className="text-slate-500 font-medium">Total Volume Barang</span>
-                      <span className="font-black text-indigo-800">
-                        {activeResult.cargoVolumeM3} m³
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Hasil Optimasi */}
-                <div className="bg-gradient-to-br from-emerald-50/80 to-emerald-100/50 border border-emerald-200/90 rounded-2xl p-4.5 space-y-3">
-                  <div className="flex items-center gap-2 border-b border-emerald-200/90 pb-2.5">
-                    <Zap size={16} className="text-emerald-700" />
-                    <h3 className="text-xs font-black text-emerald-950 uppercase tracking-wider">
-                      Hasil Optimasi
-                    </h3>
-                  </div>
-
-                  <div className="space-y-2.5 text-xs">
-                    <div className="flex justify-between">
-                      <span className="text-slate-600 font-medium">Volume Terpakai</span>
-                      <span className="font-extrabold text-emerald-800">
-                        {activeResult.usedVolumeM3} m³
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-600 font-medium">Volume Tersisa</span>
-                      <span className="font-extrabold text-slate-800">
-                        {activeResult.remainingVolumeM3} m³
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-slate-600 font-medium">Utilisasi Ruang</span>
-                      <span className="font-black text-emerald-700 text-sm">
-                        {activeResult.utilizationPercent}%
-                      </span>
-                    </div>
-                    <div className="flex justify-between pt-2 border-t border-emerald-200/90">
-                      <span className="text-slate-600 font-medium">Box Termuat</span>
-                      <span className="font-black text-emerald-800">
-                        {activeResult.totalBoxesPacked} / {activeResult.totalBoxesRequested}
-                      </span>
-                    </div>
-                    {activeResult.totalBoxesUnpacked > 0 && (
-                      <div className="flex justify-between text-rose-700">
-                        <span className="font-semibold">Belum Termuat</span>
-                        <span className="font-black">{activeResult.totalBoxesUnpacked} Box</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* PERBANDINGAN KENDARAAN (COMPARE VEHICLE) CARD */}
-          {allComparisonResults.length > 0 && (
-            <div className="glass-card rounded-2xl p-6 space-y-5">
-              <div className="border-b border-slate-100 pb-3.5">
-                <h2 className="text-xs font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
-                  <Truck size={16} className="text-emerald-700" />
-                  Perbandingan Kendaraan (Compare Vehicle)
-                </h2>
-                <p className="text-[11px] text-slate-500 font-medium mt-0.5">
-                  Hasil simulasi komparatif dari seluruh kendaraan aktif di armada untuk muatan saat ini.
-                </p>
-              </div>
-
-              {/* Comparison Table */}
-              <div className="overflow-x-auto rounded-xl border border-slate-200/80 bg-white shadow-2xs">
+              {/* Cargo Table Input */}
+              <div className="overflow-x-auto max-h-[220px] custom-scrollbar border border-slate-200 rounded-lg bg-white">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
-                    <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-400 font-extrabold uppercase tracking-wider text-[10px]">
-                      <th className="py-3.5 px-4">Kendaraan</th>
-                      <th className="py-3.5 px-4">Volume Kendaraan</th>
-                      <th className="py-3.5 px-4">Box Termuat</th>
-                      <th className="py-3.5 px-4">Utilisasi Volume</th>
-                      <th className="py-3.5 px-4">Status Evaluasi</th>
-                      <th className="py-3.5 px-4 text-right">Aksi</th>
+                    <tr className="bg-slate-50 text-slate-400 font-semibold uppercase text-[10px] border-b border-slate-200">
+                      <th className="py-2.5 px-3">Kode & Nama</th>
+                      <th className="py-2.5 px-3">Dimensi</th>
+                      <th className="py-2.5 px-3">Vol. Unit</th>
+                      <th className="py-2.5 px-3 w-32 text-center">Jumlah Box</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 font-medium">
-                    {allComparisonResults.map((res) => {
-                      const isCurrent = activeResult?.vehicle.id === res.vehicle.id;
+                  <tbody className="divide-y divide-slate-100 font-normal">
+                    {cargoMaster.map((cargo) => {
+                      const qty = itemQuantities[cargo.id] || 0;
                       return (
-                        <tr
-                          key={res.vehicle.id}
-                          className={`transition-colors ${
-                            isCurrent ? "bg-emerald-50/60 font-bold" : "hover:bg-slate-50"
-                          }`}
-                        >
-                          <td className="py-3.5 px-4 font-black text-slate-900">
-                            <div>
-                              <span>{res.vehicle.name}</span>
-                              <span className="text-[11px] text-slate-400 font-medium ml-2">
-                                ({res.vehicle.type})
-                              </span>
+                        <tr key={cargo.id} className="hover:bg-[#f7f7f5] transition-colors">
+                          <td className="py-2 px-3 font-bold text-slate-900">
+                            <div className="flex items-center gap-2">
+                              <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: cargo.color }} />
+                              <span className="font-mono text-slate-900">{cargo.code}</span>
+                              <span className="text-slate-500 font-normal">({cargo.name})</span>
                             </div>
                           </td>
 
-                          <td className="py-3.5 px-4 text-slate-700 font-bold">
-                            {res.vehicleVolumeM3} m³
+                          <td className="py-2 px-3 font-mono text-slate-600 text-[11px]">
+                            {cargo.lengthCm}×{cargo.widthCm}×{cargo.heightCm} cm
                           </td>
 
-                          <td className="py-3.5 px-4 font-black text-slate-900">
-                            {res.totalBoxesPacked} / {res.totalBoxesRequested} Box
+                          <td className="py-2 px-3 font-mono font-bold text-slate-800 text-[11px]">
+                            {cargo.volumeM3.toFixed(3)} m³
                           </td>
 
-                          <td className="py-3.5 px-4">
-                            <div className="flex items-center gap-2.5">
-                              <span className="font-black text-emerald-800 min-w-[42px]">
-                                {res.utilizationPercent}%
-                              </span>
-                              <div className="w-28 bg-slate-200/80 h-2.5 rounded-full overflow-hidden">
-                                <div
-                                  className="bg-emerald-600 h-full rounded-full transition-all duration-300"
-                                  style={{ width: `${res.utilizationPercent}%` }}
-                                />
-                              </div>
+                          {/* Quantity Controls */}
+                          <td className="py-2 px-3">
+                            <div className="flex items-center justify-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => handleQuantityChange(cargo.id, qty - 1)}
+                                className="w-6 h-6 rounded bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center cursor-pointer transition-colors"
+                              >
+                                <Minus size={11} />
+                              </button>
+                              <input
+                                type="number"
+                                min="0"
+                                value={qty}
+                                onChange={(e) => handleQuantityChange(cargo.id, parseInt(e.target.value) || 0)}
+                                className="w-12 text-center py-0.5 text-xs border border-slate-200 rounded font-mono font-bold bg-slate-50 focus:bg-white focus:outline-none focus:border-[#2383e2]"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleQuantityChange(cargo.id, qty + 1)}
+                                className="w-6 h-6 rounded bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center cursor-pointer transition-colors"
+                              >
+                                <Plus size={11} />
+                              </button>
                             </div>
-                          </td>
-
-                          <td className="py-3.5 px-4">
-                            <span
-                              className={`px-3 py-1 rounded-full text-[10px] font-black border uppercase tracking-wider ${
-                                res.statusLabel === "⭐ Paling Optimal"
-                                  ? "bg-emerald-50 text-emerald-800 border-emerald-300 shadow-2xs"
-                                  : res.statusLabel === "Cocok Digunakan"
-                                  ? "bg-blue-50 text-blue-800 border-blue-300"
-                                  : res.statusLabel === "Kapasitas Berlebih"
-                                  ? "bg-amber-50 text-amber-800 border-amber-300"
-                                  : "bg-rose-50 text-rose-800 border-rose-300"
-                              }`}
-                            >
-                              {res.statusLabel}
-                            </span>
-                          </td>
-
-                          <td className="py-3.5 px-4 text-right">
-                            <button
-                              onClick={() => {
-                                setActiveResult(res);
-                                setSelectedVehicleId(res.vehicle.id);
-                                setAnimCurrentStep(res.packedBoxes.length);
-                              }}
-                              className={`px-3.5 py-1.5 rounded-xl text-[11px] font-black transition-all cursor-pointer ${
-                                isCurrent
-                                  ? "bg-emerald-700 text-white shadow-xs"
-                                  : "bg-slate-100 hover:bg-slate-200 text-slate-700"
-                              }`}
-                            >
-                              {isCurrent ? "Ditampilkan" : "Lihat 3D"}
-                            </button>
                           </td>
                         </tr>
                       );
@@ -1007,93 +648,186 @@ export default function CustomOptimizationPage() {
                   </tbody>
                 </table>
               </div>
+
+            </div>
+
+          </div>
+
+          {/* ---------------------------------------------------- */}
+          {/* 3D SPATIAL VISUALIZER CANVAS CARD */}
+          {/* ---------------------------------------------------- */}
+          <div className="bg-[#18181b] rounded-2xl border border-slate-800 p-6 shadow-2xl space-y-4 relative overflow-hidden">
+            
+            {/* Header Toolbar */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-800 pb-4">
+              <div className="flex items-center gap-2">
+                <Compass size={16} className="text-[#2383e2]" />
+                <div>
+                  <h2 className="text-xs font-bold text-white uppercase tracking-wider">
+                    Visualizer 3D Spatial Canvas
+                  </h2>
+                  <p className="text-[11px] text-slate-400">
+                    Klik & drag mouse untuk memutar sudut pandang 3D.
+                  </p>
+                </div>
+              </div>
+
+              {/* Viewport Control Buttons */}
+              <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 p-1 rounded-lg">
+                <button
+                  onClick={() => setZoomScale((z) => Math.min(1.5, z + 0.1))}
+                  className="p-1 text-slate-400 hover:text-white rounded hover:bg-slate-800 cursor-pointer"
+                  title="Zoom In"
+                >
+                  <ZoomIn size={14} />
+                </button>
+                <button
+                  onClick={() => setZoomScale((z) => Math.max(0.4, z - 0.1))}
+                  className="p-1 text-slate-400 hover:text-white rounded hover:bg-slate-800 cursor-pointer"
+                  title="Zoom Out"
+                >
+                  <ZoomOut size={14} />
+                </button>
+                <button
+                  onClick={() => setRotation({ x: -22, y: -45 })}
+                  className="p-1 text-slate-400 hover:text-white rounded hover:bg-slate-800 cursor-pointer"
+                  title="Reset Angle"
+                >
+                  <RotateCcw size={14} />
+                </button>
+              </div>
+            </div>
+
+            {/* 3D CANVAS DOM STAGE */}
+            <div
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseUp}
+              className="w-full h-[420px] bg-gradient-to-b from-[#121215] to-[#18181b] rounded-xl relative flex items-center justify-center overflow-hidden cursor-grab active:cursor-grabbing select-none"
+            >
+              {/* Grid Floor Lines */}
+              <div 
+                className="absolute inset-0 pointer-events-none opacity-10" 
+                style={{
+                  backgroundImage: `linear-gradient(to right, #ffffff 1px, transparent 1px), linear-gradient(to bottom, #ffffff 1px, transparent 1px)`,
+                  backgroundSize: `40px 40px`
+                }}
+              />
+
+              {/* 3D Container Stage */}
+              <div
+                className="relative transition-transform duration-75"
+                style={{
+                  width: `${containerWpx}px`,
+                  height: `${containerHpx}px`,
+                  transformStyle: "preserve-3d",
+                  transform: `rotateX(${rotation.x}deg) rotateY(${rotation.y}deg)`
+                }}
+              >
+                {/* Outer Glass Wireframe Container */}
+                <div
+                  className="absolute inset-0 border-2 border-[#2383e2]/60 rounded-sm pointer-events-none"
+                  style={{
+                    transformStyle: "preserve-3d",
+                    transform: `translateZ(${-containerLpx / 2}px)`
+                  }}
+                />
+
+                {/* Placed 3D Boxes */}
+                {activeResult &&
+                  activeResult.packedBoxes.map((box, idx) => (
+                    <Box3DItem
+                      key={`${box.cargoId}-${idx}`}
+                      box={box}
+                      containerW={activeVehicle.widthCm}
+                      containerH={activeVehicle.heightCm}
+                      containerL={activeVehicle.lengthCm}
+                      scale={baseScale}
+                      isAnimatedVisible={idx < animCurrentStep}
+                    />
+                  ))}
+              </div>
+
+              {/* Canvas Overlay Specs Tag */}
+              <div className="absolute bottom-4 left-4 bg-slate-900/90 border border-slate-800 backdrop-blur-md px-3 py-1.5 rounded-lg text-slate-300 font-mono text-[11px] space-y-0.5">
+                <div className="font-bold text-white flex items-center gap-1">
+                  <Truck size={12} className="text-[#2383e2]" />
+                  <span>{activeVehicle?.name} ({activeVehicle?.type})</span>
+                </div>
+                <div>Ruang: {activeVehicle?.lengthCm}×{activeVehicle?.widthCm}×{activeVehicle?.heightCm} cm</div>
+              </div>
+
+              {/* Packing Sequence Step Controller */}
+              {activeResult && (
+                <div className="absolute bottom-4 right-4 bg-slate-900/90 border border-slate-800 backdrop-blur-md p-2 rounded-lg flex items-center gap-3">
+                  <button
+                    onClick={handlePlayPauseAnim}
+                    className="px-2.5 py-1 bg-[#2383e2] hover:bg-[#1d70c4] text-white text-xs font-bold rounded flex items-center gap-1 cursor-pointer"
+                  >
+                    <Play size={12} />
+                    <span>{isPlayingAnim ? "Pause" : "Play Step"}</span>
+                  </button>
+
+                  <span className="text-xs font-mono text-slate-300">
+                    Step {animCurrentStep} / {activeResult.packedBoxes.length}
+                  </span>
+                </div>
+              )}
+
+            </div>
+
+          </div>
+
+          {/* ---------------------------------------------------- */}
+          {/* RESULTS & OCCUPANCY REPORT SECTION */}
+          {/* ---------------------------------------------------- */}
+          {activeResult && (
+            <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-2xs space-y-5">
+              
+              <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2">
+                  <BarChart3 size={16} className="text-[#2383e2]" />
+                  <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                    Laporan Hasil Pengepakan (Occupancy Report)
+                  </h3>
+                </div>
+
+                <span className="text-xs font-bold font-mono text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200">
+                  {activeResult.utilizationPercent.toFixed(1)}% Okupansi Ruang
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs font-mono">
+                <div className="bg-slate-50 border border-slate-200 p-3 rounded-lg space-y-1">
+                  <span className="text-slate-400 text-[10px] block font-sans font-bold">KAPASITAS KENDARAAN</span>
+                  <span className="font-bold text-slate-900 text-sm">{activeResult.vehicle.volumeM3.toFixed(2)} m³</span>
+                </div>
+
+                <div className="bg-slate-50 border border-slate-200 p-3 rounded-lg space-y-1">
+                  <span className="text-slate-400 text-[10px] block font-sans font-bold">VOLUME TERPAKAI</span>
+                  <span className="font-bold text-emerald-700 text-sm">{activeResult.usedVolumeM3.toFixed(3)} m³</span>
+                </div>
+
+                <div className="bg-slate-50 border border-slate-200 p-3 rounded-lg space-y-1">
+                  <span className="text-slate-400 text-[10px] block font-sans font-bold">BOX TERMUAT</span>
+                  <span className="font-bold text-blue-700 text-sm">{activeResult.packedBoxes.length} Box</span>
+                </div>
+
+                <div className="bg-slate-50 border border-slate-200 p-3 rounded-lg space-y-1">
+                  <span className="text-slate-400 text-[10px] block font-sans font-bold">BOX TERSISA</span>
+                  <span className={`font-bold text-sm ${activeResult.totalBoxesUnpacked > 0 ? "text-rose-600" : "text-slate-500"}`}>
+                    {activeResult.totalBoxesUnpacked} Box
+                  </span>
+                </div>
+              </div>
+
             </div>
           )}
+
         </div>
       </div>
 
-      {/* MANIFEST MODAL */}
-      {isManifestOpen && activeResult && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-3xl w-full max-w-2xl p-7 max-h-[90vh] overflow-y-auto space-y-6 shadow-2xl">
-            <div className="flex justify-between items-center border-b pb-3.5">
-              <h3 className="text-sm font-black text-slate-900">Manifes Operasional Muatan 3D</h3>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => window.print()}
-                  className="px-4 py-2 bg-emerald-700 text-white rounded-xl text-xs font-black shadow-xs cursor-pointer"
-                >
-                  Cetak Manifes
-                </button>
-                <button
-                  onClick={() => setIsManifestOpen(false)}
-                  className="px-3.5 py-2 border border-slate-200 text-slate-600 rounded-xl text-xs font-bold hover:bg-slate-100 cursor-pointer"
-                >
-                  Tutup
-                </button>
-              </div>
-            </div>
-
-            <div className="space-y-5 text-slate-800">
-              <div className="text-center border-b-2 border-slate-900 pb-4">
-                <h2 className="text-base font-black tracking-wider uppercase">
-                  MANIFES OPERASIONAL MUATAN 3D
-                </h2>
-                <p className="text-xs text-slate-500 font-medium mt-0.5">
-                  Sistem AntriGravity - Optimasi Muatan Ruang Armada
-                </p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4 text-xs font-medium bg-slate-50 p-4 rounded-2xl border border-slate-200">
-                <div>
-                  <p className="text-[10px] text-slate-400 font-black uppercase">Kendaraan</p>
-                  <p className="font-black text-slate-900">{activeResult.vehicle.name} ({activeResult.vehicle.type})</p>
-                  <p className="text-[11px] text-slate-600 font-mono mt-0.5">
-                    Dimensi: {activeResult.vehicle.lengthCm}x{activeResult.vehicle.widthCm}x{activeResult.vehicle.heightCm} cm
-                  </p>
-                </div>
-                <div>
-                  <p className="text-[10px] text-slate-400 font-black uppercase">Ringkasan Muatan</p>
-                  <p className="font-black text-emerald-700">Utilisasi Volume: {activeResult.utilizationPercent}%</p>
-                  <p className="text-[11px] text-slate-600 mt-0.5">
-                    Termuat: {activeResult.totalBoxesPacked} / {activeResult.totalBoxesRequested} Box ({activeResult.usedVolumeM3} m³)
-                  </p>
-                </div>
-              </div>
-
-              {/* Table of Placed Box Coordinates */}
-              <div className="overflow-x-auto border border-slate-200 rounded-2xl">
-                <table className="w-full text-left text-[11px] font-medium border-collapse">
-                  <thead>
-                    <tr className="bg-slate-100 border-b text-[10px] font-black text-slate-500 uppercase">
-                      <th className="py-2.5 px-3.5">Urutan</th>
-                      <th className="py-2.5 px-3.5">Kode Barang</th>
-                      <th className="py-2.5 px-3.5">Nama Barang</th>
-                      <th className="py-2.5 px-3.5">Koordinat 3D (X, Y, Z)</th>
-                      <th className="py-2.5 px-3.5">Dimensi Terpasang (P x L x T)</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 font-mono">
-                    {activeResult.packedBoxes.map((box) => (
-                      <tr key={box.id} className="hover:bg-slate-50">
-                        <td className="py-2.5 px-3.5 font-black text-slate-700">#{box.stepIndex}</td>
-                        <td className="py-2.5 px-3.5 font-black text-slate-900">{box.cargoCode}</td>
-                        <td className="py-2.5 px-3.5 font-sans font-bold text-slate-800">{box.cargoName}</td>
-                        <td className="py-2.5 px-3.5 text-emerald-800 font-black">
-                          X:{box.xCm}, Y:{box.yCm}, Z:{box.zCm} cm
-                        </td>
-                        <td className="py-2.5 px-3.5 text-slate-700">
-                          {box.lCm}x{box.wCm}x{box.hCm} cm
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

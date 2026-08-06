@@ -99,116 +99,9 @@ export const VEHICLE_PRESETS: VehiclePreset[] = [
   }
 ];
 
-export const DEFAULT_VEHICLES: Vehicle[] = [
-  {
-    id: "TRK-001",
-    name: "Gran Max Pick Up #1",
-    type: "Gran Max Pick Up",
-    lengthCm: 235,
-    widthCm: 155,
-    heightCm: 130,
-    volumeM3: 4.74,
-    status: "Aktif",
-    notes: "Armada pengiriman area Jabodetabek"
-  },
-  {
-    id: "TRK-002",
-    name: "CDE Box Logistics",
-    type: "Colt Diesel Engkel (CDE)",
-    lengthCm: 310,
-    widthCm: 170,
-    heightCm: 170,
-    volumeM3: 8.96,
-    status: "Aktif",
-    notes: "Rute Jakarta - Bandung"
-  },
-  {
-    id: "TRK-003",
-    name: "CDD Double Box Express",
-    type: "Colt Diesel Double (CDD)",
-    lengthCm: 450,
-    widthCm: 200,
-    heightCm: 200,
-    volumeM3: 18.00,
-    status: "Aktif",
-    notes: "Armada utama pengiriman kargo antarkota"
-  },
-  {
-    id: "TRK-004",
-    name: "Fuso Heavy Duty",
-    type: "Fuso",
-    lengthCm: 600,
-    widthCm: 230,
-    heightCm: 230,
-    volumeM3: 31.74,
-    status: "Aktif",
-    notes: "Distribusi pulau Jawa & Sumatra"
-  },
-  {
-    id: "TRK-005",
-    name: "Tronton Wingbox Utama",
-    type: "Wingbox",
-    lengthCm: 940,
-    widthCm: 240,
-    heightCm: 240,
-    volumeM3: 54.14,
-    status: "Aktif",
-    notes: "Kapasitas muatan maksimum pabrik"
-  }
-];
+export const DEFAULT_VEHICLES: Vehicle[] = [];
 
-export const DEFAULT_CARGO_ITEMS: CargoMasterItem[] = [
-  {
-    id: "CRG-001",
-    code: "BOX-A",
-    name: "Box Standard Indomie",
-    lengthCm: 40,
-    widthCm: 30,
-    heightCm: 30,
-    volumeM3: 0.036,
-    color: "#3B82F6" // Vibrant Blue
-  },
-  {
-    id: "CRG-002",
-    code: "BOX-B",
-    name: "Kardus Elektronik Sedang",
-    lengthCm: 60,
-    widthCm: 40,
-    heightCm: 40,
-    volumeM3: 0.096,
-    color: "#10B981" // Vibrant Emerald/Green
-  },
-  {
-    id: "CRG-003",
-    code: "BOX-C",
-    name: "Kardus Jumbo Sparepart",
-    lengthCm: 80,
-    widthCm: 60,
-    heightCm: 50,
-    volumeM3: 0.24,
-    color: "#F59E0B" // Vibrant Amber
-  },
-  {
-    id: "CRG-004",
-    code: "BOX-D",
-    name: "Box Sepatu / Aksesoris",
-    lengthCm: 30,
-    widthCm: 20,
-    heightCm: 20,
-    volumeM3: 0.012,
-    color: "#EC4899" // Vibrant Pink
-  },
-  {
-    id: "CRG-005",
-    code: "BOX-E",
-    name: "Kardus Makanan Ringan",
-    lengthCm: 50,
-    widthCm: 35,
-    heightCm: 35,
-    volumeM3: 0.061,
-    color: "#8B5CF6" // Purple
-  }
-];
+export const DEFAULT_CARGO_ITEMS: CargoMasterItem[] = [];
 
 // Helper to calculate volume in cubic meters rounded to 3 decimal places
 export function calculateVolumeM3(lengthCm: number, widthCm: number, heightCm: number): number {
@@ -217,8 +110,8 @@ export function calculateVolumeM3(lengthCm: number, widthCm: number, heightCm: n
 }
 
 // Storage Keys
-const STORAGE_KEY_VEHICLES = "antrigravity_vehicles_v2";
-const STORAGE_KEY_CARGOS = "antrigravity_cargos_v2";
+const STORAGE_KEY_VEHICLES = "antrigravity_vehicles_v3";
+const STORAGE_KEY_CARGOS = "antrigravity_cargos_v3";
 
 export function getStoredVehicles(): Vehicle[] {
   if (typeof window === "undefined") return DEFAULT_VEHICLES;
@@ -229,7 +122,7 @@ export function getStoredVehicles(): Vehicle[] {
       return DEFAULT_VEHICLES;
     }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_VEHICLES;
+    return Array.isArray(parsed) ? parsed : DEFAULT_VEHICLES;
   } catch {
     return DEFAULT_VEHICLES;
   }
@@ -253,7 +146,7 @@ export function getStoredCargos(): CargoMasterItem[] {
       return DEFAULT_CARGO_ITEMS;
     }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_CARGO_ITEMS;
+    return Array.isArray(parsed) ? parsed : DEFAULT_CARGO_ITEMS;
   } catch {
     return DEFAULT_CARGO_ITEMS;
   }

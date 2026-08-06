@@ -15,7 +15,20 @@ import {
   Sliders,
   Maximize2,
   Sparkles,
-  ShieldCheck
+  ShieldCheck,
+  Table as TableIcon,
+  LayoutGrid,
+  BarChart3,
+  ArrowUpDown,
+  Hash,
+  Type,
+  Maximize,
+  Tag,
+  Zap,
+  FileText,
+  Check,
+  ChevronRight,
+  ExternalLink
 } from "lucide-react";
 import { Vehicle, VehicleType } from "../../lib/types";
 import {
@@ -24,11 +37,14 @@ import {
   saveStoredVehicles,
   calculateVolumeM3
 } from "../../lib/storage";
+import { upsertTruckToDb, deleteTruckFromDb, fetchTrucksFromDb } from "../../lib/db";
 
 export default function FleetOperationsPage() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"Semua" | "Aktif" | "Nonaktif">("Semua");
+  const [activeView, setActiveView] = useState<"table" | "gallery" | "summary">("table");
+  const [sortBy, setSortBy] = useState<"id" | "name" | "volume" | "status">("id");
 
   const [toast, setToast] = useState<{ show: boolean; message: string; type: "success" | "error" }>({
     show: false,
@@ -58,8 +74,28 @@ export default function FleetOperationsPage() {
   }, [formLength, formWidth, formHeight]);
 
   useEffect(() => {
-    const loaded = getStoredVehicles();
-    setVehicles(loaded);
+    async function loadData() {
+      const dbTrucks = await fetchTrucksFromDb();
+      if (dbTrucks && dbTrucks.length > 0) {
+        const mapped: Vehicle[] = dbTrucks.map((t) => ({
+          id: t.id,
+          name: t.truck_name || t.id,
+          type: t.truck_type || "Gran Max Pick Up",
+          lengthCm: 300,
+          widthCm: 180,
+          heightCm: 180,
+          volumeM3: Number(t.max_volume_m3 || 9.72),
+          status: t.status === "Maintenance" ? "Nonaktif" : "Aktif",
+          notes: ""
+        }));
+        setVehicles(mapped);
+        saveStoredVehicles(mapped);
+      } else {
+        const stored = getStoredVehicles();
+        setVehicles(stored);
+      }
+    }
+    loadData();
   }, []);
 
   const showToast = (message: string, type: "success" | "error" = "success") => {
@@ -122,9 +158,10 @@ export default function FleetOperationsPage() {
     }
 
     if (editingId) {
+      let editedVehicle: Vehicle | null = null;
       const updated = vehicles.map((v) => {
         if (v.id === editingId) {
-          return {
+          editedVehicle = {
             ...v,
             name: formName.trim(),
             type: formType,
@@ -135,11 +172,15 @@ export default function FleetOperationsPage() {
             status: formStatus,
             notes: formNotes.trim()
           };
+          return editedVehicle;
         }
         return v;
       });
       setVehicles(updated);
       saveStoredVehicles(updated);
+      if (editedVehicle) {
+        upsertTruckToDb(editedVehicle);
+      }
       showToast(`Kendaraan ${formName} berhasil diperbarui!`, "success");
     } else {
       const newId = `TRK-${String(Date.now()).slice(-4)}`;
@@ -157,6 +198,7 @@ export default function FleetOperationsPage() {
       const updated = [newVehicle, ...vehicles];
       setVehicles(updated);
       saveStoredVehicles(updated);
+      upsertTruckToDb(newVehicle);
       showToast(`Kendaraan baru ${formName} berhasil ditambahkan!`, "success");
     }
 
@@ -167,12 +209,14 @@ export default function FleetOperationsPage() {
     const updated = vehicles.filter((v) => v.id !== id);
     setVehicles(updated);
     saveStoredVehicles(updated);
+    deleteTruckFromDb(id);
     setDeleteTargetId(null);
     showToast("Kendaraan berhasil dihapus!", "success");
   };
 
+  // Filtered & Sorted Vehicles
   const filteredVehicles = useMemo(() => {
-    return vehicles.filter((v) => {
+    let result = vehicles.filter((v) => {
       const matchSearch =
         v.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         v.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -181,469 +225,625 @@ export default function FleetOperationsPage() {
         statusFilter === "Semua" || v.status === statusFilter;
       return matchSearch && matchStatus;
     });
-  }, [vehicles, searchQuery, statusFilter]);
+
+    return result.sort((a, b) => {
+      let valA: string | number = a.id;
+      let valB: string | number = b.id;
+
+      if (sortBy === "name") {
+        valA = a.name.toLowerCase();
+        valB = b.name.toLowerCase();
+      } else if (sortBy === "volume") {
+        valA = a.volumeM3;
+        valB = b.volumeM3;
+      } else if (sortBy === "status") {
+        valA = a.status;
+        valB = b.status;
+      }
+
+      if (valA < valB) return -1;
+      if (valA > valB) return 1;
+      return 0;
+    });
+  }, [vehicles, searchQuery, statusFilter, sortBy]);
 
   const activeCount = useMemo(() => vehicles.filter((v) => v.status === "Aktif").length, [vehicles]);
 
+  const totalVolumeActiveSum = useMemo(() => {
+    return filteredVehicles.reduce((acc, v) => acc + (v.status === "Aktif" ? v.volumeM3 : 0), 0);
+  }, [filteredVehicles]);
+
+  const avgVolumeM3 = useMemo(() => {
+    return filteredVehicles.length > 0
+      ? filteredVehicles.reduce((acc, v) => acc + v.volumeM3, 0) / filteredVehicles.length
+      : 0;
+  }, [filteredVehicles]);
+
   return (
-    <div className="flex-grow flex flex-col h-full overflow-hidden bg-slate-50/50">
+    <div className="flex-grow flex flex-col h-full overflow-hidden bg-[#fafafa] text-slate-800 font-sans antialiased">
+      
       {/* Toast Notification */}
       {toast.show && (
         <div
-          className={`fixed top-4 right-4 z-50 flex items-center gap-3 px-4 py-3 rounded-2xl shadow-2xl border backdrop-blur-md transition-all duration-300 ${
+          className={`fixed top-4 right-4 z-50 flex items-center gap-3 px-4 py-2.5 rounded-lg shadow-lg border backdrop-blur-md transition-all duration-300 ${
             toast.type === "success"
               ? "bg-emerald-50/95 border-emerald-300 text-emerald-900"
               : "bg-rose-50/95 border-rose-300 text-rose-900"
           }`}
         >
-          <CheckCircle2 size={18} className="text-emerald-600" />
-          <span className="text-xs font-bold">{toast.message}</span>
+          <CheckCircle2 size={16} className="text-emerald-600" />
+          <span className="text-xs font-semibold">{toast.message}</span>
           <button
             onClick={() => setToast((prev) => ({ ...prev, show: false }))}
-            className="text-slate-400 hover:text-slate-600 cursor-pointer"
+            className="text-slate-400 hover:text-slate-600 cursor-pointer ml-2"
           >
             <X size={14} />
           </button>
         </div>
       )}
 
-      {/* Header */}
-      <PageHeader title="Operasional Armada">
-        <button
-          onClick={handleOpenAddModal}
-          className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-emerald-700 to-emerald-800 hover:from-emerald-800 hover:to-emerald-900 text-white rounded-xl text-xs font-black shadow-md shadow-emerald-700/20 hover:shadow-lg transition-all duration-200 cursor-pointer group"
-        >
-          <Plus size={15} className="group-hover:rotate-90 transition-transform duration-300" />
-          <span>Tambah Kendaraan</span>
-        </button>
-      </PageHeader>
-
-      {/* Main Body */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-6 lg:p-8 space-y-6">
-        <div className="max-w-[1400px] mx-auto space-y-6">
-          {/* Quick Stats Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-            {/* Total Armada */}
-            <div className="glass-card glass-card-hover rounded-2xl p-5 flex items-center justify-between group">
+      {/* Main Page Scroll Container */}
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-6 sm:p-8 space-y-6">
+        <div className="max-w-[1300px] mx-auto space-y-6">
+          
+          {/* ---------------------------------------------------- */}
+          {/* NOTION PAGE HEADER */}
+          {/* ---------------------------------------------------- */}
+          <div className="space-y-3 pb-2 border-b border-slate-200/60">
+            
+            {/* Notion Large Page Title */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Total Unit Armada</p>
-                <p className="text-3xl font-black text-slate-900 mt-1 tracking-tight">{vehicles.length} <span className="text-sm font-bold text-slate-500">Unit</span></p>
-              </div>
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 border border-slate-200 flex items-center justify-center text-slate-700 shadow-inner group-hover:scale-110 transition-transform">
-                <Truck size={22} />
-              </div>
-            </div>
-
-            {/* Status Aktif */}
-            <div className="glass-card glass-card-hover rounded-2xl p-5 flex items-center justify-between group border-emerald-200/60">
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-emerald-800">Armada Siap Operasional</p>
-                <p className="text-3xl font-black text-emerald-700 mt-1 tracking-tight">{activeCount} <span className="text-sm font-bold text-emerald-800">Unit</span></p>
-              </div>
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-50 to-emerald-100/80 border border-emerald-200 flex items-center justify-center text-emerald-700 shadow-inner group-hover:scale-110 transition-transform">
-                <ShieldCheck size={22} />
-              </div>
-            </div>
-
-            {/* Total Volume */}
-            <div className="glass-card glass-card-hover rounded-2xl p-5 flex items-center justify-between group border-indigo-200/60">
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-indigo-800">Total Volume Ruang Muat</p>
-                <p className="text-3xl font-black text-indigo-900 mt-1 tracking-tight">
-                  {vehicles.reduce((acc, v) => acc + (v.status === "Aktif" ? v.volumeM3 : 0), 0).toFixed(1)} <span className="text-sm font-bold text-indigo-700">m³</span>
-                </p>
-              </div>
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-50 to-indigo-100/80 border border-indigo-200 flex items-center justify-center text-indigo-700 shadow-inner group-hover:scale-110 transition-transform">
-                <Maximize2 size={22} />
-              </div>
-            </div>
-          </div>
-
-          {/* Table Container */}
-          <div className="glass-card rounded-2xl p-6 space-y-5">
-            {/* Table Filter Controls */}
-            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 border-b border-slate-100 pb-4">
-              <div>
-                <h2 className="text-xs font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
-                  <Truck size={16} className="text-emerald-700" />
-                  Master Data Armada Kendaraan
-                </h2>
-                <p className="text-[11px] text-slate-500 font-medium mt-0.5">
-                  Kelola spesifikasi ruang muatan armada untuk simulasi 3D Bin Packing secara otomatis.
+                <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+                  Operasional Armada
+                </h1>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">
+                  Database unit kendaraan armada, kapasitas volume kubikasi, dan status kesiapan operasional.
                 </p>
               </div>
 
-              <div className="flex flex-wrap items-center gap-3">
-                {/* Search */}
-                <div className="relative min-w-[240px]">
-                  <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Cari armada atau jenis..."
-                    className="w-full pl-9 pr-8 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-600/30 focus:border-emerald-600 bg-white font-medium shadow-2xs"
-                  />
-                  {searchQuery && (
-                    <button
-                      onClick={() => setSearchQuery("")}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                    >
-                      <X size={12} />
-                    </button>
-                  )}
-                </div>
-
-                {/* Filter Status */}
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value as any)}
-                  className="px-3.5 py-2 text-xs border border-slate-200 rounded-xl bg-white font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-600/30 focus:border-emerald-600 cursor-pointer shadow-2xs"
-                >
-                  <option value="Semua">Semua Status Armada</option>
-                  <option value="Aktif">Aktif Saja</option>
-                  <option value="Nonaktif">Nonaktif Saja</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Table */}
-            <div className="overflow-x-auto rounded-xl border border-slate-200/80 bg-white shadow-2xs">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="border-b border-slate-200 text-slate-400 font-extrabold uppercase tracking-wider bg-slate-50/80 text-[10px]">
-                    <th className="py-3.5 px-4">Nama Kendaraan</th>
-                    <th className="py-3.5 px-4">Jenis Kendaraan</th>
-                    <th className="py-3.5 px-4">Dimensi Ruang (P x L x T)</th>
-                    <th className="py-3.5 px-4">Volume Ruang</th>
-                    <th className="py-3.5 px-4">Status</th>
-                    <th className="py-3.5 px-4 text-right">Aksi</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                  {filteredVehicles.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="py-14 text-center text-slate-400">
-                        <Truck className="mx-auto mb-2 text-slate-300" size={36} />
-                        <p className="font-bold text-xs text-slate-700">Tidak ada armada ditemukan</p>
-                        <p className="text-[11px] text-slate-400 mt-0.5">
-                          Klik &quot;Tambah Kendaraan&quot; untuk mendaftarkan armada baru.
-                        </p>
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredVehicles.map((v) => (
-                      <tr key={v.id} className="hover:bg-slate-50/80 transition-colors group">
-                        <td className="py-3.5 px-4 font-extrabold text-slate-900">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600 shrink-0 group-hover:scale-105 transition-transform">
-                              <Truck size={16} />
-                            </div>
-                            <div>
-                              <span className="text-slate-900 font-black">{v.name}</span>
-                              {v.notes && (
-                                <p className="text-[10px] text-slate-400 font-medium truncate max-w-[200px]">
-                                  {v.notes}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                        </td>
-
-                        <td className="py-3.5 px-4">
-                          <span className="px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200/80 text-[11px] font-extrabold text-slate-700 shadow-2xs">
-                            {v.type}
-                          </span>
-                        </td>
-
-                        <td className="py-3.5 px-4 font-mono font-bold text-slate-800">
-                          {v.lengthCm} x {v.widthCm} x {v.heightCm} cm
-                        </td>
-
-                        <td className="py-3.5 px-4 font-black text-emerald-800 text-sm">
-                          {v.volumeM3.toFixed(2)} m³
-                        </td>
-
-                        <td className="py-3.5 px-4">
-                          <span
-                            className={`px-3 py-1 rounded-full text-[10px] font-black border uppercase tracking-wider ${
-                              v.status === "Aktif"
-                                ? "bg-emerald-50 text-emerald-800 border-emerald-300 shadow-2xs"
-                                : "bg-slate-100 text-slate-500 border-slate-200"
-                            }`}
-                          >
-                            {v.status}
-                          </span>
-                        </td>
-
-                        <td className="py-3.5 px-4 text-right">
-                          <div className="flex items-center justify-end gap-1.5">
-                            <Link
-                              href="/optimasi"
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-emerald-50 to-emerald-100 hover:from-emerald-100 hover:to-emerald-200 text-emerald-800 border border-emerald-300/80 rounded-lg text-[11px] font-black transition-all shadow-2xs"
-                              title="Simulasi 3D Kendaraan Ini"
-                            >
-                              <span>Optimasi 3D</span>
-                              <ArrowRight size={12} />
-                            </Link>
-
-                            <button
-                              onClick={() => handleOpenEditModal(v)}
-                              className="p-1.5 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
-                              title="Edit Kendaraan"
-                            >
-                              <Edit2 size={14} />
-                            </button>
-
-                            <button
-                              onClick={() => setDeleteTargetId(v.id)}
-                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                              title="Hapus Kendaraan"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Modal Add / Edit Vehicle */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-xs" onClick={() => setIsModalOpen(false)} />
-          <div className="relative bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-xl w-full p-6 sm:p-7 z-10 space-y-6 animate-scale-in">
-            <div className="flex justify-between items-center border-b border-slate-100 pb-3.5">
-              <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
-                <Truck size={18} className="text-emerald-700" />
-                {editingId ? "Edit Master Data Kendaraan" : "Tambah Armada Baru"}
-              </h3>
+              {/* Notion Signature Blue + New Button */}
               <button
-                type="button"
-                onClick={() => setIsModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                onClick={handleOpenAddModal}
+                className="px-3.5 py-1.5 bg-[#2383e2] hover:bg-[#1d70c4] text-white text-xs font-bold rounded-md shadow-xs transition-all flex items-center gap-1.5 cursor-pointer self-start sm:self-auto"
               >
-                <X size={18} />
+                <Plus size={15} />
+                <span>New Vehicle</span>
               </button>
             </div>
 
-            <form onSubmit={handleSaveVehicle} className="space-y-5 text-xs">
-              {/* Preset Selector */}
-              <div className="bg-gradient-to-br from-slate-50 to-slate-100/80 border border-slate-200/80 rounded-2xl p-4 space-y-2.5">
-                <div className="flex items-center justify-between text-[11px] font-black text-slate-800 uppercase tracking-wider">
-                  <span className="flex items-center gap-1.5">
-                    <Sparkles size={14} className="text-amber-500 fill-amber-500" />
-                    Preset Standar Kendaraan Indonesia
-                  </span>
-                  <span className="text-[10px] font-normal text-slate-400">Klik untuk isi otomatis</span>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
-                  {VEHICLE_PRESETS.map((preset) => (
-                    <button
-                      key={preset.type}
-                      type="button"
-                      onClick={() => handleApplyPreset(preset.type)}
-                      className={`px-2.5 py-2 rounded-xl border text-left transition-all text-[10px] cursor-pointer ${
-                        formType === preset.type
-                          ? "bg-emerald-600 text-white border-emerald-700 shadow-md ring-2 ring-emerald-400 font-bold"
-                          : "bg-white border-slate-200 text-slate-700 hover:bg-slate-100 font-medium"
-                      }`}
-                    >
-                      <p className="truncate font-extrabold">{preset.type}</p>
-                      <p className={`text-[9px] ${formType === preset.type ? "text-emerald-100" : "text-slate-400"} font-mono mt-0.5`}>
-                        {preset.lengthCm}x{preset.widthCm}x{preset.heightCm} cm
-                      </p>
-                    </button>
-                  ))}
-                </div>
+          </div>
+
+          {/* ---------------------------------------------------- */}
+          {/* NOTION TOOLBAR & VIEW TABS BAR */}
+          {/* ---------------------------------------------------- */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-white p-2.5 rounded-xl border border-slate-200/80 shadow-2xs">
+            
+            {/* Left: View Tabs Selector */}
+            <div className="flex items-center gap-1 bg-slate-100/70 p-1 rounded-lg">
+              <button
+                onClick={() => setActiveView("table")}
+                className={`px-3 py-1 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  activeView === "table"
+                    ? "bg-white text-slate-900 shadow-2xs font-bold"
+                    : "text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                <TableIcon size={14} className={activeView === "table" ? "text-[#2383e2]" : "text-slate-400"} />
+                <span>Table View</span>
+              </button>
+
+              <button
+                onClick={() => setActiveView("gallery")}
+                className={`px-3 py-1 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  activeView === "gallery"
+                    ? "bg-white text-slate-900 shadow-2xs font-bold"
+                    : "text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                <LayoutGrid size={14} className={activeView === "gallery" ? "text-[#2383e2]" : "text-slate-400"} />
+                <span>Gallery Cards</span>
+              </button>
+
+              <button
+                onClick={() => setActiveView("summary")}
+                className={`px-3 py-1 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  activeView === "summary"
+                    ? "bg-white text-slate-900 shadow-2xs font-bold"
+                    : "text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                <BarChart3 size={14} className={activeView === "summary" ? "text-[#2383e2]" : "text-slate-400"} />
+                <span>Analytics</span>
+              </button>
+            </div>
+
+            {/* Right: Search, Status Filter & Sort Controls */}
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              
+              {/* Notion Search Input */}
+              <div className="relative flex-1 sm:w-56">
+                <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Filter or search armada..."
+                  className="w-full pl-8 pr-7 py-1 text-xs bg-slate-50 border border-slate-200 rounded-md focus:outline-none focus:bg-white focus:border-[#2383e2] transition-all text-slate-800 placeholder-slate-400 font-medium"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                  >
+                    <X size={12} />
+                  </button>
+                )}
               </div>
 
-              {/* Input Fields */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Status Filter Pill Dropdown */}
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value as any)}
+                className="px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-md text-xs text-slate-700 font-semibold focus:outline-none focus:border-[#2383e2] cursor-pointer"
+              >
+                <option value="Semua">Semua Status</option>
+                <option value="Aktif">Aktif Operasional</option>
+                <option value="Nonaktif">Nonaktif</option>
+              </select>
+
+              {/* Sort Order Button */}
+              <button
+                onClick={() => {
+                  if (sortBy === "id") setSortBy("name");
+                  else if (sortBy === "name") setSortBy("volume");
+                  else if (sortBy === "volume") setSortBy("status");
+                  else setSortBy("id");
+                }}
+                className="px-2.5 py-1 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-md text-xs text-slate-600 font-semibold flex items-center gap-1 cursor-pointer transition-colors"
+                title={`Sort by: ${sortBy}`}
+              >
+                <ArrowUpDown size={12} className="text-slate-400" />
+                <span className="capitalize">{sortBy}</span>
+              </button>
+            </div>
+
+          </div>
+
+          {/* ---------------------------------------------------- */}
+          {/* VIEW 1: NOTION DATABASE TABLE VIEW */}
+          {/* ---------------------------------------------------- */}
+          {activeView === "table" && (
+            <div className="bg-white border border-slate-200 rounded-xl shadow-2xs overflow-hidden">
+              
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  
+                  {/* Notion Header with Property Type Icons */}
+                  <thead>
+                    <tr className="border-b border-slate-200 bg-slate-50/80 text-slate-500 font-semibold text-[11px] select-none">
+                      
+                      <th className="py-2.5 px-4 font-medium border-r border-slate-200/60 w-32">
+                        <div className="flex items-center gap-1.5">
+                          <Hash size={13} className="text-slate-400" />
+                          <span>ID Unit</span>
+                        </div>
+                      </th>
+
+                      <th className="py-2.5 px-4 font-medium border-r border-slate-200/60">
+                        <div className="flex items-center gap-1.5">
+                          <Type size={13} className="text-slate-400" />
+                          <span>Nama Kendaraan</span>
+                        </div>
+                      </th>
+
+                      <th className="py-2.5 px-4 font-medium border-r border-slate-200/60 w-44">
+                        <div className="flex items-center gap-1.5">
+                          <Tag size={13} className="text-slate-400" />
+                          <span>Tipe / Model</span>
+                        </div>
+                      </th>
+
+                      <th className="py-2.5 px-4 font-medium border-r border-slate-200/60 w-44">
+                        <div className="flex items-center gap-1.5">
+                          <Maximize size={13} className="text-slate-400" />
+                          <span>Dimensi Ruang (P×L×T)</span>
+                        </div>
+                      </th>
+
+                      <th className="py-2.5 px-4 font-medium border-r border-slate-200/60 w-36">
+                        <div className="flex items-center gap-1.5">
+                          <Truck size={13} className="text-slate-400" />
+                          <span>Kapasitas (m³)</span>
+                        </div>
+                      </th>
+
+                      <th className="py-2.5 px-4 font-medium border-r border-slate-200/60 w-32">
+                        <div className="flex items-center gap-1.5">
+                          <Zap size={13} className="text-slate-400" />
+                          <span>Status</span>
+                        </div>
+                      </th>
+
+                      <th className="py-2.5 px-4 font-medium text-right w-24">
+                        <span>Aksi</span>
+                      </th>
+
+                    </tr>
+                  </thead>
+
+                  {/* Notion Table Rows */}
+                  <tbody className="divide-y divide-slate-100 text-slate-700 font-normal">
+                    {filteredVehicles.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="py-12 text-center text-slate-400">
+                          <Truck className="mx-auto mb-2 text-slate-300" size={32} />
+                          <p className="font-bold text-xs text-slate-600">No fleet vehicles found</p>
+                          <p className="text-[11px] text-slate-400 mt-0.5">Try adjusting search or status filter.</p>
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredVehicles.map((vehicle) => (
+                        <tr key={vehicle.id} className="hover:bg-[#f7f7f5] transition-colors group">
+                          
+                          {/* ID Property */}
+                          <td className="py-2.5 px-4 border-r border-slate-200/60 font-mono font-bold text-slate-900">
+                            <span className="bg-slate-100 text-slate-800 px-1.5 py-0.5 rounded border border-slate-200 text-[11px]">
+                              {vehicle.id}
+                            </span>
+                          </td>
+
+                          {/* Vehicle Name */}
+                          <td className="py-2.5 px-4 border-r border-slate-200/60 font-bold text-slate-900">
+                            {vehicle.name}
+                          </td>
+
+                          {/* Type Select Tag */}
+                          <td className="py-2.5 px-4 border-r border-slate-200/60">
+                            <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-700 border border-slate-200/80 px-2 py-0.5 rounded text-[11px] font-semibold">
+                              <Truck size={11} className="text-slate-400" />
+                              <span>{vehicle.type}</span>
+                            </span>
+                          </td>
+
+                          {/* Dimensions */}
+                          <td className="py-2.5 px-4 border-r border-slate-200/60 font-mono text-slate-600">
+                            {vehicle.lengthCm} × {vehicle.widthCm} × {vehicle.heightCm} <span className="text-[10px] text-slate-400">cm</span>
+                          </td>
+
+                          {/* Volume Capacity */}
+                          <td className="py-2.5 px-4 border-r border-slate-200/60 font-mono font-bold text-emerald-800">
+                            {vehicle.volumeM3.toFixed(2)} <span className="text-[10px] text-slate-500 font-normal">m³</span>
+                          </td>
+
+                          {/* Notion Status Tag Badge */}
+                          <td className="py-2.5 px-4 border-r border-slate-200/60">
+                            <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-bold border ${
+                              vehicle.status === "Aktif"
+                                ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                : "bg-slate-100 text-slate-500 border-slate-200"
+                            }`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${vehicle.status === "Aktif" ? "bg-emerald-500" : "bg-slate-400"}`} />
+                              <span>{vehicle.status}</span>
+                            </span>
+                          </td>
+
+
+
+                          {/* Actions */}
+                          <td className="py-2.5 px-4 text-right">
+                            <div className="flex items-center justify-end gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
+                              <button
+                                onClick={() => handleOpenEditModal(vehicle)}
+                                className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 rounded cursor-pointer transition-colors"
+                                title="Edit"
+                              >
+                                <Edit2 size={13} />
+                              </button>
+                              <button
+                                onClick={() => setDeleteTargetId(vehicle.id)}
+                                className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded cursor-pointer transition-colors"
+                                title="Hapus"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                          </td>
+
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+            </div>
+          )}
+
+          {/* ---------------------------------------------------- */}
+          {/* VIEW 2: GALLERY CARDS VIEW */}
+          {/* ---------------------------------------------------- */}
+          {activeView === "gallery" && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredVehicles.map((vehicle) => (
+                <div
+                  key={vehicle.id}
+                  className="bg-white border border-slate-200 rounded-xl p-4 hover:shadow-md transition-all space-y-3 relative group"
+                >
+                  <div className="flex justify-between items-start">
+                    <span className="font-mono font-bold text-xs bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                      {vehicle.id}
+                    </span>
+
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                      vehicle.status === "Aktif"
+                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                        : "bg-slate-100 text-slate-500 border-slate-200"
+                    }`}>
+                      {vehicle.status}
+                    </span>
+                  </div>
+
+                  <div>
+                    <h3 className="font-bold text-sm text-slate-900">{vehicle.name}</h3>
+                    <p className="text-xs text-slate-500 mt-0.5">{vehicle.type}</p>
+                  </div>
+
+                  <div className="bg-slate-50 border border-slate-100 rounded-lg p-2.5 grid grid-cols-2 gap-2 text-xs font-mono">
+                    <div>
+                      <span className="text-[10px] text-slate-400 block">Ruang Muatan</span>
+                      <span className="font-bold text-slate-700">{vehicle.lengthCm}×{vehicle.widthCm}×{vehicle.heightCm} cm</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 block">Kapasitas Volume</span>
+                      <span className="font-bold text-emerald-700">{vehicle.volumeM3.toFixed(2)} m³</span>
+                    </div>
+                  </div>
+
+
+
+                  <div className="pt-2 flex items-center justify-between border-t border-slate-100">
+                    <Link
+                      href="/optimasi"
+                      className="text-xs font-bold text-[#2383e2] hover:underline flex items-center gap-1"
+                    >
+                      <span>Simulasi 3D</span>
+                      <ChevronRight size={12} />
+                    </Link>
+
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleOpenEditModal(vehicle)}
+                        className="px-2.5 py-1 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded transition-colors cursor-pointer"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => setDeleteTargetId(vehicle.id)}
+                        className="px-2.5 py-1 text-xs font-semibold bg-rose-50 hover:bg-rose-100 text-rose-700 rounded transition-colors cursor-pointer"
+                      >
+                        Hapus
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* ---------------------------------------------------- */}
+          {/* VIEW 3: SUMMARY ANALYTICS */}
+          {/* ---------------------------------------------------- */}
+          {activeView === "summary" && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-2">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Total Unit Armada</span>
+                <span className="text-3xl font-black text-slate-900 block">{filteredVehicles.length} Unit</span>
+                <p className="text-xs text-slate-500">Terdaftar di master data armada</p>
+              </div>
+
+              <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-2">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Armada Siap Operasional</span>
+                <span className="text-3xl font-black text-emerald-700 block">{activeCount} Unit</span>
+                <p className="text-xs text-slate-500">Status Aktif Siap Angkut</p>
+              </div>
+
+              <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-2">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Total Kapasitas Volume</span>
+                <span className="text-3xl font-black text-indigo-700 block">{totalVolumeActiveSum.toFixed(1)} m³</span>
+                <p className="text-xs text-slate-500">Total ruang muat armada aktif</p>
+              </div>
+            </div>
+          )}
+
+        </div>
+      </div>
+
+      {/* ---------------------------------------------------- */}
+      {/* MODAL: ADD / EDIT VEHICLE */}
+      {/* ---------------------------------------------------- */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            onClick={() => setIsModalOpen(false)}
+            className="absolute inset-0 bg-slate-900/40 backdrop-blur-xs transition-opacity"
+          />
+
+          <div className="relative w-full max-w-lg bg-white rounded-xl shadow-2xl border border-slate-200 p-6 z-10 space-y-5">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+              <div>
+                <h3 className="text-base font-bold text-slate-900">
+                  {editingId ? "Edit Kendaraan Armada" : "Tambah Kendaraan Armada Baru"}
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Atur spesifikasi ruang muatan dan pilih preset standar jika tersedia.
+                </p>
+              </div>
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Quick Presets Picker */}
+            <div className="space-y-1.5">
+              <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                Gunakan Preset Standar:
+              </label>
+              <div className="flex flex-wrap gap-1.5">
+                {VEHICLE_PRESETS.map((p) => (
+                  <button
+                    key={p.type}
+                    type="button"
+                    onClick={() => handleApplyPreset(p.type)}
+                    className="px-2.5 py-1 text-xs font-semibold bg-slate-100 hover:bg-[#2383e2] hover:text-white text-slate-700 rounded-md transition-colors cursor-pointer"
+                  >
+                    {p.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <form onSubmit={handleSaveVehicle} className="space-y-4">
+              
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Nama Kendaraan / Plat</label>
+                <input
+                  type="text"
+                  value={formName}
+                  onChange={(e) => setFormName(e.target.value)}
+                  placeholder="Contoh: Gran Max Pick Up #1"
+                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#2383e2] focus:bg-white font-medium text-slate-800"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">
-                    Nama Kendaraan
-                  </label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Tipe Kendaraan</label>
                   <input
                     type="text"
-                    value={formName}
-                    onChange={(e) => setFormName(e.target.value)}
-                    placeholder="Contoh: CDD Box Express #1"
-                    className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-600/30 focus:border-emerald-600 text-slate-900 font-bold"
+                    value={formType}
+                    onChange={(e) => setFormType(e.target.value)}
+                    placeholder="Contoh: Box Medium"
+                    className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#2383e2] focus:bg-white font-medium"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">
-                    Jenis Kendaraan
-                  </label>
-                  <select
-                    value={formType}
-                    onChange={(e) => setFormType(e.target.value)}
-                    className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-600/30 focus:border-emerald-600 text-slate-900 font-bold bg-white cursor-pointer"
-                  >
-                    {VEHICLE_PRESETS.map((p) => (
-                      <option key={p.type} value={p.type}>
-                        {p.type}
-                      </option>
-                    ))}
-                    <option value="Kustom">Kustom / Lainnya</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Dimensions Input */}
-              <div className="bg-gradient-to-br from-emerald-50/70 to-emerald-100/40 border border-emerald-200/80 rounded-2xl p-4 space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-[11px] font-black text-emerald-950 uppercase tracking-wider">
-                    Dimensi Ruang Muatan (cm)
-                  </span>
-                  <span className="text-[11px] font-black text-emerald-800 bg-white px-3 py-1 rounded-lg border border-emerald-300 shadow-2xs">
-                    Volume Otomatis: {computedVolumeM3} m³
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1">
-                      Panjang (cm)
-                    </label>
-                    <input
-                      type="number"
-                      value={formLength || ""}
-                      onChange={(e) => setFormLength(Number(e.target.value))}
-                      placeholder="235"
-                      className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600/30 focus:border-emerald-600 text-slate-900 font-black font-mono text-center"
-                      required
-                      min={10}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1">
-                      Lebar (cm)
-                    </label>
-                    <input
-                      type="number"
-                      value={formWidth || ""}
-                      onChange={(e) => setFormWidth(Number(e.target.value))}
-                      placeholder="155"
-                      className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600/30 focus:border-emerald-600 text-slate-900 font-black font-mono text-center"
-                      required
-                      min={10}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1">
-                      Tinggi (cm)
-                    </label>
-                    <input
-                      type="number"
-                      value={formHeight || ""}
-                      onChange={(e) => setFormHeight(Number(e.target.value))}
-                      placeholder="130"
-                      className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600/30 focus:border-emerald-600 text-slate-900 font-black font-mono text-center"
-                      required
-                      min={10}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">
-                    Status Operasional
-                  </label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Status Operasional</label>
                   <select
                     value={formStatus}
                     onChange={(e) => setFormStatus(e.target.value as any)}
-                    className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-600/30 focus:border-emerald-600 text-slate-900 font-bold bg-white cursor-pointer"
+                    className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#2383e2] focus:bg-white font-bold text-slate-800 cursor-pointer"
                   >
-                    <option value="Aktif">Aktif (Tersedia untuk Optimasi)</option>
+                    <option value="Aktif">Aktif Operasional</option>
                     <option value="Nonaktif">Nonaktif</option>
                   </select>
                 </div>
+              </div>
 
+              <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">
-                    Keterangan (Opsional)
-                  </label>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">Panjang (cm)</label>
                   <input
-                    type="text"
-                    value={formNotes}
-                    onChange={(e) => setFormNotes(e.target.value)}
-                    placeholder="Contoh: Rute Jabodetabek"
-                    className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-600/30 focus:border-emerald-600 text-slate-900 font-medium"
+                    type="number"
+                    min="1"
+                    value={formLength}
+                    onChange={(e) => setFormLength(Number(e.target.value))}
+                    className="w-full px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#2383e2] focus:bg-white font-mono"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">Lebar (cm)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={formWidth}
+                    onChange={(e) => setFormWidth(Number(e.target.value))}
+                    className="w-full px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#2383e2] focus:bg-white font-mono"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">Tinggi (cm)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={formHeight}
+                    onChange={(e) => setFormHeight(Number(e.target.value))}
+                    className="w-full px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#2383e2] focus:bg-white font-mono"
+                    required
                   />
                 </div>
               </div>
 
-              {/* Action buttons */}
-              <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-100">
+              <div className="p-3 bg-emerald-50/60 border border-emerald-100 rounded-lg flex justify-between items-center">
+                <span className="text-xs text-emerald-800 font-medium">Kapasitas Volume Ruang:</span>
+                <span className="text-sm font-bold font-mono text-emerald-700">{computedVolumeM3.toFixed(2)} m³</span>
+              </div>
+
+
+
+              <div className="pt-2 flex gap-2">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors cursor-pointer text-xs"
+                  className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition-colors cursor-pointer"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold rounded-xl shadow-md transition-colors cursor-pointer text-xs"
+                  className="flex-1 py-2 bg-[#2383e2] hover:bg-[#1d70c4] text-white text-xs font-bold rounded-lg transition-colors cursor-pointer shadow-xs"
                 >
-                  {editingId ? "Simpan Perubahan" : "Tambah Kendaraan"}
+                  Simpan Armada
                 </button>
               </div>
+
             </form>
           </div>
         </div>
       )}
 
-      {/* Confirmation Modal Delete */}
+      {/* ---------------------------------------------------- */}
+      {/* MODAL: DELETE CONFIRMATION */}
+      {/* ---------------------------------------------------- */}
       {deleteTargetId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-xs" onClick={() => setDeleteTargetId(null)} />
-          <div className="relative bg-white rounded-2xl shadow-2xl border border-slate-200 p-6 max-w-sm w-full z-10 space-y-4 animate-scale-in">
-            <div className="flex items-start gap-4">
-              <div className="w-11 h-11 rounded-2xl bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-600 shrink-0">
-                <Trash2 size={22} />
-              </div>
-              <div className="space-y-1">
-                <h3 className="text-sm font-black text-slate-900">Hapus Kendaraan Ini?</h3>
-                <p className="text-xs text-slate-500 font-medium leading-relaxed">
-                  Data kendaraan akan dihapus secara permanen dari master operasional armada.
-                </p>
-              </div>
-            </div>
+          <div
+            onClick={() => setDeleteTargetId(null)}
+            className="absolute inset-0 bg-slate-900/40 backdrop-blur-xs transition-opacity"
+          />
 
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+          <div className="relative w-full max-w-sm bg-white rounded-xl shadow-2xl border border-slate-200 p-5 z-10 space-y-4">
+            <h3 className="text-base font-bold text-slate-900">Konfirmasi Hapus</h3>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Apakah Anda yakin ingin menghapus armada <span className="font-bold text-slate-900">{deleteTargetId}</span>? Tindakan ini tidak dapat dibatalkan.
+            </p>
+
+            <div className="flex gap-2 pt-2">
               <button
-                type="button"
                 onClick={() => setDeleteTargetId(null)}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-colors cursor-pointer"
+                className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition-colors cursor-pointer"
               >
                 Batal
               </button>
               <button
-                type="button"
                 onClick={() => handleDeleteVehicle(deleteTargetId)}
-                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl transition-colors cursor-pointer shadow-md"
+                className="flex-1 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg transition-colors cursor-pointer"
               >
-                Ya, Hapus
+                Hapus
               </button>
             </div>
           </div>
         </div>
       )}
+
     </div>
   );
 }
