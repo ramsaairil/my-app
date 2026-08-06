@@ -29,6 +29,7 @@ import {
   Sparkles
 } from "lucide-react";
 import { fetchCargosFromDb, fetchTrucksFromDb, CargoDbRecord } from "../../lib/db";
+import { getStoredCargos, getStoredVehicles } from "../../lib/storage";
 
 interface FleetTruckItem {
   id: string;
@@ -44,17 +45,12 @@ interface FleetTruckItem {
 export default function HomeOverviewPage() {
   const router = useRouter();
   const [dbCargos, setDbCargos] = useState<CargoDbRecord[]>([]);
-  const [activeFleet, setActiveFleet] = useState<FleetTruckItem[]>([
-    { id: "TRC-204", driver: "Marcus Lee", status: "Memuat", capacity: "48%", link: "/optimasi", image: "/truck_40ft.png", type: "Tronton 40ft", plate: "B 9204 TKG" },
-    { id: "TRC-205", driver: "Sofia Rodriguez", status: "Siap", capacity: "92%", link: "/optimasi", image: "/truck_53ft.png", type: "Trailer 53ft", plate: "B 9205 SFA" },
-    { id: "TRC-206", driver: "David Chen", status: "Keluar", capacity: "100%", link: "/optimasi", image: "/truck_45ft.png", type: "Wingbox 45ft", plate: "B 9206 DVC" },
-    { id: "TRC-207", driver: "Elena Rostova", status: "Menganggur", capacity: "0%", link: "/optimasi", image: "/truck_20ft.png", type: "Engkel 20ft", plate: "B 9207 ELN" }
-  ]);
+  const [activeFleet, setActiveFleet] = useState<FleetTruckItem[]>([]);
 
   const [activeView, setActiveView] = useState<"summary" | "fleet" | "activity">("summary");
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Load and synchronize live data from Supabase PostgreSQL database
+  // Load and synchronize live data from Supabase PostgreSQL database & LocalStorage
   useEffect(() => {
     async function syncDashboardData() {
       const [cargos, trucks] = await Promise.all([
@@ -64,6 +60,16 @@ export default function HomeOverviewPage() {
 
       if (cargos && cargos.length > 0) {
         setDbCargos(cargos);
+      } else {
+        const localCargos = getStoredCargos();
+        const mappedCargos: CargoDbRecord[] = localCargos.map((c) => ({
+          id: c.id,
+          name: c.name,
+          category: c.code,
+          dimension: `${c.lengthCm}x${c.widthCm}x${c.heightCm} cm`,
+          volume_m3: c.volumeM3
+        }));
+        setDbCargos(mappedCargos);
       }
 
       if (trucks && trucks.length > 0) {
@@ -77,24 +83,33 @@ export default function HomeOverviewPage() {
           type: t.truck_type || "Standard Container",
           plate: t.plate_number || "B ---- XXX"
         }));
-
-        setActiveFleet((prev) => [
-          ...mappedTrucks,
-          ...prev.filter((p) => !mappedTrucks.some((m) => m.id === p.id))
-        ]);
+        setActiveFleet(mappedTrucks);
+      } else {
+        const localVehicles = getStoredVehicles();
+        const mappedVehicles: FleetTruckItem[] = localVehicles.map((v) => ({
+          id: v.id,
+          driver: "Driver Logistics",
+          status: v.status === "Aktif" ? "Siap" : "Menganggur",
+          capacity: v.status === "Aktif" ? "85%" : "0%",
+          link: "/optimasi",
+          image: "/truck_40ft.png",
+          type: v.type,
+          plate: `B ${v.id.replace("TRK-", "9")} UXR`
+        }));
+        setActiveFleet(mappedVehicles);
       }
     }
 
     syncDashboardData();
   }, []);
 
-  // Compute live dynamic statistics
-  const totalVolumeM3 = dbCargos.length > 0 
-    ? dbCargos.reduce((sum, c) => sum + (c.volume_m3 || 0), 0) + 624
-    : 624;
+  // Compute live dynamic statistics strictly from actual database records
+  const totalVolumeM3 = useMemo(() => {
+    return dbCargos.reduce((sum, c) => sum + Number(c.volume_m3 || 0), 0);
+  }, [dbCargos]);
 
   const totalTrucksCount = activeFleet.length;
-  const totalCargosCount = dbCargos.length > 0 ? dbCargos.length + 3 : 3;
+  const totalCargosCount = dbCargos.length;
 
   const filteredFleet = useMemo(() => {
     return activeFleet.filter(truck => {
@@ -346,7 +361,14 @@ export default function HomeOverviewPage() {
 
                     {/* Table Rows */}
                     <tbody className="divide-y divide-slate-100 text-slate-700 font-normal">
-                      {filteredFleet.map((truck) => (
+                      {filteredFleet.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="py-8 text-center text-slate-400 text-xs font-medium">
+                            Belum ada data armada di database. Silakan tambah armada baru pada menu Operasional Armada.
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredFleet.map((truck) => (
                         <tr key={truck.id} className="hover:bg-[#f7f7f5] transition-colors group">
                           
                           {/* ID Unit */}
@@ -417,7 +439,7 @@ export default function HomeOverviewPage() {
                           </td>
 
                         </tr>
-                      ))}
+                      )))}
                     </tbody>
                   </table>
                 </div>
