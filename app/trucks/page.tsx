@@ -80,11 +80,11 @@ export default function FleetOperationsPage() {
         const mapped: Vehicle[] = dbTrucks.map((t) => ({
           id: t.id,
           name: t.truck_name || t.id,
-          type: t.truck_type || "Gran Max Pick Up",
-          lengthCm: 300,
-          widthCm: 180,
-          heightCm: 180,
-          volumeM3: Number(t.max_volume_m3 || 9.72),
+          type: "Box Truck 3D",
+          lengthCm: t.length_cm || 450,
+          widthCm: t.width_cm || 200,
+          heightCm: t.height_cm || 200,
+          volumeM3: Number(t.max_volume_m3 || 18.0),
           status: t.status === "Maintenance" ? "Nonaktif" : "Aktif",
           notes: ""
         }));

@@ -6,24 +6,24 @@ export interface CargoDbRecord {
   name: string;
   shape?: string;
   category?: string;
-  priority?: string;
   quantity?: number;
   dimension: string;
+  length_cm?: number;
+  width_cm?: number;
+  height_cm?: number;
   volume_m3: number;
-  weight_kg?: number;
-  handling_method?: string;
+  color_code?: string;
   status?: string;
 }
 
 export interface TruckDbRecord {
   id: string;
   truck_name: string;
-  plate_number: string;
-  truck_type: string;
-  driver_name: string;
+  length_cm?: number;
+  width_cm?: number;
+  height_cm?: number;
   max_volume_m3: number;
   status: string;
-  current_dock: string;
 }
 
 // Fetch all cargo items from Supabase
@@ -65,10 +65,13 @@ export async function upsertCargoToDb(cargo: CargoMasterItem): Promise<boolean> 
       name: cargo.name,
       shape: "Balok",
       category: cargo.code,
-      priority: "Standard",
       quantity: 1,
       dimension: `${cargo.lengthCm}x${cargo.widthCm}x${cargo.heightCm} cm`,
+      length_cm: cargo.lengthCm,
+      width_cm: cargo.widthCm,
+      height_cm: cargo.heightCm,
       volume_m3: cargo.volumeM3,
+      color_code: cargo.color,
       status: "Unassigned"
     };
 
@@ -142,12 +145,11 @@ export async function upsertTruckToDb(vehicle: Vehicle): Promise<boolean> {
     const record: TruckDbRecord = {
       id: vehicle.id,
       truck_name: vehicle.name,
-      plate_number: `B ${vehicle.id.replace("TRK-", "9")} UXR`,
-      truck_type: vehicle.type,
-      driver_name: "Driver Logistics",
+      length_cm: vehicle.lengthCm,
+      width_cm: vehicle.widthCm,
+      height_cm: vehicle.heightCm,
       max_volume_m3: vehicle.volumeM3,
-      status: vehicle.status === "Aktif" ? "Available" : "Maintenance",
-      current_dock: "Dock #1"
+      status: vehicle.status === "Aktif" ? "Available" : "Maintenance"
     };
 
     const { error } = await supabase.from("trucks").upsert(record);

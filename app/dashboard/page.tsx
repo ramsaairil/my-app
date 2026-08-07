@@ -75,13 +75,13 @@ export default function HomeOverviewPage() {
       if (trucks && trucks.length > 0) {
         const mappedTrucks: FleetTruckItem[] = trucks.map((t) => ({
           id: t.id,
-          driver: t.driver_name || "Driver TBA",
+          driver: "Driver Logistik",
           status: (t.status === "Memuat" || t.status === "Keluar" || t.status === "Menganggur") ? t.status : "Siap",
           capacity: t.status === "Keluar" ? "100%" : t.status === "Memuat" ? "48%" : t.status === "Siap" ? "92%" : "0%",
           link: "/optimasi",
           image: "/truck_40ft.png",
-          type: t.truck_type || "Standard Container",
-          plate: t.plate_number || "B ---- XXX"
+          type: "Box Truck 3D",
+          plate: `B 9${t.id.slice(-3)} UXR`
         }));
         setActiveFleet(mappedTrucks);
       } else {

@@ -21,33 +21,40 @@ export default function LandingPage() {
   const router = useRouter();
   const profile = useProfile();
   const [isLoginOpen, setIsLoginOpen] = useState(false);
-  const [username, setUsername] = useState("");
+  const [emailOrUsername, setEmailOrUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!username.trim() || !password.trim()) {
-      setError("Username dan password harus diisi");
+    setError("");
+    setSuccessMsg("");
+
+    if (!emailOrUsername.trim() || !password.trim()) {
+      setError("Email/Username dan Password harus diisi.");
       return;
     }
-    setError("");
 
-    // Update profile context with the logged-in username
-    const nameInput = username.trim();
-    profile.setName(nameInput);
+    setIsSubmitting(true);
 
-    // Calculate initials
-    const words = nameInput.split(/\s+/);
-    let init = "L";
-    if (words.length >= 2) {
-      init = (words[0][0] + words[1][0]).toUpperCase();
-    } else if (words.length === 1 && words[0].length > 0) {
-      init = words[0].slice(0, 2).toUpperCase();
+    try {
+      const res = await profile.login(emailOrUsername, password);
+      if (res.success) {
+        setSuccessMsg("Login berhasil! Mengalihkan ke Dashboard...");
+        setTimeout(() => {
+          router.push("/dashboard");
+        }, 800);
+      } else {
+        setError(res.error || "Gagal login. Periksa email/username dan password Anda.");
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(msg);
+    } finally {
+      setIsSubmitting(false);
     }
-    profile.setInitials(init);
-
-    router.push("/dashboard");
   };
 
   return (
@@ -70,15 +77,26 @@ export default function LandingPage() {
 
           {/* Header Actions */}
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => {
-                setError("");
-                setIsLoginOpen(true);
-              }}
-              className="px-4.5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold transition-all cursor-pointer inline-flex items-center gap-1.5 shadow-sm hover:shadow-emerald-700/20"
-            >
-              <span>Login</span>
-            </button>
+            {profile.user || profile.session ? (
+              <Link
+                href="/dashboard"
+                className="px-4.5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold transition-all cursor-pointer inline-flex items-center gap-1.5 shadow-sm hover:shadow-emerald-700/20"
+              >
+                <span>Buka Dashboard</span>
+                <ChevronRight size={14} />
+              </Link>
+            ) : (
+              <button
+                onClick={() => {
+                  setError("");
+                  setSuccessMsg("");
+                  setIsLoginOpen(true);
+                }}
+                className="px-4.5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold transition-all cursor-pointer inline-flex items-center gap-1.5 shadow-sm hover:shadow-emerald-700/20"
+              >
+                <span>Login</span>
+              </button>
+            )}
           </div>
         </div>
       </header>
@@ -95,8 +113,32 @@ export default function LandingPage() {
           </h1>
 
           <p className="text-slate-600 text-xs sm:text-sm font-medium leading-relaxed max-w-xl mx-auto">
-            Optimalkan okupansi volume kontainer, kalkulasi kubikasi volumetrik, dan kelola alokasi armada logistik secara presisi.
+            Optimalkan okupansi volume kontainer, kalkulasi kubikasi volumetrik, dan kelola alokasi armada logistik secara presisi terhubung dengan Supabase.
           </p>
+
+          <div className="pt-2 flex justify-center">
+            {profile.user || profile.session ? (
+              <Link
+                href="/dashboard"
+                className="px-6 py-3 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition-all cursor-pointer inline-flex items-center gap-2 shadow-md hover:shadow-emerald-700/20"
+              >
+                <span>Masuk ke Aplikasi</span>
+                <ArrowRight size={16} />
+              </Link>
+            ) : (
+              <button
+                onClick={() => {
+                  setError("");
+                  setSuccessMsg("");
+                  setIsLoginOpen(true);
+                }}
+                className="px-6 py-3 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition-all cursor-pointer inline-flex items-center gap-2 shadow-md hover:shadow-emerald-700/20"
+              >
+                <span>Masuk (Login)</span>
+                <ArrowRight size={16} />
+              </button>
+            )}
+          </div>
 
         </div>
 
@@ -116,9 +158,9 @@ export default function LandingPage() {
             <div className="w-9 h-9 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-700 font-bold group-hover:bg-blue-700 group-hover:text-white transition-colors">
               <Database size={18} />
             </div>
-            <h3 className="text-xs font-bold text-slate-900">Database Muatan</h3>
+            <h3 className="text-xs font-bold text-slate-900">Database Supabase</h3>
             <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
-              Kelola periferal manifes kargo dan dimensi secara terstruktur dalam database terpusat.
+              Kelola data kargo, armada, dan otentikasi user terhubung langsung dengan Supabase PostgreSQL.
             </p>
           </div>
 
@@ -139,24 +181,25 @@ export default function LandingPage() {
       <footer className="bg-white/80 backdrop-blur-md border-t border-slate-200/80 py-5 px-4 sm:px-6 lg:px-8 text-xs text-slate-500 font-medium z-10">
         <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div>
-            <span>&copy; {new Date().getFullYear()} Sistem Muatan 3D. All rights reserved.</span>
+            <span>&copy; {new Date().getFullYear()} Sistem Muatan 3D. Connected to Supabase Auth.</span>
           </div>
 
           <div>
             <button
               onClick={() => {
                 setError("");
+                setSuccessMsg("");
                 setIsLoginOpen(true);
               }}
               className="text-emerald-700 font-bold hover:underline cursor-pointer"
             >
-              Portal Login Operasi
+              Portal Login Supabase
             </button>
           </div>
         </div>
       </footer>
 
-      {/* Login Modal */}
+      {/* Pure Login Modal */}
       {isLoginOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           {/* Backdrop */}
@@ -166,7 +209,7 @@ export default function LandingPage() {
           />
 
           {/* Modal Content */}
-          <div className="relative w-full max-w-sm bg-white rounded-xl shadow-xl border border-slate-200 p-6 z-10 transition-all transform scale-100">
+          <div className="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl border border-slate-200 p-6 z-10 transition-all transform scale-100">
             {/* Close Button */}
             <button
               onClick={() => setIsLoginOpen(false)}
@@ -176,33 +219,42 @@ export default function LandingPage() {
             </button>
 
             {/* Title */}
-            <div className="mb-6">
-              <h3 className="text-lg font-bold text-slate-900">Portal Operasi</h3>
-              <p className="text-xs text-slate-500 mt-1">Masukkan kredensial untuk masuk ke sistem.</p>
+            <div className="mb-5">
+              <h3 className="text-lg font-bold text-slate-900">Portal Login</h3>
+              <p className="text-xs text-slate-500 mt-0.5">Masukkan kredensial Anda untuk masuk ke sistem.</p>
             </div>
 
             {/* Error Message */}
             {error && (
-              <div className="mb-4 p-2.5 bg-red-50 border border-red-100 rounded-lg text-red-600 text-xs font-semibold">
+              <div className="mb-4 p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-600 text-xs font-semibold leading-relaxed">
                 {error}
               </div>
             )}
 
-            {/* Form */}
-            <form onSubmit={handleLogin} className="space-y-4">
+            {/* Success Message */}
+            {successMsg && (
+              <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700 text-xs font-semibold leading-relaxed flex items-center gap-2">
+                <Check size={16} className="text-emerald-700 flex-shrink-0" />
+                <span>{successMsg}</span>
+              </div>
+            )}
+
+            {/* Login Form */}
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">Username</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">Email / Username</label>
                 <div className="relative">
                   <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 pointer-events-none">
                     <User size={14} />
                   </span>
                   <input
                     type="text"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    placeholder="Contoh: admin"
-                    className="w-full pl-9 pr-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-emerald-600 focus:bg-white transition-all font-medium text-slate-800"
+                    value={emailOrUsername}
+                    onChange={(e) => setEmailOrUsername(e.target.value)}
+                    placeholder="Contoh: admin@logistic.com"
+                    className="w-full pl-9 pr-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-600 focus:bg-white transition-all font-medium text-slate-800"
                     autoFocus
+                    required
                   />
                 </div>
               </div>
@@ -218,16 +270,29 @@ export default function LandingPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Masukkan password"
-                    className="w-full pl-9 pr-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-emerald-600 focus:bg-white transition-all font-medium text-slate-800"
+                    className="w-full pl-9 pr-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-600 focus:bg-white transition-all font-medium text-slate-800"
+                    required
                   />
                 </div>
               </div>
 
               <button
                 type="submit"
-                className="w-full py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-lg transition-colors cursor-pointer shadow-sm shadow-emerald-700/10"
+                disabled={isSubmitting}
+                className={`w-full py-2.5 text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-md flex items-center justify-center gap-2 ${
+                  isSubmitting
+                    ? "bg-slate-400 cursor-not-allowed"
+                    : "bg-emerald-700 hover:bg-emerald-800 shadow-emerald-700/20"
+                }`}
               >
-                Masuk
+                {isSubmitting ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>Processing Login...</span>
+                  </>
+                ) : (
+                  <span>Masuk (Login)</span>
+                )}
               </button>
             </form>
           </div>

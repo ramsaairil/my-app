@@ -6,7 +6,7 @@ import { useProfile } from "../context/ProfileContext";
 import { User, Mail, Phone, Shield, MapPin, Truck, Database, LogOut, Save, CheckCircle2 } from "lucide-react";
 
 export default function SettingsPage() {
-  const { name, initials, avatarColor, setName, setInitials, setAvatarColor } = useProfile();
+  const { name, email, initials, avatarColor, setName, setInitials, setAvatarColor, logout } = useProfile();
   const [toast, setToast] = useState<{ show: boolean; message: string }>({ show: false, message: "" });
 
   const handleNameChange = (newName: string) => {
@@ -28,8 +28,8 @@ export default function SettingsPage() {
     }, 3000);
   };
 
-  const handleLogout = () => {
-    console.log("Pengguna telah keluar dari sesi aktif.");
+  const handleLogout = async () => {
+    await logout();
   };
 
   return (
@@ -68,7 +68,7 @@ export default function SettingsPage() {
                   </p>
                   <p className="text-xs text-slate-400 font-semibold flex items-center gap-1.5 justify-center">
                     <MapPin size={12} />
-                    Hub Logistik Gudang New York
+                    Hub Logistik Gudang Utama
                   </p>
                 </div>
               </div>
@@ -129,15 +129,15 @@ export default function SettingsPage() {
                   <div className="flex items-center gap-3 p-3 border border-slate-100 rounded-xl bg-slate-50/50">
                     <Mail size={16} className="text-slate-400" />
                     <div>
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Alamat Email</span>
-                      <span className="text-slate-800 font-semibold">marcus.lee@logistic.com</span>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Alamat Email (Supabase)</span>
+                      <span className="text-slate-800 font-semibold">{email}</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-3 p-3 border border-slate-100 rounded-xl bg-slate-50/50">
                     <Phone size={16} className="text-slate-400" />
                     <div>
                       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Nomor Kontak</span>
-                      <span className="text-slate-800 font-semibold">+1 (555) 392-1204</span>
+                      <span className="text-slate-800 font-semibold">+62 812-3456-7890</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-3 p-3 border border-slate-100 rounded-xl bg-slate-50/50">
@@ -151,7 +151,7 @@ export default function SettingsPage() {
                     <Truck size={16} className="text-slate-400" />
                     <div>
                       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Unit yang Ditugaskan</span>
-                      <span className="text-slate-800 font-semibold">TRC-204 (Volvo FH16 Semi)</span>
+                      <span className="text-slate-800 font-semibold">TRC-204 (Gran Max / CDD)</span>
                     </div>
                   </div>
                 </div>
@@ -195,19 +195,19 @@ export default function SettingsPage() {
             <div className="space-y-4">
               <h2 className="text-sm font-bold text-slate-900 tracking-wide uppercase flex items-center gap-2 border-b border-slate-100 pb-2">
                 <LogOut size={16} className="text-slate-400" />
-                Akun & Sesi
+                Akun & Sesi Supabase
               </h2>
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs font-semibold text-slate-700">
                 <div>
                   <h3 className="text-slate-900">Keluar dari Portal Operasi</h3>
-                  <p className="text-[10px] text-slate-400 mt-0.5 font-semibold">Akhiri sesi manajemen optimasi muatan Anda untuk Logistic.</p>
+                  <p className="text-[10px] text-slate-400 mt-0.5 font-semibold">Akhiri sesi Supabase Auth Anda.</p>
                 </div>
                 <button
                   onClick={handleLogout}
                   className="flex items-center gap-2 px-4 py-2 border border-rose-200 hover:bg-rose-50 text-rose-700 rounded-lg text-xs font-bold shadow-sm transition-all cursor-pointer self-start sm:self-center"
                 >
                   <LogOut size={14} />
-                  Keluar
+                  Keluar dari Sesi Supabase
                 </button>
               </div>
             </div>
