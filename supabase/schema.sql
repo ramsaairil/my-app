@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS public.users (
 -- 3. CARGO TABLE (Database Barang & Kargo 3D)
 CREATE TABLE IF NOT EXISTS public.cargos (
   id VARCHAR(50) PRIMARY KEY,
+  user_id UUID REFERENCES public.users(id) ON DELETE SET NULL,
   name VARCHAR(255) NOT NULL,
   shape VARCHAR(50) DEFAULT 'Balok', -- 'Kubus' / 'Balok'
   category VARCHAR(100) DEFAULT 'Box', -- 'Pallet', 'Box', 'Peti'
@@ -33,10 +34,11 @@ CREATE TABLE IF NOT EXISTS public.cargos (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 4. TRUCKS / FLEET TABLE (Database Armada Kendaraan 3D)
-CREATE TABLE IF NOT EXISTS public.trucks (
+-- 4. VEHICLES TABLE (Database Armada Kendaraan 3D)
+CREATE TABLE IF NOT EXISTS public.vehicles (
   id VARCHAR(50) PRIMARY KEY,
-  truck_name VARCHAR(255) NOT NULL,
+  user_id UUID REFERENCES public.users(id) ON DELETE SET NULL,
+  vehicle_name VARCHAR(255) NOT NULL,
   length_cm INTEGER NOT NULL DEFAULT 450,
   width_cm INTEGER NOT NULL DEFAULT 200,
   height_cm INTEGER NOT NULL DEFAULT 200,
@@ -50,7 +52,7 @@ CREATE TABLE IF NOT EXISTS public.trucks (
 -- 5. CARGO SLOTS & 3D PLACEMENT TABLE (Penataan Koordinat 3D Kargo)
 CREATE TABLE IF NOT EXISTS public.cargo_slots (
   id VARCHAR(50) PRIMARY KEY,
-  truck_id VARCHAR(50) REFERENCES public.trucks(id) ON DELETE CASCADE,
+  vehicle_id VARCHAR(50) REFERENCES public.vehicles(id) ON DELETE CASCADE,
   cargo_id VARCHAR(50) REFERENCES public.cargos(id) ON DELETE SET NULL,
   pos_x_cm INTEGER DEFAULT 0,
   pos_y_cm INTEGER DEFAULT 0,
@@ -72,7 +74,7 @@ VALUES
 ON CONFLICT (email) DO NOTHING;
 
 -- Seed Armada Kendaraan (Fokus Dimensi 3D)
-INSERT INTO public.trucks (id, truck_name, length_cm, width_cm, height_cm, max_volume_m3, status)
+INSERT INTO public.vehicles (id, vehicle_name, length_cm, width_cm, height_cm, max_volume_m3, status)
 VALUES 
   ('TRC-204', 'Gran Max Pick Up', 300, 180, 180, 9.72, 'Available'),
   ('TRC-205', 'CDD Box Standard', 450, 200, 200, 18.00, 'Available'),
@@ -90,7 +92,7 @@ ON CONFLICT (id) DO NOTHING;
 -- 7. ENABLE ROW LEVEL SECURITY (RLS) & POLICIES
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.cargos ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.trucks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.vehicles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.cargo_slots ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Allow anonymous read access to users" ON public.users FOR SELECT USING (true);
@@ -102,10 +104,10 @@ CREATE POLICY "Allow anonymous insert access to cargos" ON public.cargos FOR INS
 CREATE POLICY "Allow anonymous update access to cargos" ON public.cargos FOR UPDATE USING (true);
 CREATE POLICY "Allow anonymous delete access to cargos" ON public.cargos FOR DELETE USING (true);
 
-CREATE POLICY "Allow anonymous read access to trucks" ON public.trucks FOR SELECT USING (true);
-CREATE POLICY "Allow anonymous insert access to trucks" ON public.trucks FOR INSERT WITH CHECK (true);
-CREATE POLICY "Allow anonymous update access to trucks" ON public.trucks FOR UPDATE USING (true);
-CREATE POLICY "Allow anonymous delete access to trucks" ON public.trucks FOR DELETE USING (true);
+CREATE POLICY "Allow anonymous read access to vehicles" ON public.vehicles FOR SELECT USING (true);
+CREATE POLICY "Allow anonymous insert access to vehicles" ON public.vehicles FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow anonymous update access to vehicles" ON public.vehicles FOR UPDATE USING (true);
+CREATE POLICY "Allow anonymous delete access to vehicles" ON public.vehicles FOR DELETE USING (true);
 
 CREATE POLICY "Allow anonymous read access to cargo_slots" ON public.cargo_slots FOR SELECT USING (true);
 CREATE POLICY "Allow anonymous insert access to cargo_slots" ON public.cargo_slots FOR INSERT WITH CHECK (true);

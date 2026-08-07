@@ -108,7 +108,7 @@ export async function deleteCargoFromDb(id: string): Promise<boolean> {
   }
 }
 
-// Fetch trucks from Supabase
+// Fetch vehicles from Supabase
 export async function fetchTrucksFromDb(): Promise<TruckDbRecord[]> {
   if (!isSupabaseConfigured || !supabase) {
     console.warn("⚠️ [Supabase DB] URL & Anon Key belum diisi di file .env.local! Menggunakan dataset truk default.");
@@ -116,17 +116,20 @@ export async function fetchTrucksFromDb(): Promise<TruckDbRecord[]> {
   }
 
   try {
-    const { data, error } = await supabase.from("trucks").select("*").order("created_at", { ascending: false });
+    const { data, error } = await supabase.from("vehicles").select("*").order("created_at", { ascending: false });
     if (error) {
       if (error.code === "PGRST205" || error.code === "PGRST301") {
-        console.warn("⚠️ [Supabase DB] Tabel 'trucks' belum dibuat di Supabase. Jalankan script SQL pada Supabase SQL Editor.");
+        console.warn("⚠️ [Supabase DB] Tabel 'vehicles' belum dibuat di Supabase. Jalankan script SQL pada Supabase SQL Editor.");
       } else {
         console.error("❌ [Supabase DB Error] Gagal mengambil data armada:", error.message);
       }
       return [];
     }
     console.log(`✅ [Supabase DB] Berhasil mengambil ${data?.length || 0} armada dari PostgreSQL.`);
-    return data as TruckDbRecord[];
+    return (data || []).map((v) => ({
+      ...v,
+      truck_name: v.vehicle_name || v.truck_name || v.id
+    })) as TruckDbRecord[];
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("❌ [Supabase DB Exception]:", msg);
@@ -134,7 +137,7 @@ export async function fetchTrucksFromDb(): Promise<TruckDbRecord[]> {
   }
 }
 
-// Upsert (Insert or Update) a Truck/Vehicle into Supabase
+// Upsert (Insert or Update) a Vehicle into Supabase
 export async function upsertTruckToDb(vehicle: Vehicle): Promise<boolean> {
   if (!isSupabaseConfigured || !supabase) {
     console.warn("⚠️ [Supabase DB] Data armada tersimpan di memori lokal karena .env.local belum diisi.");
@@ -142,9 +145,9 @@ export async function upsertTruckToDb(vehicle: Vehicle): Promise<boolean> {
   }
 
   try {
-    const record: TruckDbRecord = {
+    const record = {
       id: vehicle.id,
-      truck_name: vehicle.name,
+      vehicle_name: vehicle.name,
       length_cm: vehicle.lengthCm,
       width_cm: vehicle.widthCm,
       height_cm: vehicle.heightCm,
@@ -152,7 +155,7 @@ export async function upsertTruckToDb(vehicle: Vehicle): Promise<boolean> {
       status: vehicle.status === "Aktif" ? "Available" : "Maintenance"
     };
 
-    const { error } = await supabase.from("trucks").upsert(record);
+    const { error } = await supabase.from("vehicles").upsert(record);
     if (error) {
       console.error(`❌ [Supabase DB Error] Gagal menyimpan armada ${vehicle.id}:`, error.message);
       return false;
@@ -166,12 +169,12 @@ export async function upsertTruckToDb(vehicle: Vehicle): Promise<boolean> {
   }
 }
 
-// Delete a truck from Supabase
+// Delete a vehicle from Supabase
 export async function deleteTruckFromDb(id: string): Promise<boolean> {
   if (!isSupabaseConfigured || !supabase) return false;
 
   try {
-    const { error } = await supabase.from("trucks").delete().eq("id", id);
+    const { error } = await supabase.from("vehicles").delete().eq("id", id);
     if (error) {
       console.error(`❌ [Supabase DB Error] Gagal menghapus armada ${id}:`, error.message);
       return false;
