@@ -29,7 +29,10 @@ export default function SettingsPage() {
   };
 
   const handleLogout = async () => {
-    await logout();
+    setToast({ show: true, message: "Anda telah keluar dari akun." });
+    setTimeout(async () => {
+      await logout();
+    }, 600);
   };
 
   return (

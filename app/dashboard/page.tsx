@@ -34,7 +34,10 @@ const activityLogs = [
   { time: "07:00", desc: "Sinkronisasi Supabase DB berhasil dihubungkan", tag: "System" },
 ];
 
+import { useProfile } from "../context/ProfileContext";
+
 export default function HomeOverviewPage() {
+  const { name: profileName } = useProfile();
   const [dbCargos, setDbCargos] = useState<CargoDbRecord[]>([]);
   const [activeFleet, setActiveFleet] = useState<FleetTruckItem[]>([]);
 
@@ -109,7 +112,7 @@ export default function HomeOverviewPage() {
               Dashboard
             </h1>
             <p className="text-[14px] text-[#667085]">
-              Pantau kondisi armada, volume muatan, dan hasil optimasi dalam satu tampilan.
+              Selamat datang{profileName ? `, ${profileName}` : ""}! Pantau kondisi armada, volume muatan, dan hasil optimasi dalam satu tampilan.
             </p>
           </div>
 
