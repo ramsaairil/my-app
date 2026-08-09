@@ -18,16 +18,23 @@ export default function Logo({
   variant = "default",
   iconOnly = false,
 }: LogoProps) {
-  // Use state context with fallback if rendered outside provider
-  let initials = "L";
-  let avatarColor = "bg-emerald-700";
+  let initials = "UL";
+  let avatarColor = "bg-[#087F5B]";
+  let displayName = "Sistem Muatan 3D";
 
   try {
     const profile = useProfile();
-    initials = profile.initials;
-    avatarColor = profile.avatarColor;
+    if (profile.name) {
+      displayName = profile.name;
+    }
+    if (profile.initials) {
+      initials = profile.initials;
+    }
+    if (profile.avatarColor) {
+      avatarColor = profile.avatarColor;
+    }
   } catch (e) {
-    // Fallback if rendered outside the layout provider (e.g. testing)
+    // Fallback if rendered outside provider
   }
 
   // Size mapping (fully round badges)
@@ -39,39 +46,40 @@ export default function Logo({
   };
 
   const titleSizes = {
-    sm: "text-sm font-semibold",
-    md: "text-base font-bold",
-    lg: "text-lg font-bold",
-    xl: "text-2xl font-extrabold",
+    sm: "text-xs font-semibold",
+    md: "text-sm font-bold",
+    lg: "text-base font-bold",
+    xl: "text-xl font-extrabold",
   };
 
   const isDarkVariant = variant === "dark";
 
   return (
     <div className={`inline-flex items-center gap-2.5 select-none group ${className}`}>
-      {/* Icon Badge L - Made fully round and color-customizable */}
+      {/* Icon Badge - Displays User Initials */}
       <div
         className={`${badgeSizes[size]} ${avatarColor} relative flex items-center justify-center 
-        text-white shadow-sm shadow-emerald-700/20 
+        text-white shadow-xs
         transition-all duration-300 group-hover:scale-[1.03] 
         flex-shrink-0 overflow-hidden uppercase`}
       >
         {initials}
       </div>
 
-      {/* Logo Typography */}
+      {/* Logo Typography - Displays User Name */}
       {!iconOnly && (
         <div
           className={`flex items-center gap-1.5 leading-none transition-all duration-300 origin-left overflow-hidden ${
-            showText ? "opacity-100 max-w-[120px]" : "opacity-0 max-w-0 pointer-events-none"
+            showText ? "opacity-100 max-w-[160px]" : "opacity-0 max-w-0 pointer-events-none"
           }`}
         >
           <span
-            className={`tracking-tight ${titleSizes[size]} ${
-              isDarkVariant ? "text-white" : "text-slate-900"
+            className={`tracking-tight truncate ${titleSizes[size]} ${
+              isDarkVariant ? "text-white" : "text-[#172033]"
             }`}
+            title={displayName}
           >
-            Logistic
+            {displayName}
           </span>
         </div>
       )}

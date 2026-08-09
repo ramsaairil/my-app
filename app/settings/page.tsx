@@ -1,206 +1,189 @@
 "use client";
 
-import React, { useState } from "react";
-import PageHeader from "../components/PageHeader";
+import React, { useState, useEffect } from "react";
 import { useProfile } from "../context/ProfileContext";
-import { User, Mail, Phone, Shield, MapPin, Truck, Database, LogOut, Save, CheckCircle2 } from "lucide-react";
+import { LogOut, Save, CheckCircle2, AlertCircle } from "lucide-react";
 
 export default function SettingsPage() {
-  const { name, email, initials, avatarColor, setName, setInitials, setAvatarColor, logout } = useProfile();
-  const [toast, setToast] = useState<{ show: boolean; message: string }>({ show: false, message: "" });
+  const { user, name, email, initials, updateProfileName, logout } = useProfile();
 
-  const handleNameChange = (newName: string) => {
-    setName(newName);
-    const words = newName.trim().split(/\s+/).filter(Boolean);
-    let init = "L";
-    if (words.length >= 2) {
-      init = (words[0][0] + words[1][0]).toUpperCase();
-    } else if (words.length === 1 && words[0].length > 0) {
-      init = words[0].slice(0, 2).toUpperCase();
-    }
-    setInitials(init);
+  const [formName, setFormName] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+
+  const [toast, setToast] = useState<{ show: boolean; message: string; type: "success" | "error" }>({
+    show: false,
+    message: "",
+    type: "success"
+  });
+
+  // Dynamic user data sync from Supabase user_metadata
+  useEffect(() => {
+    const activeName = user?.user_metadata?.full_name || name || "";
+    setFormName(activeName);
+  }, [user, name]);
+
+  const showToast = (message: string, type: "success" | "error" = "success") => {
+    setToast({ show: true, message, type });
+    setTimeout(() => {
+      setToast({ show: false, message: "", type: "success" });
+    }, 3500);
   };
 
-  const handleSave = () => {
-    setToast({ show: true, message: "Preferensi dan profil berhasil disimpan!" });
-    setTimeout(() => {
-      setToast({ show: false, message: "" });
-    }, 3000);
+  const handleSaveName = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formName.trim() || formName.trim().length < 2) {
+      showToast("Nama lengkap minimal 2 karakter.", "error");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const res = await updateProfileName(formName.trim());
+      if (res.success) {
+        showToast("Profil berhasil diperbarui.", "success");
+      } else {
+        showToast(res.error || "Gagal memperbarui profil.", "error");
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      showToast(msg, "error");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleLogout = async () => {
-    setToast({ show: true, message: "Anda telah keluar dari akun." });
+    showToast("Anda telah keluar dari akun.", "success");
     setTimeout(async () => {
       await logout();
     }, 600);
   };
+
+  const displayEmail = user?.email || email || "";
+  const displayName = formName || name || displayEmail.split("@")[0] || "User";
 
   return (
     <div className="flex-grow flex flex-col h-full overflow-hidden bg-[#F8FAFC] text-[#172033] font-sans antialiased">
       
       {/* Toast Feedback */}
       {toast.show && (
-        <div className="fixed top-20 right-6 z-50 flex items-center gap-2 bg-[#087F5B] text-white px-4 py-2.5 rounded-lg shadow-lg text-xs font-bold transition-all">
-          <CheckCircle2 size={16} />
-          <span>{toast.message}</span>
+        <div
+          className={`fixed top-6 right-6 z-50 flex items-center gap-2.5 px-4 py-2.5 rounded-lg border backdrop-blur-md transition-all shadow-md ${
+            toast.type === "success"
+              ? "bg-[#E8F7F1] border-[#087F5B]/30 text-[#087F5B]"
+              : "bg-rose-50 border-rose-200 text-rose-700"
+          }`}
+        >
+          {toast.type === "success" ? (
+            <CheckCircle2 size={16} className="text-[#087F5B] shrink-0" />
+          ) : (
+            <AlertCircle size={16} className="text-rose-600 shrink-0" />
+          )}
+          <span className="text-xs font-semibold">{toast.message}</span>
         </div>
       )}
 
+      {/* Main Page Container */}
       <div className="flex-grow overflow-y-auto p-7 sm:p-9 custom-scrollbar">
-        <div className="max-w-[1320px] mx-auto space-y-7">
+        <div className="max-w-[720px] mx-auto space-y-7">
           
           {/* Header */}
           <div className="pb-4 border-b border-[#E7EBF0]">
             <h1 className="text-3xl font-bold text-[#172033] tracking-tight">
-              Pengaturan
+              Profil
             </h1>
             <p className="text-[14px] text-[#667085] mt-1">
-              Kelola profil akun, preferensi operasional, dan integrasi Supabase.
+              Kelola informasi akun Anda.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-7 items-start">
-            
-            {/* Left Card: Avatar & Summary */}
-            <div className="lg:col-span-4 space-y-6">
-              <div className="bg-white border border-[#E7EBF0] rounded-xl p-6 flex flex-col items-center text-center space-y-4">
-                <div className={`relative w-20 h-20 rounded-full ${avatarColor} border-4 border-[#F8FAFC] flex items-center justify-center shadow-xs transition-all`}>
-                  <span className="text-2xl font-bold text-white tracking-wider uppercase select-none">
-                    {initials}
-                  </span>
-                </div>
-                <div className="space-y-1">
-                  <h2 className="text-base font-bold text-[#172033]">{name}</h2>
-                  <p className="text-xs text-[#667085] flex items-center gap-1.5 justify-center">
-                    <Truck size={14} className="text-[#087F5B]" />
-                    Pengemudi Logistik Senior
-                  </p>
-                </div>
-              </div>
-
-              {/* Avatar Color customization */}
-              <div className="bg-white border border-[#E7EBF0] rounded-xl p-6 space-y-4">
-                <h3 className="text-xs font-semibold text-[#667085] tracking-wider uppercase">Warna Badge Logo</h3>
-                <div className="flex flex-wrap items-center gap-3">
-                  {[
-                    { name: "Emerald Green", value: "bg-[#087F5B]" },
-                    { name: "Indigo Blue", value: "bg-indigo-700" },
-                    { name: "Slate Gray", value: "bg-slate-700" },
-                    { name: "Rose Red", value: "bg-rose-700" },
-                    { name: "Amber Orange", value: "bg-[#B7791F]" }
-                  ].map((colorOpt) => (
-                    <button
-                      key={colorOpt.value}
-                      onClick={() => setAvatarColor(colorOpt.value)}
-                      type="button"
-                      className={`w-8 h-8 rounded-full border-2 transition-all cursor-pointer ${
-                        avatarColor === colorOpt.value
-                          ? "border-[#172033] scale-110"
-                          : "border-transparent hover:scale-105"
-                      } ${colorOpt.value}`}
-                      title={colorOpt.name}
-                    />
-                  ))}
-                </div>
-              </div>
+          {/* Top Profile Summary Card */}
+          <div className="bg-white border border-[#E7EBF0] rounded-xl p-6 sm:p-8 flex flex-col items-center justify-center text-center space-y-3">
+            <div className="w-20 h-20 rounded-full bg-[#087F5B] flex items-center justify-center text-white text-2xl font-bold tracking-wider uppercase shadow-xs">
+              {initials}
             </div>
-
-            {/* Right Card: Identity Form & Credentials */}
-            <div className="lg:col-span-8 space-y-6">
-              
-              {/* Identity Form */}
-              <div className="bg-white border border-[#E7EBF0] rounded-xl p-6 space-y-5">
-                <h3 className="text-sm font-semibold text-[#172033] border-b border-[#E7EBF0] pb-3 flex items-center gap-2">
-                  <User size={16} className="text-[#667085]" />
-                  Identitas Operasional
-                </h3>
-                
-                <div>
-                  <label className="block text-xs font-bold text-[#172033] mb-1">Nama Lengkap</label>
-                  <input
-                    type="text"
-                    value={name}
-                    onChange={(e) => handleNameChange(e.target.value)}
-                    className="w-full px-3 py-2 text-xs bg-[#F8FAFC] border border-[#E7EBF0] rounded-lg focus:outline-none focus:border-[#087F5B] focus:bg-white text-[#172033] font-medium"
-                  />
-                </div>
-              </div>
-
-              {/* Credentials Grid */}
-              <div className="bg-white border border-[#E7EBF0] rounded-xl p-6 space-y-5">
-                <h3 className="text-sm font-semibold text-[#172033] border-b border-[#E7EBF0] pb-3">Kredensial Lisensi & Penugasan</h3>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-medium text-[#172033]">
-                  <div className="flex items-center gap-3 p-3.5 border border-[#E7EBF0] rounded-lg bg-[#F8FAFC]">
-                    <Mail size={16} className="text-[#667085]" />
-                    <div>
-                      <span className="text-[10px] font-semibold text-[#667085] uppercase tracking-wider block">Alamat Email (Supabase)</span>
-                      <span className="text-[#172033] font-semibold">{email}</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 p-3.5 border border-[#E7EBF0] rounded-lg bg-[#F8FAFC]">
-                    <Phone size={16} className="text-[#667085]" />
-                    <div>
-                      <span className="text-[10px] font-semibold text-[#667085] uppercase tracking-wider block">Nomor Kontak</span>
-                      <span className="text-[#172033] font-semibold">+62 812-3456-7890</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 p-3.5 border border-[#E7EBF0] rounded-lg bg-[#F8FAFC]">
-                    <Shield size={16} className="text-[#667085]" />
-                    <div>
-                      <span className="text-[10px] font-semibold text-[#667085] uppercase tracking-wider block">Kelas Lisensi</span>
-                      <span className="text-[#172033] font-semibold">Komersial Kelas A (CDL)</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 p-3.5 border border-[#E7EBF0] rounded-lg bg-[#F8FAFC]">
-                    <Truck size={16} className="text-[#667085]" />
-                    <div>
-                      <span className="text-[10px] font-semibold text-[#667085] uppercase tracking-wider block">Unit yang Ditugaskan</span>
-                      <span className="text-[#172033] font-semibold">TRC-204 (Gran Max)</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-            </div>
-
+            <h2 className="text-lg font-bold text-[#172033]">{displayName}</h2>
           </div>
 
-          {/* LOWER SECTION: GENERAL PREFERENCES & ACCOUNT SESSION */}
-          <div className="bg-white border border-[#E7EBF0] rounded-xl p-6 sm:p-8 space-y-8">
-            
-            {/* Account & Session Section */}
-            <div className="space-y-4">
-              <h2 className="text-sm font-semibold text-[#172033] border-b border-[#E7EBF0] pb-3 flex items-center gap-2">
-                <LogOut size={16} className="text-[#667085]" />
-                Akun & Sesi Supabase
-              </h2>
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs font-semibold text-[#172033]">
-                <div>
-                  <h3 className="text-[#172033]">Keluar dari Portal Operasi</h3>
-                  <p className="text-[12px] text-[#667085] mt-0.5">Akhiri sesi Supabase Auth Anda.</p>
-                </div>
+          {/* Section 1: Informasi Akun */}
+          <div className="bg-white border border-[#E7EBF0] rounded-xl p-6 sm:p-8 space-y-5">
+            <h3 className="text-base font-bold text-[#172033] border-b border-[#E7EBF0] pb-3">
+              Informasi Akun
+            </h3>
+
+            <form onSubmit={handleSaveName} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-[#172033] mb-1.5">
+                  Nama Lengkap
+                </label>
+                <input
+                  type="text"
+                  value={formName}
+                  onChange={(e) => setFormName(e.target.value)}
+                  placeholder="Masukkan nama lengkap"
+                  className="w-full px-3.5 py-2 text-xs bg-[#F8FAFC] border border-[#E7EBF0] rounded-lg focus:outline-none focus:border-[#087F5B] focus:bg-white text-[#172033] font-medium"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-[#172033] mb-1.5">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  value={displayEmail}
+                  disabled
+                  readOnly
+                  className="w-full px-3.5 py-2 text-xs bg-[#F8FAFC] border border-[#E7EBF0] rounded-lg text-[#667085] font-medium cursor-not-allowed select-none"
+                />
+              </div>
+
+              <div className="pt-2 flex justify-end">
                 <button
-                  onClick={handleLogout}
-                  className="flex items-center gap-2 px-4 py-2 border border-rose-200 hover:bg-rose-50 text-rose-700 rounded-lg text-xs font-semibold transition-all cursor-pointer self-start sm:self-center"
+                  type="submit"
+                  disabled={isSaving}
+                  className={`px-5 py-2 bg-[#087F5B] hover:bg-[#066B4D] text-white text-xs font-semibold rounded-lg transition-colors cursor-pointer flex items-center gap-2 shadow-xs ${
+                    isSaving ? "opacity-70 cursor-not-allowed" : ""
+                  }`}
                 >
-                  <LogOut size={14} />
-                  Keluar Sesi
+                  {isSaving ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <span>Menyimpan...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save size={15} />
+                      <span>Simpan Perubahan</span>
+                    </>
+                  )}
                 </button>
               </div>
-            </div>
+            </form>
+          </div>
 
-            {/* Action button */}
-            <div className="pt-4 border-t border-[#E7EBF0] flex justify-end">
+          {/* Section 2: Akun & Sesi */}
+          <div className="bg-white border border-[#E7EBF0] rounded-xl p-6 sm:p-8 space-y-4">
+            <h3 className="text-base font-bold text-[#172033] border-b border-[#E7EBF0] pb-3">
+              Akun & Sesi
+            </h3>
+
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h4 className="text-xs font-bold text-[#172033]">Keluar dari Portal Operasi</h4>
+                <p className="text-[12px] text-[#667085] mt-0.5">Akhiri sesi Supabase Auth Anda.</p>
+              </div>
+
               <button
-                onClick={handleSave}
-                className="flex items-center gap-2 px-5 py-2 bg-[#087F5B] hover:bg-[#066B4D] text-white rounded-lg text-xs font-semibold transition-colors cursor-pointer shadow-xs"
+                type="button"
+                onClick={handleLogout}
+                className="flex items-center gap-2 px-4 py-2 border border-rose-200 hover:bg-rose-50 text-rose-700 rounded-lg text-xs font-semibold transition-all cursor-pointer self-start sm:self-center"
               >
-                <Save size={15} />
-                Simpan Pengaturan
+                <LogOut size={14} />
+                <span>Keluar Sesi</span>
               </button>
             </div>
-
           </div>
 
         </div>

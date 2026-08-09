@@ -25,6 +25,7 @@ interface ProfileContextType {
   setAvatarColor: (color: string) => void;
   login: (emailInput: string, passwordInput: string) => Promise<AuthResult>;
   register: (emailInput: string, passwordInput: string, fullNameInput: string) => Promise<AuthResult>;
+  updateProfileName: (newName: string) => Promise<AuthResult>;
   logout: () => Promise<void>;
 }
 
@@ -198,6 +199,32 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const updateProfileName = async (newName: string): Promise<AuthResult> => {
+    const cleanName = newName.trim();
+    if (!cleanName || cleanName.length < 2) {
+      return { success: false, error: "Nama lengkap minimal 2 karakter." };
+    }
+
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase.auth.updateUser({
+        data: {
+          full_name: cleanName,
+        },
+      });
+
+      if (error) {
+        return { success: false, error: formatAuthError(error.message) };
+      }
+
+      syncUserData(data.user);
+      return { success: true };
+    } else {
+      setName(cleanName);
+      setInitials(computeInitials(cleanName));
+      return { success: true };
+    }
+  };
+
   const logout = async () => {
     if (isSupabaseConfigured && supabase) {
       await supabase.auth.signOut();
@@ -225,6 +252,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
         setAvatarColor,
         login,
         register,
+        updateProfileName,
         logout,
       }}
     >
