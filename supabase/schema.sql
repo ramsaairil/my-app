@@ -1,13 +1,13 @@
 -- ====================================================================
 -- SUPABASE POSTGRESQL SCHEMA MIGRATION FOR 3D CARGO OPTIMIZATION SYSTEM
--- (CLEAN RESET & CONCISE 3D RESEARCH DATASET)
+-- (PUBLIC.USERS PROFILE TABLE LINKED TO AUTH.USERS VIA TRIGGER)
 -- ====================================================================
 
 -- 1. Enable UUID Extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
--- 2. RESET EXISTING TABLES (Clean Re-initialization - Drop all standard & legacy tables)
+-- 2. RESET EXISTING TABLES (Clean Re-initialization)
 DROP TABLE IF EXISTS public.cargo_slots CASCADE;
 DROP TABLE IF EXISTS public.cargos CASCADE;
 DROP TABLE IF EXISTS public.cargo CASCADE;
@@ -17,12 +17,12 @@ DROP TABLE IF EXISTS public.truck CASCADE;
 DROP TABLE IF EXISTS public.users CASCADE;
 DROP TABLE IF EXISTS public.user CASCADE;
 
--- 3. USERS TABLE (Database Pengguna / Login)
+-- 3. USERS / PROFILES TABLE (Linked 1-to-1 with Supabase Auth auth.users)
+-- IMPORTANT: Passwords are managed strictly by Supabase Auth (auth.users).
 CREATE TABLE public.users (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  username VARCHAR(100) NOT NULL UNIQUE,
-  email VARCHAR(255) NOT NULL UNIQUE,
-  password VARCHAR(255) NOT NULL,
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  full_name VARCHAR(255),
+  email VARCHAR(255) NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -77,61 +77,84 @@ CREATE TABLE public.cargo_slots (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 7. SEED CONCISE RESEARCH DATASET (4 Vehicles, 4 Cargo Box Types)
--- Seed Demo Accounts
-INSERT INTO public.users (username, email, password)
-VALUES 
-  ('admin', 'admin@logistic.com', 'admin123'),
-  ('operator', 'operator@logistic.com', 'operator123');
+-- 7. POSTGRESQL TRIGGER TO AUTOMATICALLY SYNC AUTH.USERS TO PUBLIC.USERS
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER SET search_path = ''
+AS $$
+BEGIN
+  INSERT INTO public.users (id, full_name, email, created_at, updated_at)
+  VALUES (
+    NEW.id,
+    COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.raw_user_meta_data->>'name', split_part(NEW.email, '@', 1)),
+    NEW.email,
+    NOW(),
+    NOW()
+  )
+  ON CONFLICT (id) DO UPDATE SET
+    full_name = EXCLUDED.full_name,
+    email = EXCLUDED.email,
+    updated_at = NOW();
+  RETURN NEW;
+END;
+$$;
 
--- Seed Armada Kendaraan 3D (4 Tipe Ringkas untuk Penelitian)
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- 8. SEED CONCISE RESEARCH DATASET (4 Vehicles, 4 Cargo Box Types)
 INSERT INTO public.vehicles (id, vehicle_name, length_cm, width_cm, height_cm, max_volume_m3, status)
 VALUES 
   ('TRC-201', 'Gran Max Pick Up', 235, 155, 130, 4.74, 'Available'),
   ('TRC-202', 'CDD Box Standard', 450, 200, 200, 18.00, 'Available'),
   ('TRC-203', 'CDD Long Box', 600, 220, 220, 29.04, 'Available'),
-  ('TRC-204', 'Fuso Box Heavy', 750, 240, 240, 43.20, 'Available');
+  ('TRC-204', 'Fuso Box Heavy', 750, 240, 240, 43.20, 'Available')
+ON CONFLICT (id) DO NOTHING;
 
--- Seed Data Barang 3D (4 Tipe Kardus Ringkas untuk Penelitian)
 INSERT INTO public.cargos (id, name, shape, category, quantity, dimension, length_cm, width_cm, height_cm, volume_m3, color_code, status)
 VALUES 
-  ('CRG-01', 'Kardus Elektronik A', 'Balok', 'Box Small', 20, '40x30x30 cm', 40, 30, 30, 0.036, '#3B82F6', 'Unassigned'),
-  ('CRG-02', 'Kardus Tekstil B', 'Balok', 'Box Medium', 15, '50x40x40 cm', 50, 40, 40, 0.080, '#10B981', 'Unassigned'),
+  ('CRG-01', 'Kardus Elektronik A', 'Balok', 'Box Small', 20, '40x30x30 cm', 40, 30, 30, 0.036, '#087F5B', 'Unassigned'),
+  ('CRG-02', 'Kardus Tekstil B', 'Balok', 'Box Medium', 15, '50x40x40 cm', 50, 40, 40, 0.080, '#3B82F6', 'Unassigned'),
   ('CRG-03', 'Kardus Sparepart C', 'Balok', 'Box Large', 8, '60x50x50 cm', 60, 50, 50, 0.150, '#F59E0B', 'Unassigned'),
-  ('CRG-04', 'Box Custom Panjang', 'Balok', 'Box Long', 5, '120x40x40 cm', 120, 40, 40, 0.192, '#8B5CF6', 'Unassigned');
+  ('CRG-04', 'Box Custom Panjang', 'Balok', 'Box Long', 5, '120x40x40 cm', 120, 40, 40, 0.192, '#8B5CF6', 'Unassigned')
+ON CONFLICT (id) DO NOTHING;
 
--- 8. GRANT ROLE PERMISSIONS FOR SUPABASE API
+-- 9. GRANT ROLE PERMISSIONS FOR SUPABASE API
 GRANT ALL ON TABLE public.users TO anon, authenticated, service_role;
 GRANT ALL ON TABLE public.cargos TO anon, authenticated, service_role;
 GRANT ALL ON TABLE public.vehicles TO anon, authenticated, service_role;
 GRANT ALL ON TABLE public.cargo_slots TO anon, authenticated, service_role;
 
--- 9. ENABLE ROW LEVEL SECURITY (RLS) & POLICIES
+-- 10. ENABLE ROW LEVEL SECURITY (RLS) & POLICIES
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.cargos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.vehicles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.cargo_slots ENABLE ROW LEVEL SECURITY;
 
 -- Create Policies for Users
+CREATE POLICY "Allow read access to public.users" ON public.users FOR SELECT USING (true);
 CREATE POLICY "Allow anonymous read access to users" ON public.users FOR SELECT USING (true);
-CREATE POLICY "Allow anonymous insert access to users" ON public.users FOR INSERT WITH CHECK (true);
-CREATE POLICY "Allow anonymous update access to users" ON public.users FOR UPDATE USING (true);
-CREATE POLICY "Allow anonymous delete access to users" ON public.users FOR DELETE USING (true);
+CREATE POLICY "Allow system insert access to public.users" ON public.users FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow user update own profile in public.users" ON public.users FOR UPDATE USING (true);
 
 -- Create Policies for Cargos
-CREATE POLICY "Allow anonymous read access to cargos" ON public.cargos FOR SELECT USING (true);
-CREATE POLICY "Allow anonymous insert access to cargos" ON public.cargos FOR INSERT WITH CHECK (true);
-CREATE POLICY "Allow anonymous update access to cargos" ON public.cargos FOR UPDATE USING (true);
-CREATE POLICY "Allow anonymous delete access to cargos" ON public.cargos FOR DELETE USING (true);
+CREATE POLICY "Allow read access to cargos" ON public.cargos FOR SELECT USING (true);
+CREATE POLICY "Allow insert access to cargos" ON public.cargos FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow update access to cargos" ON public.cargos FOR UPDATE USING (true);
+CREATE POLICY "Allow delete access to cargos" ON public.cargos FOR DELETE USING (true);
 
 -- Create Policies for Vehicles
-CREATE POLICY "Allow anonymous read access to vehicles" ON public.vehicles FOR SELECT USING (true);
-CREATE POLICY "Allow anonymous insert access to vehicles" ON public.vehicles FOR INSERT WITH CHECK (true);
-CREATE POLICY "Allow anonymous update access to vehicles" ON public.vehicles FOR UPDATE USING (true);
-CREATE POLICY "Allow anonymous delete access to vehicles" ON public.vehicles FOR DELETE USING (true);
+CREATE POLICY "Allow read access to vehicles" ON public.vehicles FOR SELECT USING (true);
+CREATE POLICY "Allow insert access to vehicles" ON public.vehicles FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow update access to vehicles" ON public.vehicles FOR UPDATE USING (true);
+CREATE POLICY "Allow delete access to vehicles" ON public.vehicles FOR DELETE USING (true);
 
 -- Create Policies for Cargo Slots
-CREATE POLICY "Allow anonymous read access to cargo_slots" ON public.cargo_slots FOR SELECT USING (true);
-CREATE POLICY "Allow anonymous insert access to cargo_slots" ON public.cargo_slots FOR INSERT WITH CHECK (true);
-CREATE POLICY "Allow anonymous update access to cargo_slots" ON public.cargo_slots FOR UPDATE USING (true);
-CREATE POLICY "Allow anonymous delete access to cargo_slots" ON public.cargo_slots FOR DELETE USING (true);
+CREATE POLICY "Allow read access to cargo_slots" ON public.cargo_slots FOR SELECT USING (true);
+CREATE POLICY "Allow insert access to cargo_slots" ON public.cargo_slots FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow update access to cargo_slots" ON public.cargo_slots FOR UPDATE USING (true);
+CREATE POLICY "Allow delete access to cargo_slots" ON public.cargo_slots FOR DELETE USING (true);

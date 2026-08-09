@@ -18,7 +18,7 @@ export default function LayoutInner({ children }: { children: React.ReactNode })
   const { isOpen, toggle } = useSidebar();
   const { user, session, loading } = useProfile();
 
-  const isAuthenticated = Boolean(session || user);
+  const isAuthenticated = Boolean(session && session.user);
 
   useEffect(() => {
     if (loading) return;

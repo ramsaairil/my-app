@@ -3,7 +3,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase, isSupabaseConfigured } from "../../lib/supabase";
-import { useRouter } from "next/navigation";
 
 interface AuthResult {
   success: boolean;
@@ -32,12 +31,11 @@ interface ProfileContextType {
 const ProfileContext = createContext<ProfileContextType | undefined>(undefined);
 
 export function ProfileProvider({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const [name, setName] = useState("User Logistik");
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [initials, setInitials] = useState("UL");
   const [avatarColor, setAvatarColor] = useState("bg-[#087F5B]");
@@ -54,10 +52,13 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     return "UL";
   };
 
-  // Sync state from Supabase User
-  const syncUserData = (currentUser: User | null) => {
-    setUser(currentUser);
-    if (currentUser) {
+  // Sync state strictly from active Supabase Session & User
+  const syncUserData = (currentUser: User | null, currentSession: Session | null) => {
+    // Only set authenticated user if session is valid
+    if (currentSession && currentUser) {
+      setSession(currentSession);
+      setUser(currentUser);
+
       const metaName = currentUser.user_metadata?.full_name || currentUser.user_metadata?.name;
       const userEmail = currentUser.email || "";
       const displayName = metaName || userEmail.split("@")[0] || "User Logistik";
@@ -65,6 +66,12 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       setName(displayName);
       setEmail(userEmail);
       setInitials(computeInitials(displayName));
+    } else {
+      setSession(null);
+      setUser(null);
+      setName("");
+      setEmail("");
+      setInitials("UL");
     }
   };
 
@@ -76,15 +83,13 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
 
     // Check existing session on mount
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      syncUserData(session?.user ?? null);
+      syncUserData(session?.user ?? null, session);
       setLoading(false);
     });
 
-    // Listen to Auth State changes realtime
+    // Listen to Auth State changes in realtime
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      syncUserData(session?.user ?? null);
+      syncUserData(session?.user ?? null, session);
       setLoading(false);
     });
 
@@ -101,7 +106,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     if (msg.includes("user already registered") || msg.includes("already exists")) {
       return "Email tersebut sudah terdaftar. Silakan masuk.";
     }
-    if (msg.includes("email not confirmed")) {
+    if (msg.includes("email not confirmed") || msg.includes("email_not_confirmed")) {
       return "Email Anda belum terverifikasi. Silakan periksa inbox email Anda.";
     }
     if (msg.includes("password should be at least")) {
@@ -133,8 +138,14 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
         return { success: false, error: formatAuthError(error.message) };
       }
 
-      setSession(data.session);
-      syncUserData(data.user);
+      if (!data.session) {
+        return {
+          success: false,
+          error: "Email Anda belum terverifikasi. Silakan periksa inbox email Anda."
+        };
+      }
+
+      syncUserData(data.user, data.session);
       return { success: true };
     } else {
       // Local fallback if Supabase env vars not configured
@@ -180,22 +191,23 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (data.session) {
-        setSession(data.session);
-        syncUserData(data.user);
-        return { success: true };
+        // Auto-confirmed (email verification disabled in Supabase settings)
+        syncUserData(data.user, data.session);
+        return { success: true, needsEmailVerification: false };
       } else if (data.user) {
-        // Confirmation email required by Supabase settings
-        syncUserData(data.user);
+        // Email confirmation is required by Supabase settings!
+        // DO NOT log user in or set active session state.
+        syncUserData(null, null);
         return { success: true, needsEmailVerification: true };
       }
 
-      return { success: true };
+      return { success: true, needsEmailVerification: false };
     } else {
       // Local fallback
       setName(cleanName);
       setEmail(cleanEmail);
       setInitials(computeInitials(cleanName));
-      return { success: true };
+      return { success: true, needsEmailVerification: false };
     }
   };
 
@@ -216,7 +228,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
         return { success: false, error: formatAuthError(error.message) };
       }
 
-      syncUserData(data.user);
+      syncUserData(data.user, session);
       return { success: true };
     } else {
       setName(cleanName);
@@ -229,11 +241,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     if (isSupabaseConfigured && supabase) {
       await supabase.auth.signOut();
     }
-    setUser(null);
-    setSession(null);
-    setName("");
-    setEmail("");
-    setInitials("UL");
+    syncUserData(null, null);
   };
 
   return (
