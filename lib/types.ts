@@ -85,6 +85,8 @@ export interface OptimizationResult {
   unpackedSummary: UnpackedBoxInfo[];
   statusLabel: VehicleComparisonStatus;
   statusDetails: string;
+  fitnessScore?: number;
+  generationsCount?: number;
 }
 
 export interface VehiclePreset {

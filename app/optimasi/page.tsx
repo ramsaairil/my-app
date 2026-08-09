@@ -420,17 +420,13 @@ export default function CustomOptimizationPage() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [cargoMaster, setCargoMaster] = useState<CargoMasterItem[]>([]);
 
-  // Step 1: Vehicle Selection Mode ("manual" vs "recommend")
-  const [vehicleMode, setVehicleMode] = useState<"manual" | "recommend">("manual");
-  const [selectedVehicleId, setSelectedVehicleId] = useState<string>("");
-
   // Step 2: Cargo Item Quantities Input (cargoId -> quantity)
   const [itemQuantities, setItemQuantities] = useState<Record<string, number>>({});
 
   // Notion View State Tab
   const [activeViewTab, setActiveViewTab] = useState<"simulator" | "manifest" | "report">("simulator");
 
-  // Optimization Status & Results
+  // Optimization Status & Results (Vehicle is Output of GA)
   const [isSolving, setIsSolving] = useState(false);
   const [activeResult, setActiveResult] = useState<OptimizationResult | null>(null);
   const [allComparisonResults, setAllComparisonResults] = useState<OptimizationResult[]>([]);
@@ -514,10 +510,6 @@ export default function CustomOptimizationPage() {
       }
       setCargoMaster(loadedCargos);
 
-      if (availableVehicles.length > 0) {
-        setSelectedVehicleId(availableVehicles[0].id);
-      }
-
       const initialQty: Record<string, number> = {};
       loadedCargos.forEach((c, idx) => {
         if (idx === 0) initialQty[c.id] = 20;
@@ -569,7 +561,7 @@ export default function CustomOptimizationPage() {
     }));
   };
 
-  // Run Optimization Algorithm
+  // Run Optimization Algorithm (Automatically Evaluates Candidate Vehicles via GA)
   const handleRunOptimization = () => {
     if (requestedStats.totalBoxes === 0) {
       alert("Harap masukkan setidaknya 1 jumlah box barang untuk dioptimalkan.");
@@ -586,33 +578,16 @@ export default function CustomOptimizationPage() {
         return;
       }
 
-      if (vehicleMode === "recommend") {
-        const { results, recommendedResult } = evaluateAllVehicles(
-          availableVehicles,
-          cargoMaster,
-          currentSelections
-        );
-        setAllComparisonResults(results);
-        if (recommendedResult) {
-          setActiveResult(recommendedResult);
-          setSelectedVehicleId(recommendedResult.vehicle.id);
-          setAnimCurrentStep(recommendedResult.packedBoxes.length);
-        }
-      } else {
-        const chosenVehicle = availableVehicles.find((v) => v.id === selectedVehicleId) || activeVehicles[0];
-        const singleResult = packVehicle(chosenVehicle, cargoMaster, currentSelections);
-        const { results } = evaluateAllVehicles(availableVehicles, cargoMaster, currentSelections);
-
-        const mappedResults = results.map((r) => {
-          if (r.vehicle.id === chosenVehicle.id) {
-            return singleResult;
-          }
-          return r;
-        });
-
-        setActiveResult(singleResult);
-        setAllComparisonResults(mappedResults);
-        setAnimCurrentStep(singleResult.packedBoxes.length);
+      // Automatically evaluate all candidate vehicles using Genetic Algorithm (GA)
+      const { results, recommendedResult } = evaluateAllVehicles(
+        availableVehicles,
+        cargoMaster,
+        currentSelections
+      );
+      setAllComparisonResults(results);
+      if (recommendedResult) {
+        setActiveResult(recommendedResult);
+        setAnimCurrentStep(recommendedResult.packedBoxes.length);
       }
 
       setIsSolving(false);
@@ -673,8 +648,8 @@ export default function CustomOptimizationPage() {
 
   const activeVehicle = useMemo(() => {
     if (activeResult) return activeResult.vehicle;
-    return availableVehicles.find((v) => v.id === selectedVehicleId) || availableVehicles[0];
-  }, [activeResult, selectedVehicleId, availableVehicles]);
+    return availableVehicles[0];
+  }, [activeResult, availableVehicles]);
 
   // Dynamic Container dimensions for 3D scale calculations per vehicle type
   const autoScale = 260 / Math.max(100, activeVehicle?.lengthCm || 450);
@@ -798,85 +773,87 @@ export default function CustomOptimizationPage() {
           {/* ---------------------------------------------------- */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
-            {/* STEP 1: VEHICLE SELECTION (5 Cols) */}
+            {/* STEP 1: VEHICLE RESULT OUTPUT CARD (5 Cols) */}
             <div className="lg:col-span-5 bg-white border border-slate-200 rounded-xl p-5 space-y-4 shadow-2xs">
 
-              <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-                <span className="w-5 h-5 rounded bg-[#2383e2] text-white font-bold text-xs flex items-center justify-center">
-                  1
+              <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2">
+                  <span className="w-5 h-5 rounded bg-[#2383e2] text-white font-bold text-xs flex items-center justify-center">
+                    1
+                  </span>
+                  <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                    Kendaraan Hasil Optimasi
+                  </h3>
+                </div>
+
+                <span className={`text-[10px] font-bold font-mono px-2 py-0.5 rounded border ${
+                  activeResult
+                    ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                    : "bg-amber-50 text-amber-700 border-amber-200"
+                }`}>
+                  {activeResult ? activeResult.statusLabel : "Belum Dioptimasi"}
                 </span>
-                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                  Mode Pemilihan Kendaraan
-                </h3>
               </div>
 
-              {/* Options */}
-              <div className="space-y-3">
-                <label
-                  className={`flex items-start gap-3 p-3 rounded-lg border transition-all cursor-pointer ${vehicleMode === "recommend"
-                    ? "bg-emerald-50/60 border-emerald-300 ring-1 ring-emerald-400"
-                    : "bg-slate-50/50 border-slate-200 hover:bg-slate-100/60"
-                    }`}
-                >
-                  <input
-                    type="radio"
-                    name="vehicleMode"
-                    value="recommend"
-                    checked={vehicleMode === "recommend"}
-                    onChange={() => setVehicleMode("recommend")}
-                    className="mt-0.5 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
-                  />
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-1.5">
-                      <Sparkles size={14} className="text-amber-500 fill-amber-500" />
-                      <span className="text-xs font-bold text-slate-900">
-                        Rekomendasikan Terbaik
+              {/* Vehicle Output Details */}
+              {!activeResult ? (
+                <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-4 text-center space-y-2 py-8">
+                  <Truck size={32} className="mx-auto text-slate-300" />
+                  <p className="text-xs font-bold text-slate-700">Output Kendaraan Belum Tersedia</p>
+                  <p className="text-[11px] text-slate-500 leading-relaxed max-w-xs mx-auto">
+                    Masukkan jumlah box kargo di sebelah kanan lalu klik tombol <span className="font-bold text-[#2383e2]">"Optimalkan Muatan"</span>. Sistem akan mengevaluasi seluruh armada kandidat secara otomatis.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3 text-xs">
+                  <div className="bg-gradient-to-r from-emerald-50/80 to-blue-50/80 border border-emerald-200/80 rounded-xl p-3.5 space-y-2">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">KENDARAAN TERPILIH</span>
+                        <h4 className="font-extrabold text-sm text-slate-900">{activeResult.vehicle.name}</h4>
+                        <p className="text-[11px] text-slate-500 font-medium">{activeResult.vehicle.type}</p>
+                      </div>
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-600 text-white font-mono shadow-2xs">
+                        1 Unit
                       </span>
                     </div>
-                    <p className="text-[11px] text-slate-500 leading-relaxed">
-                      Sistem menguji seluruh armada aktif & memilih unit paling efisien.
-                    </p>
-                  </div>
-                </label>
 
-                <label
-                  className={`flex items-start gap-3 p-3 rounded-lg border transition-all cursor-pointer ${vehicleMode === "manual"
-                    ? "bg-blue-50/60 border-[#2383e2] ring-1 ring-[#2383e2]"
-                    : "bg-slate-50/50 border-slate-200 hover:bg-slate-100/60"
-                    }`}
-                >
-                  <input
-                    type="radio"
-                    name="vehicleMode"
-                    value="manual"
-                    checked={vehicleMode === "manual"}
-                    onChange={() => setVehicleMode("manual")}
-                    className="mt-0.5 text-[#2383e2] focus:ring-[#2383e2] cursor-pointer"
-                  />
-                  <div className="space-y-2 flex-1">
-                    <span className="text-xs font-bold text-slate-900 block">
-                      Pilih Kendaraan Manual
-                    </span>
-
-                    {vehicleMode === "manual" && (
-                      <select
-                        value={selectedVehicleId}
-                        onChange={(e) => {
-                          setSelectedVehicleId(e.target.value);
-                          setActiveResult(null);
-                        }}
-                        className="w-full px-3 py-2 text-xs border border-slate-200 rounded-md bg-white font-semibold text-slate-800 focus:outline-none focus:border-[#2383e2] cursor-pointer"
-                      >
-                        {availableVehicles.map((v) => (
-                          <option key={v.id} value={v.id}>
-                            {v.name} - {v.type} ({v.volumeM3} m³ | {v.lengthCm}×{v.widthCm}×{v.heightCm} cm)
-                          </option>
-                        ))}
-                      </select>
-                    )}
+                    <div className="pt-2 border-t border-emerald-200/60 grid grid-cols-2 gap-2 font-mono text-[11px]">
+                      <div>
+                        <span className="text-[10px] text-slate-400 block font-sans">Dimensi Ruang (P×L×T)</span>
+                        <span className="font-bold text-slate-800">{activeResult.vehicle.lengthCm} × {activeResult.vehicle.widthCm} × {activeResult.vehicle.heightCm} cm</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 block font-sans">Volume Ruang</span>
+                        <span className="font-bold text-emerald-700">{activeResult.vehicle.volumeM3.toFixed(2)} m³</span>
+                      </div>
+                    </div>
                   </div>
-                </label>
-              </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-xs font-mono">
+                    <div className="bg-slate-50 border border-slate-200 p-2.5 rounded-lg">
+                      <span className="text-[10px] text-slate-400 block font-sans font-bold">BARANG TERMUAT</span>
+                      <span className="font-bold text-blue-700 text-sm">
+                        {activeResult.totalBoxesPacked} / {activeResult.totalBoxesRequested} Box
+                      </span>
+                    </div>
+
+                    <div className="bg-slate-50 border border-slate-200 p-2.5 rounded-lg">
+                      <span className="text-[10px] text-slate-400 block font-sans font-bold">OCCUPANCY RUANG</span>
+                      <span className="font-bold text-emerald-700 text-sm">
+                        {activeResult.utilizationPercent.toFixed(1)}%
+                      </span>
+                    </div>
+                  </div>
+
+                  {activeResult.fitnessScore !== undefined && (
+                    <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg flex justify-between items-center font-mono text-xs">
+                      <span className="text-[#2383e2] font-bold font-sans">Fitness Score GA:</span>
+                      <span className="font-extrabold text-slate-900">{activeResult.fitnessScore}</span>
+                    </div>
+                  )}
+                </div>
+              )}
 
             </div>
 
@@ -1061,17 +1038,34 @@ export default function CustomOptimizationPage() {
           {activeResult && (
             <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-2xs space-y-5">
 
-              <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+              <div className="flex justify-between items-center border-b border-slate-100 pb-3 flex-wrap gap-2">
                 <div className="flex items-center gap-2">
                   <BarChart3 size={16} className="text-[#2383e2]" />
                   <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                    Laporan Hasil Pengepakan (Occupancy Report)
+                    Laporan Hasil Pengepakan (Occupancy & GA Report)
                   </h3>
                 </div>
 
-                <span className="text-xs font-bold font-mono text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200">
-                  {activeResult.utilizationPercent.toFixed(1)}% Okupansi Ruang
-                </span>
+                <div className="flex flex-wrap items-center gap-2">
+                  {activeResult.fitnessScore !== undefined && (
+                    <span className="text-xs font-bold font-mono text-purple-700 bg-purple-50 px-2.5 py-1 rounded-md border border-purple-200" title="Skor Fitness Algoritma Genetika">
+                      Fitness GA: {activeResult.fitnessScore}
+                    </span>
+                  )}
+                  {activeResult.generationsCount !== undefined && (
+                    <span className="text-xs font-bold font-mono text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-md border border-indigo-200" title="Evolusi Populasi GA">
+                      {activeResult.generationsCount} Generasi GA
+                    </span>
+                  )}
+                  <span className="text-xs font-bold font-mono text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200">
+                    {activeResult.utilizationPercent.toFixed(1)}% Okupansi Ruang
+                  </span>
+                </div>
+              </div>
+
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 flex items-center gap-2">
+                <Info size={15} className="text-[#2383e2] flex-shrink-0" />
+                <span>{activeResult.statusDetails}</span>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs font-mono">
