@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import PageHeader from "../components/PageHeader";
 import {
   Package,
   Plus,
@@ -10,21 +9,6 @@ import {
   Trash2,
   Edit2,
   CheckCircle2,
-  Box,
-  Palette,
-  Sparkles,
-  Table as TableIcon,
-  LayoutGrid,
-  BarChart3,
-  SlidersHorizontal,
-  ChevronDown,
-  ArrowUpDown,
-  Hash,
-  Type,
-  Maximize,
-  Tag,
-  MoreHorizontal,
-  Info,
   Check
 } from "lucide-react";
 import { CargoMasterItem } from "../../lib/types";
@@ -36,8 +20,8 @@ import {
 import { upsertCargoToDb, deleteCargoFromDb, fetchCargosFromDb } from "../../lib/db";
 
 const COLOR_SWATCHES = [
+  "#087F5B", // Emerald
   "#3B82F6", // Blue
-  "#10B981", // Emerald
   "#F59E0B", // Amber
   "#EC4899", // Pink
   "#8B5CF6", // Purple
@@ -49,10 +33,6 @@ const COLOR_SWATCHES = [
 export default function CargoMasterDataPage() {
   const [cargos, setCargos] = useState<CargoMasterItem[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeView, setActiveView] = useState<"table" | "gallery" | "summary">("table");
-  const [sortBy, setSortBy] = useState<"code" | "name" | "volume">("code");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
-  const [selectedColorFilter, setSelectedColorFilter] = useState<string>("all");
 
   const [toast, setToast] = useState<{ show: boolean; message: string; type: "success" | "error" }>({
     show: false,
@@ -70,7 +50,7 @@ export default function CargoMasterDataPage() {
   const [formLength, setFormLength] = useState<number>(40);
   const [formWidth, setFormWidth] = useState<number>(30);
   const [formHeight, setFormHeight] = useState<number>(30);
-  const [formColor, setFormColor] = useState<string>("#3B82F6");
+  const [formColor, setFormColor] = useState<string>("#087F5B");
 
   // Delete Target Modal
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
@@ -123,7 +103,7 @@ export default function CargoMasterDataPage() {
     setFormLength(45);
     setFormWidth(35);
     setFormHeight(30);
-    setFormColor("#3B82F6");
+    setFormColor("#087F5B");
     setIsModalOpen(true);
   };
 
@@ -209,61 +189,33 @@ export default function CargoMasterDataPage() {
     showToast("Data barang berhasil dihapus!", "success");
   };
 
-  // Filtered and Sorted Cargos
   const filteredCargos = useMemo(() => {
-    let result = cargos.filter((c) => {
-      const matchesSearch =
+    return cargos.filter((c) => {
+      return (
         c.name.toLowerCase().includes(searchQuery.toLowerCase().trim()) ||
         c.code.toLowerCase().includes(searchQuery.toLowerCase().trim()) ||
-        c.id.toLowerCase().includes(searchQuery.toLowerCase().trim());
-      const matchesColor = selectedColorFilter === "all" || c.color.toLowerCase() === selectedColorFilter.toLowerCase();
-      return matchesSearch && matchesColor;
+        c.id.toLowerCase().includes(searchQuery.toLowerCase().trim())
+      );
     });
-
-    return result.sort((a, b) => {
-      let valA: string | number = a.code;
-      let valB: string | number = b.code;
-
-      if (sortBy === "name") {
-        valA = a.name.toLowerCase();
-        valB = b.name.toLowerCase();
-      } else if (sortBy === "volume") {
-        valA = a.volumeM3;
-        valB = b.volumeM3;
-      }
-
-      if (valA < valB) return sortOrder === "asc" ? -1 : 1;
-      if (valA > valB) return sortOrder === "asc" ? 1 : -1;
-      return 0;
-    });
-  }, [cargos, searchQuery, selectedColorFilter, sortBy, sortOrder]);
-
-  // Notion Database Aggregations
-  const totalVolumeSum = useMemo(() => {
-    return filteredCargos.reduce((sum, c) => sum + (c.volumeM3 || 0), 0);
-  }, [filteredCargos]);
-
-  const avgVolumeM3 = useMemo(() => {
-    return filteredCargos.length > 0 ? totalVolumeSum / filteredCargos.length : 0;
-  }, [filteredCargos, totalVolumeSum]);
+  }, [cargos, searchQuery]);
 
   return (
-    <div className="flex-grow flex flex-col h-full overflow-hidden bg-[#fafafa] text-slate-800 font-sans antialiased">
+    <div className="flex-grow flex flex-col h-full overflow-hidden bg-[#F8FAFC] text-[#172033] font-sans antialiased">
       
       {/* Toast Notification */}
       {toast.show && (
         <div
-          className={`fixed top-4 right-4 z-50 flex items-center gap-3 px-4 py-2.5 rounded-lg shadow-lg border backdrop-blur-md transition-all duration-300 ${
+          className={`fixed top-4 right-4 z-50 flex items-center gap-3 px-4 py-2.5 rounded-lg border backdrop-blur-md transition-all duration-300 ${
             toast.type === "success"
-              ? "bg-emerald-50/95 border-emerald-300 text-emerald-900"
-              : "bg-rose-50/95 border-rose-300 text-rose-900"
+              ? "bg-[#E8F7F1] border-[#087F5B]/30 text-[#087F5B]"
+              : "bg-rose-50 border-rose-200 text-rose-700"
           }`}
         >
-          <CheckCircle2 size={16} className="text-emerald-600" />
+          <CheckCircle2 size={16} className="text-[#087F5B]" />
           <span className="text-xs font-semibold">{toast.message}</span>
           <button
             onClick={() => setToast((prev) => ({ ...prev, show: false }))}
-            className="text-slate-400 hover:text-slate-600 cursor-pointer ml-2"
+            className="text-[#667085] hover:text-[#172033] cursor-pointer ml-2"
           >
             <X size={14} />
           </button>
@@ -271,440 +223,223 @@ export default function CargoMasterDataPage() {
       )}
 
       {/* Main Page Scroll Container */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar p-6 sm:p-8 space-y-6">
-        <div className="max-w-[1300px] mx-auto space-y-6">
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-7 sm:p-9 space-y-7">
+        <div className="max-w-[1320px] mx-auto space-y-7">
           
-          {/* ---------------------------------------------------- */}
-          {/* NOTION PAGE HEADER */}
-          {/* ---------------------------------------------------- */}
-          <div className="space-y-3 pb-2 border-b border-slate-200/60">
-            
-            {/* Notion Large Page Title */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-                  Data Muatan
-                </h1>
-                <p className="text-xs text-slate-500 font-medium mt-0.5">
-                  Database spesifikasi dimensi & volume kargo untuk algoritma 3D Bin Packing.
-                </p>
-              </div>
-
-              {/* Notion Signature Blue + New Button */}
-              <button
-                onClick={handleOpenAddModal}
-                className="px-3.5 py-1.5 bg-[#2383e2] hover:bg-[#1d70c4] text-white text-xs font-bold rounded-md shadow-xs transition-all flex items-center gap-1.5 cursor-pointer self-start sm:self-auto"
-              >
-                <Plus size={15} />
-                <span>New Cargo</span>
-              </button>
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#E7EBF0]">
+            <div>
+              <h1 className="text-3xl font-bold text-[#172033] tracking-tight">
+                Data Barang
+              </h1>
+              <p className="text-[14px] text-[#667085] mt-1">
+                Kelola dimensi, volume, dan informasi muatan.
+              </p>
             </div>
 
+            <button
+              onClick={handleOpenAddModal}
+              className="px-4 py-2 bg-[#087F5B] hover:bg-[#066B4D] text-white text-[13px] font-semibold rounded-lg transition-all flex items-center gap-1.5 cursor-pointer self-start sm:self-auto"
+            >
+              <Plus size={16} />
+              <span>Tambah Barang</span>
+            </button>
           </div>
 
-          {/* ---------------------------------------------------- */}
-          {/* NOTION TOOLBAR & VIEW TABS BAR */}
-          {/* ---------------------------------------------------- */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-white p-2.5 rounded-xl border border-slate-200/80 shadow-2xs">
-            
-            {/* Left: View Tabs Selector */}
-            <div className="flex items-center gap-1 bg-slate-100/70 p-1 rounded-lg">
-              <button
-                onClick={() => setActiveView("table")}
-                className={`px-3 py-1 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-                  activeView === "table"
-                    ? "bg-white text-slate-900 shadow-2xs font-bold"
-                    : "text-slate-500 hover:text-slate-800"
-                }`}
-              >
-                <TableIcon size={14} className={activeView === "table" ? "text-[#2383e2]" : "text-slate-400"} />
-                <span>Table View</span>
-              </button>
-
-              <button
-                onClick={() => setActiveView("gallery")}
-                className={`px-3 py-1 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-                  activeView === "gallery"
-                    ? "bg-white text-slate-900 shadow-2xs font-bold"
-                    : "text-slate-500 hover:text-slate-800"
-                }`}
-              >
-                <LayoutGrid size={14} className={activeView === "gallery" ? "text-[#2383e2]" : "text-slate-400"} />
-                <span>Gallery Cards</span>
-              </button>
-
-              <button
-                onClick={() => setActiveView("summary")}
-                className={`px-3 py-1 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-                  activeView === "summary"
-                    ? "bg-white text-slate-900 shadow-2xs font-bold"
-                    : "text-slate-500 hover:text-slate-800"
-                }`}
-              >
-                <BarChart3 size={14} className={activeView === "summary" ? "text-[#2383e2]" : "text-slate-400"} />
-                <span>Analytics</span>
-              </button>
+          {/* Search Bar */}
+          <div className="flex items-center justify-between gap-4 bg-white p-3 rounded-xl border border-[#E7EBF0]">
+            <div className="relative flex-1 max-w-sm">
+              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#667085]" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Cari kode atau nama barang..."
+                className="w-full pl-9 pr-8 py-1.5 text-[13px] bg-[#F8FAFC] border border-[#E7EBF0] rounded-lg focus:outline-none focus:bg-white focus:border-[#087F5B] transition-all text-[#172033] placeholder-[#667085]"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#667085] hover:text-[#172033] cursor-pointer"
+                >
+                  <X size={13} />
+                </button>
+              )}
             </div>
 
-            {/* Right: Search, Color Filter & Sort Controls */}
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              
-              {/* Notion Search Input */}
-              <div className="relative flex-1 sm:w-64">
-                <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Filter or search cargo..."
-                  className="w-full pl-8 pr-7 py-1 text-xs bg-slate-50 border border-slate-200 rounded-md focus:outline-none focus:bg-white focus:border-[#2383e2] transition-all text-slate-800 placeholder-slate-400 font-medium"
-                />
-                {searchQuery && (
-                  <button
-                    onClick={() => setSearchQuery("")}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
-                  >
-                    <X size={12} />
-                  </button>
-                )}
-              </div>
-
-              {/* Sort Order Button */}
-              <button
-                onClick={() => {
-                  if (sortBy === "code") setSortBy("name");
-                  else if (sortBy === "name") setSortBy("volume");
-                  else setSortBy("code");
-                }}
-                className="px-2.5 py-1 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-md text-xs text-slate-600 font-semibold flex items-center gap-1 cursor-pointer transition-colors"
-                title={`Sort by: ${sortBy}`}
-              >
-                <ArrowUpDown size={12} className="text-slate-400" />
-                <span className="capitalize">{sortBy}</span>
-              </button>
-            </div>
-
+            <span className="text-[12px] font-mono text-[#667085]">
+              Total: <span className="font-semibold text-[#172033]">{filteredCargos.length} Barang</span>
+            </span>
           </div>
 
-          {/* ---------------------------------------------------- */}
-          {/* VIEW 1: NOTION DATABASE TABLE VIEW */}
-          {/* ---------------------------------------------------- */}
-          {activeView === "table" && (
-            <div className="bg-white border border-slate-200 rounded-xl shadow-2xs overflow-hidden">
-              
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-xs">
-                  
-                  {/* Notion Header with Property Type Icons */}
-                  <thead>
-                    <tr className="border-b border-slate-200 bg-slate-50/80 text-slate-500 font-semibold text-[11px] select-none">
-                      
-                      <th className="py-2.5 px-4 font-medium border-r border-slate-200/60 w-36">
-                        <div className="flex items-center gap-1.5">
-                          <Hash size={13} className="text-slate-400" />
-                          <span>Kode Barang</span>
-                        </div>
-                      </th>
-
-                      <th className="py-2.5 px-4 font-medium border-r border-slate-200/60">
-                        <div className="flex items-center gap-1.5">
-                          <Type size={13} className="text-slate-400" />
-                          <span>Nama Barang</span>
-                        </div>
-                      </th>
-
-                      <th className="py-2.5 px-4 font-medium border-r border-slate-200/60 w-44">
-                        <div className="flex items-center gap-1.5">
-                          <Maximize size={13} className="text-slate-400" />
-                          <span>Dimensi (P × L × T)</span>
-                        </div>
-                      </th>
-
-                      <th className="py-2.5 px-4 font-medium border-r border-slate-200/60 w-36">
-                        <div className="flex items-center gap-1.5">
-                          <Box size={13} className="text-slate-400" />
-                          <span>Volume Unit</span>
-                        </div>
-                      </th>
-
-                      <th className="py-2.5 px-4 font-medium border-r border-slate-200/60 w-36">
-                        <div className="flex items-center gap-1.5">
-                          <Tag size={13} className="text-slate-400" />
-                          <span>Tag Warna 3D</span>
-                        </div>
-                      </th>
-
-                      <th className="py-2.5 px-4 font-medium text-right w-24">
-                        <span>Aksi</span>
-                      </th>
-
+          {/* Clean Enterprise Data Table */}
+          <div className="bg-white border border-[#E7EBF0] rounded-xl overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-[13px]">
+                <thead>
+                  <tr className="border-b border-[#E7EBF0] bg-[#F8FAFC] text-[#667085] font-semibold text-[12px]">
+                    <th className="py-3 px-5 font-medium">Kode</th>
+                    <th className="py-3 px-5 font-medium">Nama Barang</th>
+                    <th className="py-3 px-5 font-medium">Dimensi</th>
+                    <th className="py-3 px-5 font-medium">Volume</th>
+                    <th className="py-3 px-5 font-medium">Status</th>
+                    <th className="py-3 px-5 font-medium text-right">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#E7EBF0] text-[#172033]">
+                  {filteredCargos.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="py-12 text-center text-[#667085]">
+                        <Package className="mx-auto mb-2 text-slate-300" size={32} />
+                        <p className="font-semibold text-sm text-[#172033]">Tidak ada data barang</p>
+                        <p className="text-xs text-[#667085] mt-0.5">Coba cari dengan kata kunci lain atau tambahkan barang baru.</p>
+                      </td>
                     </tr>
-                  </thead>
-
-                  {/* Notion Table Rows */}
-                  <tbody className="divide-y divide-slate-100 text-slate-700 font-normal">
-                    {filteredCargos.length === 0 ? (
-                      <tr>
-                        <td colSpan={6} className="py-12 text-center text-slate-400">
-                          <Package className="mx-auto mb-2 text-slate-300" size={32} />
-                          <p className="font-bold text-xs text-slate-600">No cargo items found</p>
-                          <p className="text-[11px] text-slate-400 mt-0.5">Try searching with a different code or name.</p>
+                  ) : (
+                    filteredCargos.map((cargo) => (
+                      <tr key={cargo.id} className="hover:bg-[#F8FAFC] transition-colors">
+                        <td className="py-3.5 px-5 font-mono font-bold text-[#172033]">
+                          {cargo.code}
+                        </td>
+                        <td className="py-3.5 px-5 font-medium text-[#172033]">
+                          <div className="flex items-center gap-2">
+                            <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: cargo.color }} />
+                            <span>{cargo.name}</span>
+                          </div>
+                        </td>
+                        <td className="py-3.5 px-5 font-mono text-[#667085]">
+                          {cargo.lengthCm} × {cargo.widthCm} × {cargo.heightCm} cm
+                        </td>
+                        <td className="py-3.5 px-5 font-mono font-semibold text-[#087F5B]">
+                          {cargo.volumeM3.toFixed(3)} m³
+                        </td>
+                        <td className="py-3.5 px-5">
+                          <span className="inline-flex items-center gap-1.5 text-[12px] font-medium text-[#087F5B]">
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#087F5B]" />
+                            <span>Aktif</span>
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-5 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => handleOpenEditModal(cargo)}
+                              className="text-[12px] font-semibold text-[#667085] hover:text-[#172033] cursor-pointer"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => setDeleteTargetId(cargo.id)}
+                              className="text-[12px] font-semibold text-rose-600 hover:text-rose-700 cursor-pointer"
+                            >
+                              Hapus
+                            </button>
+                          </div>
                         </td>
                       </tr>
-                    ) : (
-                      filteredCargos.map((cargo) => (
-                        <tr key={cargo.id} className="hover:bg-[#f7f7f5] transition-colors group">
-                          
-                          {/* Code Title Property */}
-                          <td className="py-2.5 px-4 border-r border-slate-200/60 font-mono font-bold text-slate-900">
-                            <span className="bg-slate-100 text-slate-800 px-1.5 py-0.5 rounded border border-slate-200 text-[11px]">
-                              {cargo.code}
-                            </span>
-                          </td>
-
-                          {/* Cargo Name */}
-                          <td className="py-2.5 px-4 border-r border-slate-200/60 font-medium text-slate-800">
-                            <div className="flex items-center gap-2">
-                              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: cargo.color }} />
-                              <span>{cargo.name}</span>
-                            </div>
-                          </td>
-
-                          {/* Dimensions */}
-                          <td className="py-2.5 px-4 border-r border-slate-200/60 font-mono text-slate-600">
-                            {cargo.lengthCm} × {cargo.widthCm} × {cargo.heightCm} <span className="text-[10px] text-slate-400">cm</span>
-                          </td>
-
-                          {/* Volume */}
-                          <td className="py-2.5 px-4 border-r border-slate-200/60 font-mono font-bold text-slate-900">
-                            {cargo.volumeM3.toFixed(3)} <span className="text-[10px] text-slate-500 font-normal">m³</span>
-                          </td>
-
-                          {/* Notion Pastel Color Badge */}
-                          <td className="py-2.5 px-4 border-r border-slate-200/60">
-                            <span 
-                              className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-semibold border"
-                              style={{
-                                backgroundColor: `${cargo.color}15`,
-                                borderColor: `${cargo.color}40`,
-                                color: cargo.color
-                              }}
-                            >
-                              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: cargo.color }} />
-                              <span>Box ({cargo.color.toUpperCase()})</span>
-                            </span>
-                          </td>
-
-                          {/* Actions */}
-                          <td className="py-2.5 px-4 text-right">
-                            <div className="flex items-center justify-end gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
-                              <button
-                                onClick={() => handleOpenEditModal(cargo)}
-                                className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 rounded cursor-pointer transition-colors"
-                                title="Edit"
-                              >
-                                <Edit2 size={13} />
-                              </button>
-                              <button
-                                onClick={() => setDeleteTargetId(cargo.id)}
-                                className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded cursor-pointer transition-colors"
-                                title="Hapus"
-                              >
-                                <Trash2 size={13} />
-                              </button>
-                            </div>
-                          </td>
-
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
-          )}
-
-          {/* ---------------------------------------------------- */}
-          {/* VIEW 2: GALLERY CARDS VIEW */}
-          {/* ---------------------------------------------------- */}
-          {activeView === "gallery" && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredCargos.map((cargo) => (
-                <div
-                  key={cargo.id}
-                  className="bg-white border border-slate-200 rounded-xl p-4 hover:shadow-md transition-all group relative space-y-3"
-                >
-                  <div className="flex justify-between items-start">
-                    <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 rounded" style={{ backgroundColor: cargo.color }} />
-                      <span className="font-mono font-bold text-xs bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
-                        {cargo.code}
-                      </span>
-                    </div>
-                    <span className="text-[10px] font-mono text-slate-400">{cargo.id}</span>
-                  </div>
-
-                  <div>
-                    <h3 className="font-bold text-sm text-slate-900">{cargo.name}</h3>
-                    <p className="text-xs text-slate-500 mt-0.5">Cuboid Box Shape</p>
-                  </div>
-
-                  <div className="bg-slate-50 border border-slate-100 rounded-lg p-2.5 grid grid-cols-2 gap-2 text-xs font-mono">
-                    <div>
-                      <span className="text-[10px] text-slate-400 block">Dimensi</span>
-                      <span className="font-bold text-slate-700">{cargo.lengthCm}×{cargo.widthCm}×{cargo.heightCm} cm</span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-slate-400 block">Volume</span>
-                      <span className="font-bold text-emerald-700">{cargo.volumeM3.toFixed(3)} m³</span>
-                    </div>
-                  </div>
-
-                  <div className="pt-2 flex items-center justify-end gap-2 border-t border-slate-100">
-                    <button
-                      onClick={() => handleOpenEditModal(cargo)}
-                      className="px-2.5 py-1 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded transition-colors cursor-pointer"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => setDeleteTargetId(cargo.id)}
-                      className="px-2.5 py-1 text-xs font-semibold bg-rose-50 hover:bg-rose-100 text-rose-700 rounded transition-colors cursor-pointer"
-                    >
-                      Hapus
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* ---------------------------------------------------- */}
-          {/* VIEW 3: SUMMARY ANALYTICS */}
-          {/* ---------------------------------------------------- */}
-          {activeView === "summary" && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-              <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-2">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Total Jenis Cargo</span>
-                <span className="text-3xl font-black text-slate-900 block">{filteredCargos.length} Items</span>
-                <p className="text-xs text-slate-500">Tersimpan di local storage & database</p>
-              </div>
-
-              <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-2">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Total Kumulatif Volume</span>
-                <span className="text-3xl font-black text-emerald-700 block">{totalVolumeSum.toFixed(3)} m³</span>
-                <p className="text-xs text-slate-500">Estimasi kubikasi total barang</p>
-              </div>
-
-              <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-2">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Rata-rata Volume Unit</span>
-                <span className="text-3xl font-black text-indigo-700 block">{avgVolumeM3.toFixed(3)} m³</span>
-                <p className="text-xs text-slate-500">Perhitungan rata-rata per box</p>
-              </div>
-            </div>
-          )}
+          </div>
 
         </div>
       </div>
 
-      {/* ---------------------------------------------------- */}
       {/* MODAL: ADD / EDIT CARGO */}
-      {/* ---------------------------------------------------- */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div
             onClick={() => setIsModalOpen(false)}
-            className="absolute inset-0 bg-slate-900/40 backdrop-blur-xs transition-opacity"
+            className="absolute inset-0 bg-[#172033]/30 backdrop-blur-xs transition-opacity"
           />
 
-          <div className="relative w-full max-w-md bg-white rounded-xl shadow-2xl border border-slate-200 p-6 z-10 space-y-5">
-            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+          <div className="relative w-full max-w-md bg-white rounded-xl shadow-xl border border-[#E7EBF0] p-6 z-10 space-y-5">
+            <div className="flex justify-between items-center border-b border-[#E7EBF0] pb-3">
               <div>
-                <h3 className="text-base font-bold text-slate-900">
-                  {editingId ? "Edit Barang Box" : "Tambah Barang Box Baru"}
+                <h3 className="text-base font-bold text-[#172033]">
+                  {editingId ? "Edit Barang" : "Tambah Barang Baru"}
                 </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Isi spesifikasi ukuran dan warna untuk visualisasi 3D.
+                <p className="text-xs text-[#667085] mt-0.5">
+                  Spesifikasi dimensi dan volume muatan kargo.
                 </p>
               </div>
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 cursor-pointer"
+                className="text-[#667085] hover:text-[#172033] p-1 rounded-lg hover:bg-[#F8FAFC] cursor-pointer"
               >
                 <X size={16} />
               </button>
             </div>
 
             <form onSubmit={handleSaveCargo} className="space-y-4">
-              
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Kode Barang</label>
+                <label className="block text-xs font-bold text-[#172033] mb-1">Kode Barang</label>
                 <input
                   type="text"
                   value={formCode}
                   onChange={(e) => setFormCode(e.target.value)}
                   placeholder="Contoh: BOX-001"
-                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#2383e2] focus:bg-white font-mono font-bold"
+                  className="w-full px-3 py-2 text-xs bg-[#F8FAFC] border border-[#E7EBF0] rounded-lg focus:outline-none focus:border-[#087F5B] focus:bg-white font-mono font-bold"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Nama Barang</label>
+                <label className="block text-xs font-bold text-[#172033] mb-1">Nama Barang</label>
                 <input
                   type="text"
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
-                  placeholder="Contoh: Kardus Elektronik"
-                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#2383e2] focus:bg-white font-medium"
+                  placeholder="Contoh: Kardus Elektronik A"
+                  className="w-full px-3 py-2 text-xs bg-[#F8FAFC] border border-[#E7EBF0] rounded-lg focus:outline-none focus:border-[#087F5B] focus:bg-white font-medium"
                   required
                 />
               </div>
 
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">Panjang (cm)</label>
+                  <label className="block text-[11px] font-bold text-[#172033] mb-1">Panjang (cm)</label>
                   <input
                     type="number"
                     min="1"
                     value={formLength}
                     onChange={(e) => setFormLength(Number(e.target.value))}
-                    className="w-full px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#2383e2] focus:bg-white font-mono"
+                    className="w-full px-3 py-1.5 text-xs bg-[#F8FAFC] border border-[#E7EBF0] rounded-lg focus:outline-none focus:border-[#087F5B] focus:bg-white font-mono"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">Lebar (cm)</label>
+                  <label className="block text-[11px] font-bold text-[#172033] mb-1">Lebar (cm)</label>
                   <input
                     type="number"
                     min="1"
                     value={formWidth}
                     onChange={(e) => setFormWidth(Number(e.target.value))}
-                    className="w-full px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#2383e2] focus:bg-white font-mono"
+                    className="w-full px-3 py-1.5 text-xs bg-[#F8FAFC] border border-[#E7EBF0] rounded-lg focus:outline-none focus:border-[#087F5B] focus:bg-white font-mono"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">Tinggi (cm)</label>
+                  <label className="block text-[11px] font-bold text-[#172033] mb-1">Tinggi (cm)</label>
                   <input
                     type="number"
                     min="1"
                     value={formHeight}
                     onChange={(e) => setFormHeight(Number(e.target.value))}
-                    className="w-full px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#2383e2] focus:bg-white font-mono"
+                    className="w-full px-3 py-1.5 text-xs bg-[#F8FAFC] border border-[#E7EBF0] rounded-lg focus:outline-none focus:border-[#087F5B] focus:bg-white font-mono"
                     required
                   />
                 </div>
               </div>
 
-              <div className="p-3 bg-emerald-50/60 border border-emerald-100 rounded-lg flex justify-between items-center">
-                <span className="text-xs text-emerald-800 font-medium">Volume Otomatis (m³):</span>
-                <span className="text-sm font-bold font-mono text-emerald-700">{computedVolumeM3.toFixed(3)} m³</span>
+              <div className="p-3 bg-[#E8F7F1] border border-[#087F5B]/20 rounded-lg flex justify-between items-center">
+                <span className="text-xs text-[#087F5B] font-medium">Volume Otomatis (m³):</span>
+                <span className="text-sm font-bold font-mono text-[#087F5B]">{computedVolumeM3.toFixed(3)} m³</span>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">Warna Tampilan 3D</label>
+                <label className="block text-xs font-bold text-[#172033] mb-1.5">Warna Tampilan 3D</label>
                 <div className="flex items-center gap-2">
                   {COLOR_SWATCHES.map((color) => (
                     <button
@@ -712,7 +447,7 @@ export default function CargoMasterDataPage() {
                       type="button"
                       onClick={() => setFormColor(color)}
                       className={`w-7 h-7 rounded-lg transition-transform cursor-pointer flex items-center justify-center ${
-                        formColor === color ? "scale-110 ring-2 ring-slate-900 ring-offset-1" : "hover:scale-105"
+                        formColor === color ? "scale-110 ring-2 ring-[#172033] ring-offset-1" : "hover:scale-105"
                       }`}
                       style={{ backgroundColor: color }}
                     >
@@ -726,13 +461,13 @@ export default function CargoMasterDataPage() {
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition-colors cursor-pointer"
+                  className="flex-1 py-2 bg-[#F8FAFC] hover:bg-slate-200 text-[#172033] text-xs font-bold rounded-lg transition-colors cursor-pointer border border-[#E7EBF0]"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2 bg-[#2383e2] hover:bg-[#1d70c4] text-white text-xs font-bold rounded-lg transition-colors cursor-pointer shadow-xs"
+                  className="flex-1 py-2 bg-[#087F5B] hover:bg-[#066B4D] text-white text-xs font-bold rounded-lg transition-colors cursor-pointer shadow-xs"
                 >
                   Simpan Barang
                 </button>
@@ -743,26 +478,24 @@ export default function CargoMasterDataPage() {
         </div>
       )}
 
-      {/* ---------------------------------------------------- */}
       {/* MODAL: DELETE CONFIRMATION */}
-      {/* ---------------------------------------------------- */}
       {deleteTargetId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div
             onClick={() => setDeleteTargetId(null)}
-            className="absolute inset-0 bg-slate-900/40 backdrop-blur-xs transition-opacity"
+            className="absolute inset-0 bg-[#172033]/30 backdrop-blur-xs transition-opacity"
           />
 
-          <div className="relative w-full max-w-sm bg-white rounded-xl shadow-2xl border border-slate-200 p-5 z-10 space-y-4">
-            <h3 className="text-base font-bold text-slate-900">Konfirmasi Hapus</h3>
-            <p className="text-xs text-slate-600 leading-relaxed">
-              Apakah Anda yakin ingin menghapus barang <span className="font-bold text-slate-900">{deleteTargetId}</span>? Tindakan ini tidak dapat dibatalkan.
+          <div className="relative w-full max-w-sm bg-white rounded-xl shadow-xl border border-[#E7EBF0] p-5 z-10 space-y-4">
+            <h3 className="text-base font-bold text-[#172033]">Konfirmasi Hapus</h3>
+            <p className="text-xs text-[#667085] leading-relaxed">
+              Apakah Anda yakin ingin menghapus barang <span className="font-bold text-[#172033]">{deleteTargetId}</span>?
             </p>
 
             <div className="flex gap-2 pt-2">
               <button
                 onClick={() => setDeleteTargetId(null)}
-                className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition-colors cursor-pointer"
+                className="flex-1 py-2 bg-[#F8FAFC] hover:bg-slate-200 text-[#172033] text-xs font-bold rounded-lg transition-colors cursor-pointer border border-[#E7EBF0]"
               >
                 Batal
               </button>

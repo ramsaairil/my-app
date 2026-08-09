@@ -9,6 +9,10 @@ import {
 } from "./types";
 import { calculateVolumeM3 } from "./storage";
 
+// Centralized Optimization Session Constraints (Configurable)
+export const MAX_OPTIMIZATION_ITEM_TYPES = 5;
+export const MAX_OPTIMIZATION_TOTAL_ITEMS = 100;
+
 interface BoxToPack {
   cargoId: string;
   cargoName: string;
@@ -71,6 +75,25 @@ function canPhysicallyFitContainer(
   for (const perm of ORIENTATION_PERMUTATIONS) {
     const dim = perm({ w: box.widthCm, h: box.heightCm, l: box.lengthCm });
     if (dim.w <= containerW && dim.h <= containerH && dim.l <= containerL) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Physical Feasibility Check across all candidate active vehicles.
+ * Returns true if the box can physically fit into at least ONE active vehicle.
+ */
+export function canFitInAnyVehicle(
+  box: { lengthCm: number; widthCm: number; heightCm: number },
+  vehicles: Vehicle[]
+): boolean {
+  const activeVehicles = vehicles.filter((v) => v.status !== "Nonaktif");
+  if (activeVehicles.length === 0) return true;
+
+  for (const v of activeVehicles) {
+    if (canPhysicallyFitContainer(box, v.widthCm, v.heightCm, v.lengthCm)) {
       return true;
     }
   }
@@ -617,7 +640,7 @@ export function evaluateAllVehicles(
   results: OptimizationResult[];
   recommendedResult: OptimizationResult | null;
 } {
-  const activeVehicles = vehicles.filter((v) => v.status === "Aktif");
+  const activeVehicles = vehicles.filter((v) => v.status !== "Nonaktif");
 
   if (activeVehicles.length === 0) {
     return { results: [], recommendedResult: null };

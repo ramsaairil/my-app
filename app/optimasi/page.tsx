@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
-import PageHeader from "../components/PageHeader";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   Truck,
   Package,
@@ -12,25 +11,15 @@ import {
   CheckCircle2,
   AlertTriangle,
   Info,
-  Maximize2,
   ZoomIn,
   ZoomOut,
-  ChevronDown,
   Printer,
   X,
   Zap,
-  Box as BoxIcon,
-  ShieldCheck,
   Compass,
-  Table as TableIcon,
-  LayoutGrid,
   BarChart3,
-  Search,
   Plus,
-  Minus,
-  Check,
-  ChevronRight,
-  ArrowUpRight
+  Minus
 } from "lucide-react";
 import {
   Vehicle,
@@ -40,134 +29,24 @@ import {
   PlacedBox3D
 } from "../../lib/types";
 import { getStoredVehicles, getStoredCargos, VEHICLE_PRESETS, calculateVolumeM3 } from "../../lib/storage";
-import { evaluateAllVehicles, packVehicle } from "../../lib/binPacking";
+import {
+  evaluateAllVehicles,
+  packVehicle,
+  MAX_OPTIMIZATION_ITEM_TYPES,
+  MAX_OPTIMIZATION_TOTAL_ITEMS,
+  canFitInAnyVehicle
+} from "../../lib/binPacking";
 import { fetchTrucksFromDb, fetchCargosFromDb } from "../../lib/db";
 
-// --- 3D RENDERING COMPONENT ---
-interface RenderBoxProps {
-  box: PlacedBox3D;
-  containerW: number;
-  containerH: number;
-  containerL: number;
-  scale: number;
-  isAnimatedVisible: boolean;
-}
-
-const Box3DItem: React.FC<RenderBoxProps> = ({
-  box,
-  containerW,
-  containerH,
-  containerL,
-  scale,
-  isAnimatedVisible
-}) => {
-  if (!isAnimatedVisible) return null;
-
-  // Convert dimensions from cm to 3D CSS px units
-  const pxW = Math.max(12, box.wCm * scale);
-  const pxH = Math.max(12, box.hCm * scale);
-  const pxL = Math.max(12, box.lCm * scale);
-
-  const tx = box.xCm * scale;
-  // CSS origin: invert Y coordinate so Y=0 is bottom floor
-  const ty = (containerH - box.yCm - box.hCm) * scale;
-  const tz = -box.zCm * scale;
-
-  return (
-    <div
-      className="absolute transition-all duration-300 pointer-events-none group"
-      style={{
-        width: `${pxW}px`,
-        height: `${pxH}px`,
-        transformStyle: "preserve-3d",
-        transform: `translate3d(${tx}px, ${ty}px, ${tz}px)`
-      }}
-    >
-      {/* Front Face */}
-      <div
-        className="absolute inset-0 border border-slate-950/60 flex items-center justify-center text-[9px] font-black text-white shadow-md overflow-hidden select-none"
-        style={{
-          backgroundColor: box.color,
-          transform: `translate3d(0, 0, 0)`
-        }}
-      >
-        <span className="truncate px-0.5 drop-shadow">{box.cargoCode}</span>
-      </div>
-
-      {/* Back Face */}
-      <div
-        className="absolute inset-0 border border-slate-950/60"
-        style={{
-          backgroundColor: box.color,
-          transform: `translate3d(0, 0, ${-pxL}px) rotateY(180deg)`,
-          filter: "brightness(0.6)"
-        }}
-      />
-
-      {/* Left Face */}
-      <div
-        className="absolute top-0 left-0 border border-slate-950/60"
-        style={{
-          width: `${pxL}px`,
-          height: `${pxH}px`,
-          backgroundColor: box.color,
-          transformOrigin: "left center",
-          transform: `rotateY(-90deg)`,
-          filter: "brightness(0.75)"
-        }}
-      />
-
-      {/* Right Face */}
-      <div
-        className="absolute top-0 left-0 border border-slate-950/60"
-        style={{
-          width: `${pxL}px`,
-          height: `${pxH}px`,
-          backgroundColor: box.color,
-          transformOrigin: "left center",
-          transform: `translate3d(${pxW}px, 0, 0) rotateY(-90deg)`,
-          filter: "brightness(0.85)"
-        }}
-      />
-
-      {/* Top Face */}
-      <div
-        className="absolute top-0 left-0 border border-slate-950/60"
-        style={{
-          width: `${pxW}px`,
-          height: `${pxL}px`,
-          backgroundColor: box.color,
-          transformOrigin: "center top",
-          transform: `rotateX(-90deg)`,
-          filter: "brightness(1.15)"
-        }}
-      />
-
-      {/* Bottom Face */}
-      <div
-        className="absolute top-0 left-0 border border-slate-950/60"
-        style={{
-          width: `${pxW}px`,
-          height: `${pxL}px`,
-          backgroundColor: box.color,
-          transformOrigin: "center top",
-          transform: `translate3d(0, ${pxH}px, 0) rotateX(-90deg)`,
-          filter: "brightness(0.5)"
-        }}
-      />
-    </div>
-  );
-};
-
-// --- HIGH-PERFORMANCE CANVAS 3D VEHICLE & CARGO RENDERER ---
+// --- 3D RENDERING COMPONENT (CANVAS) ---
 interface Canvas3DProps {
-  vehicle: Vehicle;
+  vehicle?: Vehicle;
   packedBoxes: PlacedBox3D[];
   animCurrentStep: number;
   rotation: { x: number; y: number };
   zoomScale: number;
-  onMouseDown: (e: React.MouseEvent<HTMLCanvasElement>) => void;
-  onMouseMove: (e: React.MouseEvent<HTMLCanvasElement>) => void;
+  onMouseDown: (e: React.MouseEvent) => void;
+  onMouseMove: (e: React.MouseEvent) => void;
   onMouseUp: () => void;
 }
 
@@ -181,208 +60,123 @@ const TruckVehicleCanvas3D: React.FC<Canvas3DProps> = ({
   onMouseMove,
   onMouseUp
 }) => {
-  const canvasRef = React.useRef<HTMLCanvasElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  React.useEffect(() => {
+  useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // Canvas size
-    const rect = canvas.getBoundingClientRect();
-    const width = rect.width || 800;
-    const height = rect.height || 450;
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = width * dpr;
-    canvas.height = height * dpr;
-    ctx.scale(dpr, dpr);
+    const width = canvas.width = canvas.parentElement?.clientWidth || 700;
+    const height = canvas.height = 460;
 
     ctx.clearRect(0, 0, width, height);
 
-    // Vehicle dimensions in cm
     const vW = vehicle?.widthCm || 200;
     const vH = vehicle?.heightCm || 200;
     const vL = vehicle?.lengthCm || 450;
 
-    const cx = width / 2;
-    const cy = height / 2 + 35;
-
-    // Dynamic scale to fit canvas
-    const autoScale = (220 / Math.max(120, vL)) * zoomScale;
+    const maxDim = Math.max(vW, vH, vL);
+    const scale = (Math.min(width, height) / maxDim) * 0.42 * zoomScale;
 
     const radX = (rotation.x * Math.PI) / 180;
     const radY = (rotation.y * Math.PI) / 180;
 
-    // 3D Projection math: X=[-vW/2, vW/2], Y=[-vH/2, vH/2], Z=[-vL/2, vL/2]
+    const cx = width / 2;
+    const cy = height / 2 + 30;
+
     const project = (x: number, y: number, z: number) => {
-      const cosY = Math.cos(radY);
-      const sinY = Math.sin(radY);
-      const x1 = x * cosY + z * sinY;
-      const z1 = -x * sinY + z * cosY;
-
-      const cosX = Math.cos(radX);
-      const sinX = Math.sin(radX);
-      const y2 = y * cosX - z1 * sinX;
-      const z2 = y * sinX + z1 * cosX;
-
-      const fov = 700;
-      const pScale = fov / (fov + z2);
+      const x1 = x * Math.cos(radY) + z * Math.sin(radY);
+      const z1 = -x * Math.sin(radY) + z * Math.cos(radY);
+      const y2 = y * Math.cos(radX) - z1 * Math.sin(radX);
 
       return {
-        x: cx + x1 * autoScale * pScale,
-        y: cy - y2 * autoScale * pScale,
-        z: z2
+        px: cx + x1 * scale,
+        py: cy - y2 * scale
       };
     };
 
-    const drawPoly = (pts: { x: number; y: number }[], fillColor?: string, strokeColor?: string, lineWidth = 1) => {
-      if (pts.length < 3) return;
+    const drawPoly = (
+      points: { px: number; py: number }[],
+      fill?: string,
+      stroke?: string,
+      lineWidth = 1
+    ) => {
+      if (points.length < 3) return;
       ctx.beginPath();
-      ctx.moveTo(pts[0].x, pts[0].y);
-      for (let i = 1; i < pts.length; i++) {
-        ctx.lineTo(pts[i].x, pts[i].y);
+      ctx.moveTo(points[0].px, points[0].py);
+      for (let i = 1; i < points.length; i++) {
+        ctx.lineTo(points[i].px, points[i].py);
       }
       ctx.closePath();
-      if (fillColor) {
-        ctx.fillStyle = fillColor;
+      if (fill) {
+        ctx.fillStyle = fill;
         ctx.fill();
       }
-      if (strokeColor) {
-        ctx.strokeStyle = strokeColor;
+      if (stroke) {
+        ctx.strokeStyle = stroke;
         ctx.lineWidth = lineWidth;
         ctx.stroke();
       }
     };
 
-    // 1. FLOOR METALLIC BASE & GRID LINES
-    const floorY = -vH / 2;
-    const fp1 = project(-vW / 2, floorY, -vL / 2);
-    const fp2 = project(vW / 2, floorY, -vL / 2);
-    const fp3 = project(vW / 2, floorY, vL / 2);
-    const fp4 = project(-vW / 2, floorY, vL / 2);
+    // 1. Render Container Floor & Grid Lines
+    const p1 = project(-vW / 2, -vH / 2, -vL / 2);
+    const p2 = project(vW / 2, -vH / 2, -vL / 2);
+    const p3 = project(vW / 2, -vH / 2, vL / 2);
+    const p4 = project(-vW / 2, -vH / 2, vL / 2);
 
-    drawPoly([fp1, fp2, fp3, fp4], "rgba(15, 23, 42, 0.95)", "#2383e2", 2);
+    drawPoly([p1, p2, p3, p4], "rgba(15, 23, 42, 0.95)", "#087F5B", 2);
 
-    ctx.strokeStyle = "rgba(35, 131, 226, 0.3)";
-    ctx.lineWidth = 1;
-    const gridStep = Math.max(30, Math.floor(vL / 8));
-    for (let z = -vL / 2; z <= vL / 2; z += gridStep) {
-      const gp1 = project(-vW / 2, floorY, z);
-      const gp2 = project(vW / 2, floorY, z);
+    // Floor Grid lines
+    for (let g = 1; g < 6; g++) {
+      const gz = -vL / 2 + (vL / 6) * g;
+      const gpA = project(-vW / 2, -vH / 2, gz);
+      const gpB = project(vW / 2, -vH / 2, gz);
       ctx.beginPath();
-      ctx.moveTo(gp1.x, gp1.y);
-      ctx.lineTo(gp2.x, gp2.y);
+      ctx.moveTo(gpA.px, gpA.py);
+      ctx.lineTo(gpB.px, gpB.py);
+      ctx.strokeStyle = "rgba(8, 127, 91, 0.25)";
+      ctx.lineWidth = 1;
       ctx.stroke();
     }
 
-    // 3D Color Shading Helper for Solid Cubic Cargo Boxes
-    const shadeColor = (hex: string, percent: number) => {
-      let color = hex.replace("#", "");
-      if (color.length === 3) color = color.split("").map((c) => c + c).join("");
-      const num = parseInt(color, 16);
-      if (isNaN(num)) return hex;
-      const amt = Math.round(2.55 * percent);
-      const R = Math.min(255, Math.max(0, (num >> 16) + amt));
-      const G = Math.min(255, Math.max(0, ((num >> 8) & 0x00ff) + amt));
-      const B = Math.min(255, Math.max(0, (num & 0x0000ff) + amt));
-      return `#${((1 << 24) + (R << 16) + (G << 8) + B).toString(16).slice(1)}`;
-    };
-
-    // 3. PLACED 3D CARGO BOXES (Per-Face Depth Sorting for 100% Solid 3D Cubes)
+    // 2. Render Placed 3D Boxes
     const visibleBoxes = packedBoxes.slice(0, animCurrentStep);
 
-    interface FaceToDraw {
-      pts: { x: number; y: number }[];
-      color: string;
-      depth: number;
-      label?: string;
-      labelPos?: { x: number; y: number };
-    }
+    const sortedBoxes = [...visibleBoxes].sort((a, b) => {
+      const az = a.zCm + a.lCm / 2;
+      const bz = b.zCm + b.lCm / 2;
+      return bz - az;
+    });
 
-    const allFacesToDraw: FaceToDraw[] = [];
-
-    visibleBoxes.forEach((b) => {
-      const baseColor = b.color || "#3b82f6";
-      const topColor = shadeColor(baseColor, 25);
-      const frontColor = shadeColor(baseColor, 5);
-      const sideColor = shadeColor(baseColor, -22);
-      const bottomColor = shadeColor(baseColor, -45);
-
+    sortedBoxes.forEach((b) => {
       const bx1 = -vW / 2 + b.xCm;
-      const bx2 = bx1 + b.wCm;
       const by1 = -vH / 2 + b.yCm;
-      const by2 = by1 + b.hCm;
       const bz1 = -vL / 2 + b.zCm;
+      const bx2 = bx1 + b.wCm;
+      const by2 = by1 + b.hCm;
       const bz2 = bz1 + b.lCm;
 
-      const v000 = project(bx1, by1, bz1);
-      const v100 = project(bx2, by1, bz1);
-      const v110 = project(bx2, by2, bz1);
-      const v010 = project(bx1, by2, bz1);
+      const f1 = project(bx1, by1, bz1);
+      const f2 = project(bx2, by1, bz1);
+      const f3 = project(bx2, by2, bz1);
+      const f4 = project(bx1, by2, bz1);
 
-      const v001 = project(bx1, by1, bz2);
-      const v101 = project(bx2, by1, bz2);
-      const v111 = project(bx2, by2, bz2);
-      const v011 = project(bx1, by2, bz2);
+      const b1 = project(bx1, by1, bz2);
+      const b2 = project(bx2, by1, bz2);
+      const b3 = project(bx2, by2, bz2);
+      const b4 = project(bx1, by2, bz2);
 
-      const cxBox = (bx1 + bx2) / 2;
-      const cyBox = (by1 + by2) / 2;
-      const czBox = (bz1 + bz2) / 2;
-
-      // 1. Back Face (Z = bz1)
-      allFacesToDraw.push({
-        pts: [v000, v100, v110, v010],
-        color: bottomColor,
-        depth: project(cxBox, cyBox, bz1).z
-      });
-
-      // 2. Bottom Face (Y = by1)
-      allFacesToDraw.push({
-        pts: [v000, v100, v101, v001],
-        color: bottomColor,
-        depth: project(cxBox, by1, czBox).z
-      });
-
-      // 3. Left Face (X = bx1)
-      allFacesToDraw.push({
-        pts: [v001, v000, v010, v011],
-        color: sideColor,
-        depth: project(bx1, cyBox, czBox).z
-      });
-
-      // 4. Right Face (X = bx2)
-      allFacesToDraw.push({
-        pts: [v101, v100, v110, v111],
-        color: sideColor,
-        depth: project(bx2, cyBox, czBox).z
-      });
-
-      // 5. Front Face (Z = bz2)
-      allFacesToDraw.push({
-        pts: [v001, v101, v111, v011],
-        color: frontColor,
-        depth: project(cxBox, cyBox, bz2).z
-      });
-
-      // 6. Top Face (Y = by2)
-      const topCenter = project(cxBox, by2, czBox);
-      allFacesToDraw.push({
-        pts: [v011, v111, v110, v010],
-        color: topColor,
-        depth: topCenter.z
-      });
+      drawPoly([b1, b2, b3, b4], b.color + "DD", "#0f172a", 1);
+      drawPoly([f1, f2, f3, f4], b.color + "EE", "#0f172a", 1);
+      drawPoly([f4, f3, b3, b4], b.color + "FF", "#0f172a", 1);
+      drawPoly([f1, f4, b4, b1], b.color + "CC", "#0f172a", 1);
+      drawPoly([f2, f3, b3, b2], b.color + "BB", "#0f172a", 1);
     });
 
-    // Sort ALL 3D faces from farthest camera Z (largest depth) to closest camera Z (smallest depth)
-    allFacesToDraw.sort((f1, f2) => f2.depth - f1.depth);
-
-    // Render all sorted faces cleanly
-    allFacesToDraw.forEach((f) => {
-      drawPoly(f.pts, f.color, "rgba(0, 0, 0, 0.7)", 1.5);
-    });
-
-    // 4. CONTAINER GLASS WALLS & WIREFRAME EDGES
+    // 3. Container Wireframe Glass Walls
     const cp1 = project(-vW / 2, -vH / 2, -vL / 2);
     const cp2 = project(vW / 2, -vH / 2, -vL / 2);
     const cp3 = project(vW / 2, -vH / 2, vL / 2);
@@ -393,14 +187,13 @@ const TruckVehicleCanvas3D: React.FC<Canvas3DProps> = ({
     const cp7 = project(vW / 2, vH / 2, vL / 2);
     const cp8 = project(-vW / 2, vH / 2, vL / 2);
 
-    // Glass Wall Panels
-    drawPoly([cp1, cp2, cp6, cp5], "rgba(35, 131, 226, 0.2)", "#2383e2", 2);
-    drawPoly([cp1, cp4, cp8, cp5], "rgba(35, 131, 226, 0.15)", "#2383e2", 2);
-    drawPoly([cp2, cp3, cp7, cp6], "rgba(35, 131, 226, 0.15)", "#2383e2", 2);
-    drawPoly([cp5, cp6, cp7, cp8], "rgba(35, 131, 226, 0.1)", "#2383e2", 1.5);
+    drawPoly([cp1, cp2, cp6, cp5], "rgba(8, 127, 91, 0.15)", "#087F5B", 1.5);
+    drawPoly([cp1, cp4, cp8, cp5], "rgba(8, 127, 91, 0.10)", "#087F5B", 1.5);
+    drawPoly([cp2, cp3, cp7, cp6], "rgba(8, 127, 91, 0.10)", "#087F5B", 1.5);
+    drawPoly([cp5, cp6, cp7, cp8], "rgba(8, 127, 91, 0.08)", "#087F5B", 1.5);
 
-    // Front Entrance Frame (Cyan Door Frame at Z = vL/2)
-    drawPoly([cp4, cp3, cp7, cp8], undefined, "#2383e2", 3.5);
+    // Front Entrance Frame
+    drawPoly([cp4, cp3, cp7, cp8], undefined, "#087F5B", 3);
 
   }, [vehicle, packedBoxes, animCurrentStep, rotation, zoomScale]);
 
@@ -411,7 +204,7 @@ const TruckVehicleCanvas3D: React.FC<Canvas3DProps> = ({
       onMouseMove={onMouseMove}
       onMouseUp={onMouseUp}
       onMouseLeave={onMouseUp}
-      className="w-full h-[450px] rounded-xl cursor-grab active:cursor-grabbing select-none"
+      className="w-full h-[460px] rounded-xl cursor-grab active:cursor-grabbing select-none"
     />
   );
 };
@@ -419,14 +212,7 @@ const TruckVehicleCanvas3D: React.FC<Canvas3DProps> = ({
 export default function CustomOptimizationPage() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [cargoMaster, setCargoMaster] = useState<CargoMasterItem[]>([]);
-
-  // Step 2: Cargo Item Quantities Input (cargoId -> quantity)
   const [itemQuantities, setItemQuantities] = useState<Record<string, number>>({});
-
-  // Notion View State Tab
-  const [activeViewTab, setActiveViewTab] = useState<"simulator" | "manifest" | "report">("simulator");
-
-  // Optimization Status & Results (Vehicle is Output of GA)
   const [isSolving, setIsSolving] = useState(false);
   const [activeResult, setActiveResult] = useState<OptimizationResult | null>(null);
   const [allComparisonResults, setAllComparisonResults] = useState<OptimizationResult[]>([]);
@@ -440,11 +226,8 @@ export default function CustomOptimizationPage() {
   // Animation State
   const [animCurrentStep, setAnimCurrentStep] = useState<number>(0);
   const [isPlayingAnim, setIsPlayingAnim] = useState<boolean>(false);
-
-  // Manifest Print Modal
   const [isManifestOpen, setIsManifestOpen] = useState(false);
 
-  // Build complete list of selectable vehicles (DB / Storage + Standard Preset Armada)
   const availableVehicles = useMemo(() => {
     const presets: Vehicle[] = VEHICLE_PRESETS.map((p, idx) => ({
       id: `PRESET-${idx + 1}`,
@@ -458,14 +241,12 @@ export default function CustomOptimizationPage() {
     }));
 
     if (vehicles.length === 0) return presets;
-    // Combine custom vehicles with presets
     return [
-      ...vehicles.filter((v) => v.status === "Aktif"),
+      ...vehicles.filter((v) => v.status !== "Nonaktif"),
       ...presets.filter((p) => !vehicles.some((v) => v.type === p.type))
     ];
   }, [vehicles]);
 
-  // Load master data on mount
   useEffect(() => {
     async function loadMasterData() {
       const [dbTrucks, dbCargos] = await Promise.all([
@@ -494,7 +275,7 @@ export default function CustomOptimizationPage() {
         const mappedCargos: CargoMasterItem[] = dbCargos.map((item, idx) => {
           const dimsStr = (item.dimension || "40x30x30").replace(/\s*cm/gi, "").replace(/[\*×]/g, "x");
           const parts = dimsStr.split("x").map((n) => Number(n.trim()) || 30);
-          const colors = ["#3B82F6", "#10B981", "#F59E0B", "#EC4899", "#8B5CF6", "#EF4444"];
+          const colors = ["#087F5B", "#3B82F6", "#F59E0B", "#EC4899", "#8B5CF6", "#EF4444"];
           return {
             id: item.id,
             name: item.name || item.id,
@@ -523,18 +304,24 @@ export default function CustomOptimizationPage() {
     loadMasterData();
   }, []);
 
-  // Compute selected selections array
   const currentSelections: CargoInputSelection[] = useMemo(() => {
     return Object.entries(itemQuantities)
       .map(([cargoId, quantity]) => ({ cargoId, quantity }))
       .filter((s) => s.quantity > 0);
   }, [itemQuantities]);
 
-  // Compute live requested cargo statistics
+  const maxVehicleVolM3 = useMemo(() => {
+    const activeVehicles = availableVehicles.filter((v) => v.status !== "Nonaktif");
+    if (activeVehicles.length === 0) return 0;
+    return Math.max(...activeVehicles.map((v) => v.volumeM3));
+  }, [availableVehicles]);
+
   const requestedStats = useMemo(() => {
     let totalBoxes = 0;
     let totalVolM3 = 0;
     let distinctTypes = 0;
+    let oversizedCargoError: string | null = null;
+    let invalidCustomError: string | null = null;
 
     currentSelections.forEach((sel) => {
       const cargo = cargoMaster.find((c) => c.id === sel.cargoId);
@@ -542,17 +329,50 @@ export default function CustomOptimizationPage() {
         distinctTypes += 1;
         totalBoxes += sel.quantity;
         totalVolM3 += cargo.volumeM3 * sel.quantity;
+
+        if (cargo.lengthCm <= 0 || cargo.widthCm <= 0 || cargo.heightCm <= 0) {
+          invalidCustomError = `Barang ${cargo.name} memiliki dimensi tidak valid (${cargo.lengthCm}×${cargo.widthCm}×${cargo.heightCm} cm).`;
+        }
+
+        if (!oversizedCargoError && !canFitInAnyVehicle(cargo, availableVehicles)) {
+          oversizedCargoError = `Barang "${cargo.name}" (${cargo.lengthCm}×${cargo.widthCm}×${cargo.heightCm} cm) melebihi seluruh dimensi kendaraan yang tersedia.`;
+        }
       }
     });
+
+    let isValid = true;
+    let errorMessage: string | null = null;
+
+    if (totalBoxes === 0) {
+      isValid = false;
+      errorMessage = "Harap masukkan setidaknya 1 jumlah barang muatan.";
+    } else if (invalidCustomError) {
+      isValid = false;
+      errorMessage = invalidCustomError;
+    } else if (distinctTypes > MAX_OPTIMIZATION_ITEM_TYPES) {
+      isValid = false;
+      errorMessage = `Maksimal ${MAX_OPTIMIZATION_ITEM_TYPES} jenis barang per proses optimasi. (Saat ini: ${distinctTypes})`;
+    } else if (totalBoxes > MAX_OPTIMIZATION_TOTAL_ITEMS) {
+      isValid = false;
+      errorMessage = `Total muatan melebihi batas maksimum ${MAX_OPTIMIZATION_TOTAL_ITEMS} unit per proses optimasi. (Saat ini: ${totalBoxes} unit)`;
+    } else if (totalVolM3 > maxVehicleVolM3 && maxVehicleVolM3 > 0) {
+      isValid = false;
+      errorMessage = `Total volume muatan (${totalVolM3.toFixed(2)} m³) melebihi kapasitas kendaraan terbesar (${maxVehicleVolM3.toFixed(2)} m³).`;
+    } else if (oversizedCargoError) {
+      isValid = false;
+      errorMessage = oversizedCargoError;
+    }
 
     return {
       totalBoxes,
       totalVolM3: Number(totalVolM3.toFixed(3)),
-      distinctTypes
+      distinctTypes,
+      maxVehicleVolM3: Number(maxVehicleVolM3.toFixed(2)),
+      isValid,
+      errorMessage
     };
-  }, [currentSelections, cargoMaster]);
+  }, [currentSelections, cargoMaster, availableVehicles, maxVehicleVolM3]);
 
-  // Handle quantity change
   const handleQuantityChange = (cargoId: string, value: number) => {
     const qty = Math.max(0, Math.floor(value || 0));
     setItemQuantities((prev) => ({
@@ -561,26 +381,18 @@ export default function CustomOptimizationPage() {
     }));
   };
 
-  // Run Optimization Algorithm (Automatically Evaluates Candidate Vehicles via GA)
   const handleRunOptimization = () => {
-    if (requestedStats.totalBoxes === 0) {
-      alert("Harap masukkan setidaknya 1 jumlah box barang untuk dioptimalkan.");
+    if (!requestedStats.isValid) {
+      alert(requestedStats.errorMessage || "Input muatan tidak valid untuk dioptimalkan.");
       return;
     }
 
     setIsSolving(true);
 
     setTimeout(() => {
-      const activeVehicles = availableVehicles.filter((v) => v.status === "Aktif");
-      if (activeVehicles.length === 0) {
-        alert("Tidak ada kendaraan aktif untuk disimulasikan!");
-        setIsSolving(false);
-        return;
-      }
-
-      // Automatically evaluate all candidate vehicles using Genetic Algorithm (GA)
+      const activeVehicles = availableVehicles.filter((v) => v.status !== "Nonaktif");
       const { results, recommendedResult } = evaluateAllVehicles(
-        availableVehicles,
+        activeVehicles,
         cargoMaster,
         currentSelections
       );
@@ -594,7 +406,27 @@ export default function CustomOptimizationPage() {
     }, 400);
   };
 
-  // Animation player loop
+  // Mouse Orbit Drag Controls
+  const handleMouseDown = (e: React.MouseEvent) => {
+    setIsDragging(true);
+    setDragStart({ x: e.clientX, y: e.clientY });
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging) return;
+    const dx = e.clientX - dragStart.x;
+    const dy = e.clientY - dragStart.y;
+    setRotation((prev) => ({
+      x: Math.max(-80, Math.min(80, prev.x + dy * 0.4)),
+      y: prev.y + dx * 0.4
+    }));
+    setDragStart({ x: e.clientX, y: e.clientY });
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
   useEffect(() => {
     let timer: NodeJS.Timeout;
     if (isPlayingAnim && activeResult) {
@@ -617,483 +449,322 @@ export default function CustomOptimizationPage() {
     setIsPlayingAnim(!isPlayingAnim);
   };
 
-  const handleResetAnim = () => {
-    setIsPlayingAnim(false);
-    if (activeResult) {
-      setAnimCurrentStep(activeResult.packedBoxes.length);
-    }
-  };
-
-  // Mouse Handlers for 3D Orbit View
-  const handleMouseDown = (e: React.MouseEvent) => {
-    setIsDragging(true);
-    setDragStart({ x: e.clientX, y: e.clientY });
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging) return;
-    const deltaX = e.clientX - dragStart.x;
-    const deltaY = e.clientY - dragStart.y;
-
-    setRotation((prev) => ({
-      x: Math.max(-80, Math.min(80, prev.x - deltaY * 0.5)),
-      y: prev.y + deltaX * 0.5
-    }));
-    setDragStart({ x: e.clientX, y: e.clientY });
-  };
-
-  const handleMouseUp = () => {
-    setIsDragging(false);
-  };
-
   const activeVehicle = useMemo(() => {
     if (activeResult) return activeResult.vehicle;
     return availableVehicles[0];
   }, [activeResult, availableVehicles]);
 
-  // Dynamic Container dimensions for 3D scale calculations per vehicle type
-  const autoScale = 260 / Math.max(100, activeVehicle?.lengthCm || 450);
-  const baseScale = autoScale * zoomScale;
-  const containerWpx = (activeVehicle?.widthCm || 200) * baseScale;
-  const containerHpx = (activeVehicle?.heightCm || 200) * baseScale;
-  const containerLpx = (activeVehicle?.lengthCm || 450) * baseScale;
-
   return (
-    <div className="flex-grow flex flex-col h-full overflow-hidden bg-[#fafafa] text-slate-800 font-sans antialiased">
+    <div className="flex-grow flex flex-col h-full overflow-hidden bg-[#F8FAFC] text-[#172033] font-sans antialiased">
 
-      {/* Main Scroll Container */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar p-6 sm:p-8 space-y-6">
-        <div className="max-w-[1300px] mx-auto space-y-6">
+      {/* Main Page Scroll Container */}
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-7 sm:p-9 space-y-7">
+        <div className="max-w-[1320px] mx-auto space-y-7">
 
-          {/* ---------------------------------------------------- */}
-          {/* NOTION PAGE HEADER */}
-          {/* ---------------------------------------------------- */}
-          <div className="space-y-3 pb-2 border-b border-slate-200/60">
-
-            {/* Notion Large Page Title */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-                  Optimasi Muatan 3D
-                </h1>
-                <p className="text-xs text-slate-500 font-medium mt-0.5">
-                  Simulasi algoritma 3D Bin Packing, kalkulasi okupansi ruang kontainer, dan urutan peletakan kargo.
-                </p>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex items-center gap-2">
-                {activeResult && (
-                  <button
-                    onClick={() => setIsManifestOpen(true)}
-                    className="px-3.5 py-1.5 bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 text-xs font-bold rounded-md shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <Printer size={14} className="text-slate-500" />
-                    <span>Cetak Manifes</span>
-                  </button>
-                )}
-
-                <button
-                  onClick={handleRunOptimization}
-                  disabled={isSolving || requestedStats.totalBoxes === 0}
-                  className={`px-4 py-1.5 text-white text-xs font-bold rounded-md shadow-xs transition-all flex items-center gap-1.5 cursor-pointer ${isSolving || requestedStats.totalBoxes === 0
-                    ? "bg-slate-300 text-slate-500 cursor-not-allowed"
-                    : "bg-[#2383e2] hover:bg-[#1d70c4]"
-                    }`}
-                >
-                  {isSolving ? (
-                    <>
-                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      <span>Processing 3D...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Zap size={14} />
-                      <span>Optimalkan Muatan</span>
-                    </>
-                  )}
-                </button>
-              </div>
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#E7EBF0]">
+            <div>
+              <h1 className="text-3xl font-bold text-[#172033] tracking-tight">
+                Optimasi Muatan 3D
+              </h1>
+              <p className="text-[14px] text-[#667085] mt-1">
+                Optimalkan penempatan muatan berdasarkan kapasitas ruang kendaraan.
+              </p>
             </div>
 
+            <div className="flex items-center gap-3">
+              {activeResult && (
+                <button
+                  onClick={() => setIsManifestOpen(true)}
+                  className="px-4 py-2 bg-white border border-[#E7EBF0] hover:bg-[#F8FAFC] text-[#172033] text-[13px] font-semibold rounded-lg transition-all flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Printer size={15} className="text-[#667085]" />
+                  <span>Cetak Manifes</span>
+                </button>
+              )}
+
+              <button
+                onClick={handleRunOptimization}
+                disabled={isSolving || !requestedStats.isValid}
+                className={`px-5 py-2 text-white text-[13px] font-semibold rounded-lg transition-all flex items-center gap-2 cursor-pointer shadow-xs ${
+                  isSolving || !requestedStats.isValid
+                    ? "bg-slate-300 text-slate-500 cursor-not-allowed"
+                    : "bg-[#087F5B] hover:bg-[#066B4D]"
+                }`}
+              >
+                {isSolving ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>Processing 3D...</span>
+                  </>
+                ) : (
+                  <>
+                    <Zap size={16} />
+                    <span>Optimalkan Muatan</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
 
-          {/* ---------------------------------------------------- */}
-          {/* NOTION TOOLBAR & VIEW TABS BAR */}
-          {/* ---------------------------------------------------- */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-white p-2.5 rounded-xl border border-slate-200/80 shadow-2xs">
-
-            {/* View Tabs Selector */}
-            <div className="flex items-center gap-1 bg-slate-100/70 p-1 rounded-lg">
-              <button
-                onClick={() => setActiveViewTab("simulator")}
-                className={`px-3 py-1 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${activeViewTab === "simulator"
-                  ? "bg-white text-slate-900 shadow-2xs font-bold"
-                  : "text-slate-500 hover:text-slate-800"
-                  }`}
-              >
-                <Zap size={14} className={activeViewTab === "simulator" ? "text-[#2383e2]" : "text-slate-400"} />
-                <span>3D Simulator & Config</span>
-              </button>
-
-              <button
-                onClick={() => setActiveViewTab("manifest")}
-                className={`px-3 py-1 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${activeViewTab === "manifest"
-                  ? "bg-white text-slate-900 shadow-2xs font-bold"
-                  : "text-slate-500 hover:text-slate-800"
-                  }`}
-              >
-                <Package size={14} className={activeViewTab === "manifest" ? "text-[#2383e2]" : "text-slate-400"} />
-                <span>Cargo Input Manifest</span>
-              </button>
-
-              <button
-                onClick={() => setActiveViewTab("report")}
-                className={`px-3 py-1 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${activeViewTab === "report"
-                  ? "bg-white text-slate-900 shadow-2xs font-bold"
-                  : "text-slate-500 hover:text-slate-800"
-                  }`}
-              >
-                <BarChart3 size={14} className={activeViewTab === "report" ? "text-[#2383e2]" : "text-slate-400"} />
-                <span>Analytics Report</span>
-              </button>
+          {/* Real-time Summary Cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 bg-white p-4 rounded-xl border border-[#E7EBF0]">
+            <div>
+              <span className="text-[11px] font-semibold text-[#667085] uppercase tracking-wider block">Total Muatan</span>
+              <span className="text-xl sm:text-2xl font-bold text-[#172033] mt-0.5 block">{requestedStats.totalBoxes} Unit</span>
             </div>
 
-            {/* Quick Volume Badges */}
-            <div className="flex items-center gap-2 text-xs font-mono">
-              <span className="bg-slate-100 border border-slate-200 text-slate-700 px-2.5 py-1 rounded-md font-semibold">
-                Requested: <span className="font-bold">{requestedStats.totalBoxes} Boxes</span> ({requestedStats.totalVolM3} m³)
+            <div>
+              <span className="text-[11px] font-semibold text-[#667085] uppercase tracking-wider block">Total Volume</span>
+              <span className="text-xl sm:text-2xl font-bold text-[#087F5B] mt-0.5 block">{requestedStats.totalVolM3} m³</span>
+            </div>
+
+            <div>
+              <span className="text-[11px] font-semibold text-[#667085] uppercase tracking-wider block">Kapasitas Maksimal</span>
+              <span className="text-xl sm:text-2xl font-bold text-[#172033] mt-0.5 block">{requestedStats.maxVehicleVolM3} m³</span>
+            </div>
+
+            <div>
+              <span className="text-[11px] font-semibold text-[#667085] uppercase tracking-wider block">Estimasi Utilisasi</span>
+              <span className="text-xl sm:text-2xl font-bold text-[#087F5B] mt-0.5 block">
+                {activeResult ? `${activeResult.utilizationPercent.toFixed(1)}%` : "0%"}
               </span>
             </div>
-
           </div>
 
-          {/* ---------------------------------------------------- */}
-          {/* STEP INPUT CARDS GRID (STEP 1 & STEP 2) */}
-          {/* ---------------------------------------------------- */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-
-            {/* STEP 1: VEHICLE RESULT OUTPUT CARD (5 Cols) */}
-            <div className="lg:col-span-5 bg-white border border-slate-200 rounded-xl p-5 space-y-4 shadow-2xs">
-
-              <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-                <div className="flex items-center gap-2">
-                  <span className="w-5 h-5 rounded bg-[#2383e2] text-white font-bold text-xs flex items-center justify-center">
-                    1
-                  </span>
-                  <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                    Kendaraan Hasil Optimasi
-                  </h3>
-                </div>
-
-                <span className={`text-[10px] font-bold font-mono px-2 py-0.5 rounded border ${
-                  activeResult
-                    ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                    : "bg-amber-50 text-amber-700 border-amber-200"
-                }`}>
-                  {activeResult ? activeResult.statusLabel : "Belum Dioptimasi"}
-                </span>
-              </div>
-
-              {/* Vehicle Output Details */}
-              {!activeResult ? (
-                <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-4 text-center space-y-2 py-8">
-                  <Truck size={32} className="mx-auto text-slate-300" />
-                  <p className="text-xs font-bold text-slate-700">Output Kendaraan Belum Tersedia</p>
-                  <p className="text-[11px] text-slate-500 leading-relaxed max-w-xs mx-auto">
-                    Masukkan jumlah box kargo di sebelah kanan lalu klik tombol <span className="font-bold text-[#2383e2]">"Optimalkan Muatan"</span>. Sistem akan mengevaluasi seluruh armada kandidat secara otomatis.
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-3 text-xs">
-                  <div className="bg-gradient-to-r from-emerald-50/80 to-blue-50/80 border border-emerald-200/80 rounded-xl p-3.5 space-y-2">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">KENDARAAN TERPILIH</span>
-                        <h4 className="font-extrabold text-sm text-slate-900">{activeResult.vehicle.name}</h4>
-                        <p className="text-[11px] text-slate-500 font-medium">{activeResult.vehicle.type}</p>
-                      </div>
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-600 text-white font-mono shadow-2xs">
-                        1 Unit
-                      </span>
-                    </div>
-
-                    <div className="pt-2 border-t border-emerald-200/60 grid grid-cols-2 gap-2 font-mono text-[11px]">
-                      <div>
-                        <span className="text-[10px] text-slate-400 block font-sans">Dimensi Ruang (P×L×T)</span>
-                        <span className="font-bold text-slate-800">{activeResult.vehicle.lengthCm} × {activeResult.vehicle.widthCm} × {activeResult.vehicle.heightCm} cm</span>
-                      </div>
-                      <div>
-                        <span className="text-[10px] text-slate-400 block font-sans">Volume Ruang</span>
-                        <span className="font-bold text-emerald-700">{activeResult.vehicle.volumeM3.toFixed(2)} m³</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2 text-xs font-mono">
-                    <div className="bg-slate-50 border border-slate-200 p-2.5 rounded-lg">
-                      <span className="text-[10px] text-slate-400 block font-sans font-bold">BARANG TERMUAT</span>
-                      <span className="font-bold text-blue-700 text-sm">
-                        {activeResult.totalBoxesPacked} / {activeResult.totalBoxesRequested} Box
-                      </span>
-                    </div>
-
-                    <div className="bg-slate-50 border border-slate-200 p-2.5 rounded-lg">
-                      <span className="text-[10px] text-slate-400 block font-sans font-bold">OCCUPANCY RUANG</span>
-                      <span className="font-bold text-emerald-700 text-sm">
-                        {activeResult.utilizationPercent.toFixed(1)}%
-                      </span>
-                    </div>
-                  </div>
-
-                  {activeResult.fitnessScore !== undefined && (
-                    <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg flex justify-between items-center font-mono text-xs">
-                      <span className="text-[#2383e2] font-bold font-sans">Fitness Score GA:</span>
-                      <span className="font-extrabold text-slate-900">{activeResult.fitnessScore}</span>
-                    </div>
-                  )}
-                </div>
-              )}
-
-            </div>
-
-            {/* STEP 2: CARGO ITEM QUANTITIES INPUT (7 Cols) */}
-            <div className="lg:col-span-7 bg-white border border-slate-200 rounded-xl p-5 space-y-4 shadow-2xs">
-
-              <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-                <div className="flex items-center gap-2">
-                  <span className="w-5 h-5 rounded bg-[#2383e2] text-white font-bold text-xs flex items-center justify-center">
-                    2
-                  </span>
-                  <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                    Jumlah Barang Muatan Box
-                  </h3>
-                </div>
-
-                <div className="text-[11px] font-mono text-slate-500">
-                  Total Vol: <span className="font-bold text-emerald-700">{requestedStats.totalVolM3} m³</span>
-                </div>
-              </div>
-
-              {/* Cargo Table Input */}
-              <div className="overflow-x-auto max-h-[220px] custom-scrollbar border border-slate-200 rounded-lg bg-white">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr className="bg-slate-50 text-slate-400 font-semibold uppercase text-[10px] border-b border-slate-200">
-                      <th className="py-2.5 px-3">Kode & Nama</th>
-                      <th className="py-2.5 px-3">Dimensi</th>
-                      <th className="py-2.5 px-3">Vol. Unit</th>
-                      <th className="py-2.5 px-3 w-32 text-center">Jumlah Box</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 font-normal">
-                    {cargoMaster.map((cargo) => {
-                      const qty = itemQuantities[cargo.id] || 0;
-                      return (
-                        <tr key={cargo.id} className="hover:bg-[#f7f7f5] transition-colors">
-                          <td className="py-2 px-3 font-bold text-slate-900">
-                            <div className="flex items-center gap-2">
-                              <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: cargo.color }} />
-                              <span className="font-mono text-slate-900">{cargo.code}</span>
-                              <span className="text-slate-500 font-normal">({cargo.name})</span>
-                            </div>
-                          </td>
-
-                          <td className="py-2 px-3 font-mono text-slate-600 text-[11px]">
-                            {cargo.lengthCm}×{cargo.widthCm}×{cargo.heightCm} cm
-                          </td>
-
-                          <td className="py-2 px-3 font-mono font-bold text-slate-800 text-[11px]">
-                            {cargo.volumeM3.toFixed(3)} m³
-                          </td>
-
-                          {/* Quantity Controls */}
-                          <td className="py-2 px-3">
-                            <div className="flex items-center justify-center gap-1">
-                              <button
-                                type="button"
-                                onClick={() => handleQuantityChange(cargo.id, qty - 1)}
-                                className="w-6 h-6 rounded bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center cursor-pointer transition-colors"
-                              >
-                                <Minus size={11} />
-                              </button>
-                              <input
-                                type="number"
-                                min="0"
-                                value={qty}
-                                onChange={(e) => handleQuantityChange(cargo.id, parseInt(e.target.value) || 0)}
-                                className="w-12 text-center py-0.5 text-xs border border-slate-200 rounded font-mono font-bold bg-slate-50 focus:bg-white focus:outline-none focus:border-[#2383e2]"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => handleQuantityChange(cargo.id, qty + 1)}
-                                className="w-6 h-6 rounded bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center cursor-pointer transition-colors"
-                              >
-                                <Plus size={11} />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-
-            </div>
-
-          </div>
-
-          {/* ---------------------------------------------------- */}
-          {/* 3D SPATIAL VISUALIZER CANVAS CARD */}
-          {/* ---------------------------------------------------- */}
-          <div className="bg-[#18181b] rounded-2xl border border-slate-800 p-6 shadow-2xl space-y-4 relative overflow-hidden">
-
-            {/* Header Toolbar */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-800 pb-4">
-              <div className="flex items-center gap-2">
-                <Compass size={16} className="text-[#2383e2]" />
-                <div>
-                  <h2 className="text-xs font-bold text-white uppercase tracking-wider">
-                    Visualizer 3D Spatial Canvas
-                  </h2>
-                  <p className="text-[11px] text-slate-400">
-                    Klik & drag mouse untuk memutar sudut pandang 3D.
-                  </p>
-                </div>
-              </div>
-
-              {/* Viewport Control Buttons */}
-              <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 p-1 rounded-lg">
-                <button
-                  onClick={() => setZoomScale((z) => Math.min(1.5, z + 0.1))}
-                  className="p-1 text-slate-400 hover:text-white rounded hover:bg-slate-800 cursor-pointer"
-                  title="Zoom In"
-                >
-                  <ZoomIn size={14} />
-                </button>
-                <button
-                  onClick={() => setZoomScale((z) => Math.max(0.4, z - 0.1))}
-                  className="p-1 text-slate-400 hover:text-white rounded hover:bg-slate-800 cursor-pointer"
-                  title="Zoom Out"
-                >
-                  <ZoomOut size={14} />
-                </button>
-                <button
-                  onClick={() => setRotation({ x: -22, y: -45 })}
-                  className="p-1 text-slate-400 hover:text-white rounded hover:bg-slate-800 cursor-pointer"
-                  title="Reset Angle"
-                >
-                  <RotateCcw size={14} />
-                </button>
-              </div>
-            </div>
-
-            {/* HIGH-PERFORMANCE 3D CANVAS STAGE */}
-            <div className="w-full relative flex items-center justify-center overflow-hidden bg-gradient-to-b from-[#090d16] via-[#141e33] to-[#090d16] rounded-xl border border-slate-800">
-              <TruckVehicleCanvas3D
-                vehicle={activeVehicle}
-                packedBoxes={activeResult ? activeResult.packedBoxes : []}
-                animCurrentStep={activeResult ? animCurrentStep : 0}
-                rotation={rotation}
-                zoomScale={zoomScale}
-                onMouseDown={handleMouseDown}
-                onMouseMove={handleMouseMove}
-                onMouseUp={handleMouseUp}
-              />
-
-              {/* Canvas Overlay Specs Tag */}
-              <div className="absolute bottom-4 left-4 bg-slate-900/90 border border-slate-800 backdrop-blur-md px-3 py-1.5 rounded-lg text-slate-300 font-mono text-[11px] space-y-0.5">
-                <div className="font-bold text-white flex items-center gap-1">
-                  <Truck size={12} className="text-[#2383e2]" />
-                  <span>{activeVehicle?.name} ({activeVehicle?.type})</span>
-                </div>
-                <div>Ruang: {activeVehicle?.lengthCm}×{activeVehicle?.widthCm}×{activeVehicle?.heightCm} cm</div>
-              </div>
-
-              {/* Packing Sequence Step Controller */}
-              {activeResult && (
-                <div className="absolute bottom-4 right-4 bg-slate-900/90 border border-slate-800 backdrop-blur-md p-2 rounded-lg flex items-center gap-3">
-                  <button
-                    onClick={handlePlayPauseAnim}
-                    className="px-2.5 py-1 bg-[#2383e2] hover:bg-[#1d70c4] text-white text-xs font-bold rounded flex items-center gap-1 cursor-pointer"
-                  >
-                    <Play size={12} />
-                    <span>{isPlayingAnim ? "Pause" : "Play Step"}</span>
-                  </button>
-
-                  <span className="text-xs font-mono text-slate-300">
-                    Step {animCurrentStep} / {activeResult.packedBoxes.length}
-                  </span>
-                </div>
-              )}
-
-            </div>
-
-          </div>
-
-          {/* ---------------------------------------------------- */}
-          {/* RESULTS & OCCUPANCY REPORT SECTION */}
-          {/* ---------------------------------------------------- */}
+          {/* Result Summary Horizontal Banner (Appears after Optimization) */}
           {activeResult && (
-            <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-2xs space-y-5">
-
-              <div className="flex justify-between items-center border-b border-slate-100 pb-3 flex-wrap gap-2">
-                <div className="flex items-center gap-2">
-                  <BarChart3 size={16} className="text-[#2383e2]" />
-                  <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                    Laporan Hasil Pengepakan (Occupancy & GA Report)
-                  </h3>
+            <div className="bg-[#E8F7F1] border border-[#087F5B]/30 rounded-xl p-4 sm:px-6 flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-6 font-sans">
+                <div>
+                  <span className="text-[11px] text-[#087F5B] font-medium uppercase tracking-wider block">Kendaraan Terpilih</span>
+                  <span className="text-base font-bold text-[#172033]">{activeResult.vehicle.name}</span>
                 </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                  {activeResult.fitnessScore !== undefined && (
-                    <span className="text-xs font-bold font-mono text-purple-700 bg-purple-50 px-2.5 py-1 rounded-md border border-purple-200" title="Skor Fitness Algoritma Genetika">
-                      Fitness GA: {activeResult.fitnessScore}
-                    </span>
-                  )}
-                  {activeResult.generationsCount !== undefined && (
-                    <span className="text-xs font-bold font-mono text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-md border border-indigo-200" title="Evolusi Populasi GA">
-                      {activeResult.generationsCount} Generasi GA
-                    </span>
-                  )}
-                  <span className="text-xs font-bold font-mono text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200">
-                    {activeResult.utilizationPercent.toFixed(1)}% Okupansi Ruang
-                  </span>
+                <div>
+                  <span className="text-[11px] text-[#087F5B] font-medium uppercase tracking-wider block">Volume Terpakai</span>
+                  <span className="text-base font-bold text-[#087F5B]">{activeResult.usedVolumeM3} m³</span>
+                </div>
+                <div>
+                  <span className="text-[11px] text-[#087F5B] font-medium uppercase tracking-wider block">Utilisasi</span>
+                  <span className="text-base font-bold text-[#087F5B]">{activeResult.utilizationPercent.toFixed(1)}%</span>
+                </div>
+                <div>
+                  <span className="text-[11px] text-[#087F5B] font-medium uppercase tracking-wider block">Jumlah Muatan</span>
+                  <span className="text-base font-bold text-[#172033]">{activeResult.totalBoxesPacked} / {activeResult.totalBoxesRequested} item</span>
                 </div>
               </div>
 
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 flex items-center gap-2">
-                <Info size={15} className="text-[#2383e2] flex-shrink-0" />
-                <span>{activeResult.statusDetails}</span>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs font-mono">
-                <div className="bg-slate-50 border border-slate-200 p-3 rounded-lg space-y-1">
-                  <span className="text-slate-400 text-[10px] block font-sans font-bold">KAPASITAS KENDARAAN</span>
-                  <span className="font-bold text-slate-900 text-sm">{activeResult.vehicle.volumeM3.toFixed(2)} m³</span>
-                </div>
-
-                <div className="bg-slate-50 border border-slate-200 p-3 rounded-lg space-y-1">
-                  <span className="text-slate-400 text-[10px] block font-sans font-bold">VOLUME TERPAKAI</span>
-                  <span className="font-bold text-emerald-700 text-sm">{activeResult.usedVolumeM3.toFixed(3)} m³</span>
-                </div>
-
-                <div className="bg-slate-50 border border-slate-200 p-3 rounded-lg space-y-1">
-                  <span className="text-slate-400 text-[10px] block font-sans font-bold">BOX TERMUAT</span>
-                  <span className="font-bold text-blue-700 text-sm">{activeResult.packedBoxes.length} Box</span>
-                </div>
-
-                <div className="bg-slate-50 border border-slate-200 p-3 rounded-lg space-y-1">
-                  <span className="text-slate-400 text-[10px] block font-sans font-bold">BOX TERSISA</span>
-                  <span className={`font-bold text-sm ${activeResult.totalBoxesUnpacked > 0 ? "text-rose-600" : "text-slate-500"}`}>
-                    {activeResult.totalBoxesUnpacked} Box
-                  </span>
-                </div>
-              </div>
-
+              <span className="px-3 py-1 bg-[#087F5B] text-white text-xs font-semibold rounded-lg">
+                Optimasi berhasil
+              </span>
             </div>
           )}
+
+          {/* Main Grid: Left Output & Input (4 cols) | Right 3D Visualizer (8 cols) */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-7">
+
+            {/* Left Column: Vehicle Output & Cargo Input List (4 Cols) */}
+            <div className="lg:col-span-4 space-y-6">
+
+              {/* Card 1: Kendaraan Terpilih Otomatis */}
+              <div className="bg-white border border-[#E7EBF0] rounded-xl p-5 space-y-4">
+                <div className="flex justify-between items-center pb-3 border-b border-[#E7EBF0]">
+                  <h3 className="text-sm font-bold text-[#172033]">
+                    Kendaraan Terpilih Otomatis
+                  </h3>
+                  <span className="text-[11px] font-semibold text-[#087F5B] bg-[#E8F7F1] px-2 py-0.5 rounded">
+                    Rekomendasi sistem
+                  </span>
+                </div>
+
+                {!activeResult ? (
+                  <div className="bg-[#F8FAFC] border border-[#E7EBF0] rounded-lg p-4 text-center space-y-1.5 py-6">
+                    <Truck size={28} className="mx-auto text-[#667085]" />
+                    <p className="text-xs font-bold text-[#172033]">Kendaraan Belum Terpilih</p>
+                    <p className="text-[12px] text-[#667085] leading-relaxed">
+                      Sistem akan merekomendasikan kendaraan terbaik secara otomatis setelah Anda menekan tombol <span className="font-semibold text-[#087F5B]">"Optimalkan Muatan"</span>.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3 text-xs">
+                    <div className="bg-[#F8FAFC] border border-[#E7EBF0] rounded-lg p-3.5 space-y-2">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <span className="text-[10px] text-[#667085] font-semibold uppercase tracking-wider block">KENDARAAN TERPILIH</span>
+                          <h4 className="font-bold text-sm text-[#172033]">{activeResult.vehicle.name}</h4>
+                          <p className="text-[11px] text-[#667085]">{activeResult.vehicle.type}</p>
+                        </div>
+                        <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-[#087F5B] text-white">
+                          1 Unit
+                        </span>
+                      </div>
+
+                      <div className="pt-2 border-t border-[#E7EBF0] grid grid-cols-2 gap-2 text-[12px]">
+                        <div>
+                          <span className="text-[10px] text-[#667085] block">Dimensi Ruang</span>
+                          <span className="font-semibold text-[#172033]">{activeResult.vehicle.lengthCm}×{activeResult.vehicle.widthCm}×{activeResult.vehicle.heightCm} cm</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-[#667085] block">Kapasitas Volume</span>
+                          <span className="font-bold text-[#087F5B]">{activeResult.vehicle.volumeM3.toFixed(2)} m³</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Card 2: Daftar Muatan (Input) */}
+              <div className="bg-white border border-[#E7EBF0] rounded-xl p-5 space-y-4">
+                <div className="flex justify-between items-center pb-3 border-b border-[#E7EBF0]">
+                  <h3 className="text-sm font-bold text-[#172033]">
+                    Daftar Muatan
+                  </h3>
+                  <span className="text-[12px] font-mono text-[#667085]">
+                    {requestedStats.distinctTypes} / {MAX_OPTIMIZATION_ITEM_TYPES} Jenis
+                  </span>
+                </div>
+
+                {/* Cargo Items List with [-] [qty] [+] */}
+                <div className="space-y-2 max-h-[340px] overflow-y-auto custom-scrollbar pr-1">
+                  {cargoMaster.map((cargo) => {
+                    const qty = itemQuantities[cargo.id] || 0;
+                    return (
+                      <div
+                        key={cargo.id}
+                        className="p-3 bg-[#F8FAFC] border border-[#E7EBF0] rounded-lg flex items-center justify-between gap-3 hover:border-[#087F5B]/30 transition-colors"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: cargo.color }} />
+                          <div className="min-w-0">
+                            <h4 className="text-xs font-semibold text-[#172033] truncate">{cargo.name}</h4>
+                            <p className="text-[11px] text-[#667085] font-mono">
+                              {cargo.lengthCm}×{cargo.widthCm}×{cargo.heightCm} cm • {cargo.volumeM3.toFixed(3)} m³
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Quantity Controls */}
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => handleQuantityChange(cargo.id, qty - 1)}
+                            className="w-7 h-7 rounded bg-white hover:bg-slate-200 text-[#172033] border border-[#E7EBF0] flex items-center justify-center cursor-pointer transition-colors"
+                          >
+                            <Minus size={12} />
+                          </button>
+                          <input
+                            type="number"
+                            min="0"
+                            value={qty}
+                            onChange={(e) => handleQuantityChange(cargo.id, parseInt(e.target.value) || 0)}
+                            className="w-10 text-center py-1 text-xs border border-[#E7EBF0] rounded font-mono font-bold bg-white focus:outline-none focus:border-[#087F5B]"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleQuantityChange(cargo.id, qty + 1)}
+                            className="w-7 h-7 rounded bg-white hover:bg-slate-200 text-[#172033] border border-[#E7EBF0] flex items-center justify-center cursor-pointer transition-colors"
+                          >
+                            <Plus size={12} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {requestedStats.errorMessage && (
+                  <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-700 font-medium flex items-start gap-2">
+                    <AlertTriangle size={15} className="shrink-0 mt-0.5" />
+                    <span>{requestedStats.errorMessage}</span>
+                  </div>
+                )}
+              </div>
+
+            </div>
+
+            {/* Right Column: 3D Spatial Visualization Canvas (8 Cols) */}
+            <div className="lg:col-span-8 bg-white border border-[#E7EBF0] rounded-xl p-5 space-y-4">
+              
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-3 border-b border-[#E7EBF0]">
+                <div>
+                  <h2 className="text-sm font-bold text-[#172033]">
+                    Visualisasi Penempatan Muatan 3D
+                  </h2>
+                  <p className="text-[12px] text-[#667085]">
+                    Tampilan ruang kontainer 3D kendaraan terpilih.
+                  </p>
+                </div>
+
+                {/* Minimalist 3D Toolbar */}
+                <div className="flex items-center gap-1 bg-[#F8FAFC] border border-[#E7EBF0] p-1 rounded-lg">
+                  <button
+                    onClick={() => setZoomScale((z) => Math.min(1.5, z + 0.1))}
+                    className="p-1.5 text-[#667085] hover:text-[#172033] rounded hover:bg-white cursor-pointer"
+                    title="Zoom In"
+                  >
+                    <ZoomIn size={15} />
+                  </button>
+                  <button
+                    onClick={() => setZoomScale((z) => Math.max(0.4, z - 0.1))}
+                    className="p-1.5 text-[#667085] hover:text-[#172033] rounded hover:bg-white cursor-pointer"
+                    title="Zoom Out"
+                  >
+                    <ZoomOut size={15} />
+                  </button>
+                  <button
+                    onClick={() => setRotation({ x: -22, y: -45 })}
+                    className="p-1.5 text-[#667085] hover:text-[#172033] rounded hover:bg-white cursor-pointer"
+                    title="Reset Angle"
+                  >
+                    <RotateCcw size={15} />
+                  </button>
+                </div>
+              </div>
+
+              {/* 3D Viewport Dark Stage */}
+              <div className="w-full relative flex items-center justify-center overflow-hidden bg-[#0F172A] rounded-xl border border-slate-800">
+                <TruckVehicleCanvas3D
+                  vehicle={activeVehicle}
+                  packedBoxes={activeResult ? activeResult.packedBoxes : []}
+                  animCurrentStep={activeResult ? animCurrentStep : 0}
+                  rotation={rotation}
+                  zoomScale={zoomScale}
+                  onMouseDown={handleMouseDown}
+                  onMouseMove={handleMouseMove}
+                  onMouseUp={handleMouseUp}
+                />
+
+                {/* Vehicle Overlay Specs Badge */}
+                <div className="absolute bottom-4 left-4 bg-slate-900/90 border border-slate-800 backdrop-blur-md px-3.5 py-2 rounded-lg text-slate-300 font-mono text-[11px] space-y-0.5">
+                  <div className="font-bold text-white flex items-center gap-1.5">
+                    <Truck size={13} className="text-[#087F5B]" />
+                    <span>{activeVehicle?.name} ({activeVehicle?.type})</span>
+                  </div>
+                  <div>Ruang: {activeVehicle?.lengthCm}×{activeVehicle?.widthCm}×{activeVehicle?.heightCm} cm • {activeVehicle?.volumeM3.toFixed(2)} m³</div>
+                </div>
+
+                {/* Step Animation Controls */}
+                {activeResult && (
+                  <div className="absolute bottom-4 right-4 bg-slate-900/90 border border-slate-800 backdrop-blur-md p-2 rounded-lg flex items-center gap-3">
+                    <button
+                      onClick={handlePlayPauseAnim}
+                      className="px-3 py-1 bg-[#087F5B] hover:bg-[#066B4D] text-white text-xs font-semibold rounded flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Play size={12} />
+                      <span>{isPlayingAnim ? "Pause" : "Play Step"}</span>
+                    </button>
+
+                    <span className="text-xs font-mono text-slate-300">
+                      Step {animCurrentStep} / {activeResult.packedBoxes.length}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+            </div>
+
+          </div>
 
         </div>
       </div>
