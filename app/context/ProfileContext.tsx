@@ -30,6 +30,8 @@ interface ProfileContextType {
 
 const ProfileContext = createContext<ProfileContextType | undefined>(undefined);
 
+const LOGISTIC_SESSION_KEY = "LOGISTIC_SESSION_V1";
+
 export function ProfileProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -52,7 +54,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     return "UL";
   };
 
-  // Sync state strictly from active Supabase Session & User
+  // Sync state strictly from active Supabase Session & User and save to storage
   const syncUserData = (currentUser: User | null, currentSession: Session | null) => {
     if (currentSession && currentUser) {
       setSession(currentSession);
@@ -60,40 +62,99 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
 
       const metaName = currentUser.user_metadata?.full_name || currentUser.user_metadata?.name;
       const userEmail = currentUser.email || "";
-      const displayName = metaName || userEmail.split("@")[0] || "User Logistik";
+      const displayName = metaName || (userEmail.includes("@") ? userEmail.split("@")[0] : userEmail) || "User Logistik";
 
       setName(displayName);
       setEmail(userEmail);
       setInitials(computeInitials(displayName));
+
+      try {
+        localStorage.setItem(LOGISTIC_SESSION_KEY, JSON.stringify(currentSession));
+      } catch (e) {
+        // Ignore storage error
+      }
     } else {
       setSession(null);
       setUser(null);
       setName("");
       setEmail("");
       setInitials("UL");
+      try {
+        localStorage.removeItem(LOGISTIC_SESSION_KEY);
+      } catch (e) {
+        // Ignore storage error
+      }
     }
   };
 
   useEffect(() => {
-    if (!isSupabaseConfigured || !supabase) {
-      setLoading(false);
-      return;
+    let mounted = true;
+
+    const initializeAuth = async () => {
+      let activeSession: Session | null = null;
+      let activeUser: User | null = null;
+
+      // 1. Try fetching session from Supabase Client first
+      if (isSupabaseConfigured && supabase) {
+        try {
+          const { data } = await supabase.auth.getSession();
+          if (data && data.session) {
+            activeSession = data.session;
+            activeUser = data.session.user;
+          }
+        } catch (e) {
+          console.error("Error checking Supabase session", e);
+        }
+      }
+
+      // 2. If Supabase client did not return a session, check local storage persistence fallback
+      if (!activeSession) {
+        try {
+          const storedSessionStr = localStorage.getItem(LOGISTIC_SESSION_KEY);
+          if (storedSessionStr) {
+            const parsedSession = JSON.parse(storedSessionStr);
+            if (parsedSession && parsedSession.user) {
+              activeSession = parsedSession as Session;
+              activeUser = parsedSession.user as User;
+            }
+          }
+        } catch (e) {
+          console.error("Error reading saved session from storage", e);
+        }
+      }
+
+      if (mounted) {
+        syncUserData(activeUser, activeSession);
+        setLoading(false);
+      }
+    };
+
+    initializeAuth();
+
+    // Listen to Auth state changes in real-time
+    let subscription: { unsubscribe: () => void } | null = null;
+    if (isSupabaseConfigured && supabase) {
+      const { data } = supabase.auth.onAuthStateChange((event, newSession) => {
+        if (!mounted) return;
+
+        if (event === "SIGNED_OUT") {
+          // Check if session key still exists in localStorage before wiping
+          const stored = localStorage.getItem(LOGISTIC_SESSION_KEY);
+          if (!stored) {
+            syncUserData(null, null);
+            setLoading(false);
+          }
+        } else if (newSession) {
+          syncUserData(newSession.user, newSession);
+          setLoading(false);
+        }
+      });
+      subscription = data.subscription;
     }
 
-    // Check existing session on mount
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      syncUserData(session?.user ?? null, session);
-      setLoading(false);
-    });
-
-    // Listen to Auth State changes in realtime
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      syncUserData(session?.user ?? null, session);
-      setLoading(false);
-    });
-
     return () => {
-      subscription.unsubscribe();
+      mounted = false;
+      if (subscription) subscription.unsubscribe();
     };
   }, []);
 
@@ -182,9 +243,23 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     } else {
       // Local fallback if Supabase env vars not configured
       const displayName = rawInput.split("@")[0] || "User Logistik";
-      setName(displayName);
-      setEmail(formattedEmail);
-      setInitials(computeInitials(displayName));
+      const mockUser = {
+        id: `local-${Date.now()}`,
+        email: formattedEmail,
+        user_metadata: { full_name: displayName },
+        app_metadata: {},
+        aud: "authenticated",
+        created_at: new Date().toISOString()
+      } as unknown as User;
+      const mockSession = {
+        access_token: "local-token",
+        refresh_token: "local-refresh",
+        expires_in: 3600,
+        token_type: "bearer",
+        user: mockUser
+      } as unknown as Session;
+
+      syncUserData(mockUser, mockSession);
       return { success: true };
     }
   };
@@ -258,9 +333,23 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       return { success: true, needsEmailVerification: false };
     } else {
       // Local fallback
-      setName(cleanName);
-      setEmail(cleanEmail);
-      setInitials(computeInitials(cleanName));
+      const mockUser = {
+        id: `local-${Date.now()}`,
+        email: cleanEmail,
+        user_metadata: { full_name: cleanName },
+        app_metadata: {},
+        aud: "authenticated",
+        created_at: new Date().toISOString()
+      } as unknown as User;
+      const mockSession = {
+        access_token: "local-token",
+        refresh_token: "local-refresh",
+        expires_in: 3600,
+        token_type: "bearer",
+        user: mockUser
+      } as unknown as Session;
+
+      syncUserData(mockUser, mockSession);
       return { success: true, needsEmailVerification: false };
     }
   };
@@ -271,7 +360,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       return { success: false, error: "Nama lengkap minimal 2 karakter." };
     }
 
-    if (isSupabaseConfigured && supabase) {
+    if (isSupabaseConfigured && supabase && session && !session.access_token.startsWith("mock-") && !session.access_token.startsWith("local-")) {
       const { data, error } = await supabase.auth.updateUser({
         data: {
           full_name: cleanName,
@@ -285,15 +374,27 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       syncUserData(data.user, session);
       return { success: true };
     } else {
-      setName(cleanName);
-      setInitials(computeInitials(cleanName));
+      const updatedUser = user ? {
+        ...user,
+        user_metadata: { ...user.user_metadata, full_name: cleanName }
+      } as User : null;
+      syncUserData(updatedUser, session);
       return { success: true };
     }
   };
 
   const logout = async () => {
+    try {
+      localStorage.removeItem(LOGISTIC_SESSION_KEY);
+    } catch (e) {
+      // Ignore
+    }
     if (isSupabaseConfigured && supabase) {
-      await supabase.auth.signOut();
+      try {
+        await supabase.auth.signOut();
+      } catch (e) {
+        // Ignore signout error if session was local
+      }
     }
     syncUserData(null, null);
   };
