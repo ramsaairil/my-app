@@ -142,14 +142,25 @@ export default function SimulationPage() {
     }
   };
 
-  // Pre-load trial combination and navigate to 3D Optimization page
+  // Pre-load full precomputed optimization result and navigate to 3D Optimization page
   const handleOpenIn3DVisualizer = (trial: SimulationTrialResult) => {
-    try {
-      localStorage.setItem("SIMULATION_PRELOAD_SELECTION", JSON.stringify(trial.combination));
-    } catch (e) {
-      // Ignore storage error
+    if (!trial.optimizationResult) {
+      alert("Data visualisasi untuk percobaan ini tidak tersedia.");
+      return;
     }
-    router.push("/optimasi");
+
+    try {
+      const payload = JSON.stringify({
+        simulationNumber: trial.simulationNumber,
+        combination: trial.combination,
+        optimizationResult: trial.optimizationResult
+      });
+      sessionStorage.setItem("SIMULATION_PRELOAD_RESULT", payload);
+      localStorage.setItem("SIMULATION_PRELOAD_RESULT", payload);
+    } catch (e) {
+      console.error("Storage error", e);
+    }
+    router.push(`/optimasi?simId=${trial.simulationNumber}`);
   };
 
   // Helper map to lookup cargo name by ID
@@ -204,7 +215,7 @@ export default function SimulationPage() {
 
   return (
     <div className="flex-grow flex flex-col h-full overflow-hidden bg-[#F8FAFC] text-[#172033] font-sans antialiased">
-      
+
       {/* Main Page Scroll Area */}
       <div className="flex-1 overflow-y-auto custom-scrollbar p-7 sm:p-9 space-y-7">
         <div className="max-w-[1320px] mx-auto space-y-7">
@@ -239,11 +250,10 @@ export default function SimulationPage() {
                     key={count}
                     onClick={() => setTotalTrialsConfig(count)}
                     disabled={isRunning}
-                    className={`px-2.5 py-1 rounded transition-colors cursor-pointer ${
-                      totalTrialsConfig === count
-                        ? "bg-[#087F5B] text-white"
-                        : "text-[#667085] hover:bg-[#F8FAFC]"
-                    }`}
+                    className={`px-2.5 py-1 rounded transition-colors cursor-pointer ${totalTrialsConfig === count
+                      ? "bg-[#087F5B] text-white"
+                      : "text-[#667085] hover:bg-[#F8FAFC]"
+                      }`}
                   >
                     {count}
                   </button>
@@ -253,11 +263,10 @@ export default function SimulationPage() {
               <button
                 onClick={handleStartSimulation}
                 disabled={isRunning}
-                className={`px-5 py-2.5 text-white text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center gap-2 shadow-xs ${
-                  isRunning
-                    ? "bg-slate-300 text-slate-500 cursor-not-allowed"
-                    : "bg-[#087F5B] hover:bg-[#066B4D]"
-                }`}
+                className={`px-5 py-2.5 text-white text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center gap-2 shadow-xs ${isRunning
+                  ? "bg-slate-300 text-slate-500 cursor-not-allowed"
+                  : "bg-[#087F5B] hover:bg-[#066B4D]"
+                  }`}
               >
                 {isRunning ? (
                   <>
@@ -392,7 +401,7 @@ export default function SimulationPage() {
 
               {/* 2D Analytics Charts */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-7">
-                
+
                 {/* Chart 1: Utilisasi Kendaraan per Percobaan */}
                 <div className="bg-white border border-[#E7EBF0] rounded-xl p-5 space-y-4">
                   <div className="flex justify-between items-center pb-2 border-b border-[#E7EBF0]">
@@ -414,15 +423,14 @@ export default function SimulationPage() {
                           className="flex-1 group relative cursor-pointer h-full flex items-end"
                         >
                           <div
-                            className={`w-full transition-all rounded-t-xs ${
-                              isTopRank
-                                ? "bg-[#087F5B]"
-                                : t.status === "SUCCESS"
+                            className={`w-full transition-all rounded-t-xs ${isTopRank
+                              ? "bg-[#087F5B]"
+                              : t.status === "SUCCESS"
                                 ? "bg-[#3B82F6] group-hover:bg-[#2563EB]"
                                 : t.status === "PARTIAL"
-                                ? "bg-amber-400 group-hover:bg-amber-500"
-                                : "bg-rose-400 group-hover:bg-rose-500"
-                            }`}
+                                  ? "bg-amber-400 group-hover:bg-amber-500"
+                                  : "bg-rose-400 group-hover:bg-rose-500"
+                              }`}
                             style={{ height: `${heightPct}%` }}
                           />
                           {/* Hover Tooltip */}
@@ -465,13 +473,12 @@ export default function SimulationPage() {
                           className="flex-1 group relative cursor-pointer h-full flex items-end"
                         >
                           <div
-                            className={`w-full transition-all rounded-t-xs ${
-                              idx < 10
-                                ? "bg-[#087F5B]"
-                                : idx < 30
+                            className={`w-full transition-all rounded-t-xs ${idx < 10
+                              ? "bg-[#087F5B]"
+                              : idx < 30
                                 ? "bg-slate-700"
                                 : "bg-slate-400"
-                            }`}
+                              }`}
                             style={{ height: `${heightPct}%` }}
                           />
                           {/* Hover Tooltip */}
@@ -509,9 +516,8 @@ export default function SimulationPage() {
                       className="p-3 bg-[#F8FAFC] border border-[#E7EBF0] hover:border-[#087F5B]/50 rounded-lg space-y-1.5 cursor-pointer transition-all hover:bg-white"
                     >
                       <div className="flex justify-between items-center">
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded text-white ${
-                          idx === 0 ? "bg-[#087F5B]" : idx < 3 ? "bg-emerald-600" : "bg-slate-700"
-                        }`}>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded text-white ${idx === 0 ? "bg-[#087F5B]" : idx < 3 ? "bg-emerald-600" : "bg-slate-700"
+                          }`}>
                           Rank #{idx + 1}
                         </span>
                         <span className="text-[11px] font-mono text-[#667085]">#{t.simulationNumber}</span>
@@ -531,7 +537,7 @@ export default function SimulationPage() {
 
               {/* Filterable & Searchable 100 Results Table */}
               <div className="bg-white border border-[#E7EBF0] rounded-xl p-5 space-y-4">
-                
+
                 {/* Table Header Controls */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-[#E7EBF0]">
                   <div className="flex items-center gap-2">
@@ -548,25 +554,22 @@ export default function SimulationPage() {
                     <div className="flex items-center gap-1 bg-[#F8FAFC] border border-[#E7EBF0] p-1 rounded-lg text-xs font-semibold">
                       <button
                         onClick={() => setStatusFilter("ALL")}
-                        className={`px-2.5 py-1 rounded cursor-pointer ${
-                          statusFilter === "ALL" ? "bg-[#087F5B] text-white" : "text-[#667085] hover:bg-white"
-                        }`}
+                        className={`px-2.5 py-1 rounded cursor-pointer ${statusFilter === "ALL" ? "bg-[#087F5B] text-white" : "text-[#667085] hover:bg-white"
+                          }`}
                       >
                         Semua
                       </button>
                       <button
                         onClick={() => setStatusFilter("SUCCESS")}
-                        className={`px-2.5 py-1 rounded cursor-pointer ${
-                          statusFilter === "SUCCESS" ? "bg-[#087F5B] text-white" : "text-[#667085] hover:bg-white"
-                        }`}
+                        className={`px-2.5 py-1 rounded cursor-pointer ${statusFilter === "SUCCESS" ? "bg-[#087F5B] text-white" : "text-[#667085] hover:bg-white"
+                          }`}
                       >
                         Success
                       </button>
                       <button
                         onClick={() => setStatusFilter("PARTIAL")}
-                        className={`px-2.5 py-1 rounded cursor-pointer ${
-                          statusFilter === "PARTIAL" ? "bg-[#087F5B] text-white" : "text-[#667085] hover:bg-white"
-                        }`}
+                        className={`px-2.5 py-1 rounded cursor-pointer ${statusFilter === "PARTIAL" ? "bg-[#087F5B] text-white" : "text-[#667085] hover:bg-white"
+                          }`}
                       >
                         Partial
                       </button>

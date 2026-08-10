@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from "react";
+import Link from "next/link";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import {
@@ -400,6 +401,7 @@ export default function CustomOptimizationPage() {
   const [animCurrentStep, setAnimCurrentStep] = useState<number>(0);
   const [isPlayingAnim, setIsPlayingAnim] = useState<boolean>(false);
   const [isManifestOpen, setIsManifestOpen] = useState(false);
+  const [loadedSimNumber, setLoadedSimNumber] = useState<number | null>(null);
 
   const availableVehicles = useMemo(() => {
     const presets: Vehicle[] = VEHICLE_PRESETS.map((p, idx) => ({
@@ -464,28 +466,40 @@ export default function CustomOptimizationPage() {
       }
       setCargoMaster(loadedCargos);
 
-      // Check if simulation preload selection exists in localStorage
-      let preloadedQty: Record<string, number> | null = null;
+      // Check if full pre-computed simulation optimization result exists in storage
+      let simulationPreloadData: {
+        simulationNumber: number;
+        combination: Record<string, number>;
+        optimizationResult: OptimizationResult;
+      } | null = null;
+
       try {
-        const stored = localStorage.getItem("SIMULATION_PRELOAD_SELECTION");
-        if (stored) {
-          preloadedQty = JSON.parse(stored);
-          localStorage.removeItem("SIMULATION_PRELOAD_SELECTION");
+        const storedRes = sessionStorage.getItem("SIMULATION_PRELOAD_RESULT") || localStorage.getItem("SIMULATION_PRELOAD_RESULT");
+        if (storedRes) {
+          simulationPreloadData = JSON.parse(storedRes);
         }
       } catch (e) {
-        // Ignore error
+        console.error("Error reading SIMULATION_PRELOAD_RESULT", e);
       }
 
-      const initialQty: Record<string, number> = {};
-      loadedCargos.forEach((c, idx) => {
-        if (preloadedQty && typeof preloadedQty[c.id] === "number") {
-          initialQty[c.id] = preloadedQty[c.id];
-        } else if (idx === 0) initialQty[c.id] = 20;
-        else if (idx === 1) initialQty[c.id] = 15;
-        else if (idx === 2) initialQty[c.id] = 8;
-        else initialQty[c.id] = 0;
-      });
-      setItemQuantities(initialQty);
+      if (simulationPreloadData && simulationPreloadData.optimizationResult) {
+        const preResult = simulationPreloadData.optimizationResult;
+        setActiveResult(preResult);
+        setAnimCurrentStep(preResult.packedBoxes.length);
+        setLoadedSimNumber(simulationPreloadData.simulationNumber);
+        if (simulationPreloadData.combination) {
+          setItemQuantities(simulationPreloadData.combination);
+        }
+      } else {
+        const initialQty: Record<string, number> = {};
+        loadedCargos.forEach((c, idx) => {
+          if (idx === 0) initialQty[c.id] = 20;
+          else if (idx === 1) initialQty[c.id] = 15;
+          else if (idx === 2) initialQty[c.id] = 8;
+          else initialQty[c.id] = 0;
+        });
+        setItemQuantities(initialQty);
+      }
     }
 
     loadMasterData();
@@ -627,6 +641,27 @@ export default function CustomOptimizationPage() {
       {/* Main Page Scroll Container */}
       <div className="flex-1 overflow-y-auto custom-scrollbar p-7 sm:p-9 space-y-7">
         <div className="max-w-[1320px] mx-auto space-y-7">
+
+          {/* Simulation Preload Banner */}
+          {loadedSimNumber !== null && (
+            <div className="bg-[#E8F7F1] border border-[#087F5B]/30 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <span className="px-2.5 py-1 bg-[#087F5B] text-white text-xs font-bold rounded">
+                  HASIL SIMULASI PRE-COMPUTED
+                </span>
+                <span className="text-xs text-[#172033] font-semibold">
+                  Menampilkan layout 3D presisi dari Percobaan #{loadedSimNumber} (Hasil identik tanpa kalkulasi ulang)
+                </span>
+              </div>
+
+              <Link
+                href="/simulasi"
+                className="px-3.5 py-1.5 bg-white border border-[#E7EBF0] hover:bg-[#F8FAFC] text-[#172033] text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 shrink-0"
+              >
+                <span>← Kembali ke Simulasi</span>
+              </Link>
+            </div>
+          )}
 
           {/* Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#E7EBF0]">
