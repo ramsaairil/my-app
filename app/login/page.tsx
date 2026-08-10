@@ -20,7 +20,7 @@ export default function LoginPage() {
     setError("");
 
     if (!email.trim()) {
-      setError("Email wajib diisi.");
+      setError("Email atau Username wajib diisi.");
       return;
     }
     if (!password) {
@@ -69,34 +69,34 @@ export default function LoginPage() {
           <div className="space-y-1">
             <h1 className="text-xl font-bold text-[#172033]">Masuk</h1>
             <p className="text-xs text-[#667085]">
-              Masukkan email dan password akun Anda.
+              Masukkan email atau username dan password akun Anda.
             </p>
           </div>
 
           {/* Inline Error Alert */}
           {error && (
-            <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-700 text-xs font-medium flex items-start gap-2">
-              <AlertCircle size={15} className="shrink-0 mt-0.5" />
+            <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-lg text-rose-700 text-xs font-medium flex items-start gap-2 leading-relaxed">
+              <AlertCircle size={16} className="shrink-0 mt-0.5" />
               <span>{error}</span>
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             
-            {/* Field: Email */}
+            {/* Field: Email / Username */}
             <div>
               <label className="block text-xs font-semibold text-[#172033] mb-1.5">
-                Email
+                Email / Username
               </label>
               <div className="relative">
                 <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-[#667085] pointer-events-none">
                   <Mail size={15} />
                 </span>
                 <input
-                  type="email"
+                  type="text"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@company.com"
+                  placeholder="name@company.com atau admin"
                   className="w-full pl-9 pr-3 py-2 text-xs bg-[#F8FAFC] border border-[#E7EBF0] rounded-lg focus:outline-none focus:border-[#087F5B] focus:bg-white text-[#172033] font-medium"
                   autoFocus
                   required

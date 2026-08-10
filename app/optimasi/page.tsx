@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from "react";
+import * as THREE from "three";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import {
   Truck,
   Package,
@@ -19,7 +21,9 @@ import {
   Compass,
   BarChart3,
   Plus,
-  Minus
+  Minus,
+  Check,
+  MousePointer
 } from "lucide-react";
 import {
   Vehicle,
@@ -38,174 +42,346 @@ import {
 } from "../../lib/binPacking";
 import { fetchTrucksFromDb, fetchCargosFromDb } from "../../lib/db";
 
-// --- 3D RENDERING COMPONENT (CANVAS) ---
-interface Canvas3DProps {
+// Standard professional color palette per cargo category
+const COLOR_MAP: Record<string, string> = {
+  "Box Small": "#3B82F6",   // Royal Blue
+  "Box Medium": "#10B981",  // Emerald Green
+  "Box Large": "#F59E0B",   // Warm Amber
+  "Box Long": "#EC4899",    // Rose Pink
+  "Default": "#8B5CF6"      // Purple
+};
+
+// --- THREE.JS HIGH-VISIBILITY 3D CANVAS COMPONENT ---
+interface ThreeCanvasProps {
   vehicle?: Vehicle;
   packedBoxes: PlacedBox3D[];
   animCurrentStep: number;
-  rotation: { x: number; y: number };
-  zoomScale: number;
-  onMouseDown: (e: React.MouseEvent) => void;
-  onMouseMove: (e: React.MouseEvent) => void;
-  onMouseUp: () => void;
+  selectedBoxId: string | null;
+  onSelectBox: (box: PlacedBox3D | null) => void;
 }
 
-const TruckVehicleCanvas3D: React.FC<Canvas3DProps> = ({
+const ThreeDCanvasViewport: React.FC<ThreeCanvasProps> = ({
   vehicle,
   packedBoxes,
   animCurrentStep,
-  rotation,
-  zoomScale,
-  onMouseDown,
-  onMouseMove,
-  onMouseUp
+  selectedBoxId,
+  onSelectBox
 }) => {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const mountRef = useRef<HTMLDivElement | null>(null);
+  const sceneRef = useRef<THREE.Scene | null>(null);
+  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+  const controlsRef = useRef<OrbitControls | null>(null);
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const boxesGroupRef = useRef<THREE.Group | null>(null);
+  const containerGroupRef = useRef<THREE.Group | null>(null);
 
+  // Hover & Tooltip State
+  const [hoveredBox, setHoveredBox] = useState<PlacedBox3D | null>(null);
+  const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+
+  // Initialize Three.js WebGL Engine
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    const containerEl = mountRef.current;
+    if (!containerEl) return;
 
-    const width = canvas.width = canvas.parentElement?.clientWidth || 700;
-    const height = canvas.height = 460;
+    const width = containerEl.clientWidth || 800;
+    const height = 480;
 
-    ctx.clearRect(0, 0, width, height);
+    // 1. Scene Setup
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0b1120); // Dark Navy Clean Background
+    sceneRef.current = scene;
 
-    const vW = vehicle?.widthCm || 200;
-    const vH = vehicle?.heightCm || 200;
-    const vL = vehicle?.lengthCm || 450;
+    // 2. Camera Setup (3-Quarter Isometric Default Angle)
+    const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+    cameraRef.current = camera;
 
+    // 3. WebGL Renderer with High-Quality Depth Buffer & Shadows
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(width, height);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    rendererRef.current = renderer;
+
+    containerEl.appendChild(renderer.domElement);
+
+    // 4. OrbitControls
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.maxPolarAngle = Math.PI / 2 + 0.05; // Prevent camera flipping below floor
+    controlsRef.current = controls;
+
+    // 5. Studio Multi-Angle Lighting (Ensures Front, Side, and Top Faces are crystal clear)
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.95);
+    scene.add(ambientLight);
+
+    // Main Key Light (Front-Right-Top)
+    const keyLight = new THREE.DirectionalLight(0xffffff, 1.1);
+    keyLight.position.set(12, 20, 15);
+    keyLight.castShadow = true;
+    keyLight.shadow.mapSize.width = 1024;
+    keyLight.shadow.mapSize.height = 1024;
+    scene.add(keyLight);
+
+    // Fill Light (Back-Left)
+    const fillLight = new THREE.DirectionalLight(0x94a3b8, 0.4);
+    fillLight.position.set(-12, 10, -10);
+    scene.add(fillLight);
+
+    // Top Overhead Light
+    const topLight = new THREE.DirectionalLight(0xffffff, 0.3);
+    topLight.position.set(0, 15, 0);
+    scene.add(topLight);
+
+    // Groups
+    const containerGroup = new THREE.Group();
+    scene.add(containerGroup);
+    containerGroupRef.current = containerGroup;
+
+    const boxesGroup = new THREE.Group();
+    scene.add(boxesGroup);
+    boxesGroupRef.current = boxesGroup;
+
+    // Render Animation Loop
+    let animationFrameId: number;
+    const animate = () => {
+      animationFrameId = requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    };
+    animate();
+
+    const handleResize = () => {
+      if (!containerEl || !rendererRef.current || !cameraRef.current) return;
+      const newW = containerEl.clientWidth || 800;
+      cameraRef.current.aspect = newW / height;
+      cameraRef.current.updateProjectionMatrix();
+      rendererRef.current.setSize(newW, height);
+    };
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      cancelAnimationFrame(animationFrameId);
+      controls.dispose();
+      renderer.dispose();
+      if (containerEl && renderer.domElement) {
+        containerEl.removeChild(renderer.domElement);
+      }
+    };
+  }, []);
+
+  // Render Vehicle Container (Ultra-Light Translucent Glass & Emerald Wireframe Frame)
+  useEffect(() => {
+    if (!containerGroupRef.current || !cameraRef.current || !controlsRef.current) return;
+
+    const group = containerGroupRef.current;
+    group.clear();
+
+    const vW = (vehicle?.widthCm || 200) / 100;   // X in meters
+    const vH = (vehicle?.heightCm || 200) / 100;  // Y in meters
+    const vL = (vehicle?.lengthCm || 450) / 100;  // Z in meters
+
+    // 1. Vehicle Container Outer Box (Ultra-Light Translucent Glass Wall)
+    const boxGeo = new THREE.BoxGeometry(vW, vH, vL);
+    const boxMat = new THREE.MeshStandardMaterial({
+      color: 0x087f5b,
+      transparent: true,
+      opacity: 0.06,  // Ultra-light tint so cargo inside is 100% visible
+      roughness: 0.1,
+      metalness: 0.05,
+      side: THREE.DoubleSide,
+      depthWrite: false
+    });
+    const containerMesh = new THREE.Mesh(boxGeo, boxMat);
+    containerMesh.position.set(0, vH / 2, 0);
+    group.add(containerMesh);
+
+    // 2. Container Border Outline (Clean Emerald/Teal Line)
+    const edges = new THREE.EdgesGeometry(boxGeo);
+    const lineMat = new THREE.LineBasicMaterial({
+      color: 0x087f5b,
+      transparent: true,
+      opacity: 0.75,
+      linewidth: 2
+    });
+    const lineSegments = new THREE.LineSegments(edges, lineMat);
+    lineSegments.position.set(0, vH / 2, 0);
+    group.add(lineSegments);
+
+    // 3. Vehicle Floor Surface (Restricted strictly to vehicle footprint)
+    const floorGeo = new THREE.PlaneGeometry(vW, vL);
+    const floorMat = new THREE.MeshStandardMaterial({
+      color: 0x1e293b,
+      side: THREE.DoubleSide,
+      roughness: 0.8,
+      transparent: true,
+      opacity: 0.25
+    });
+    const floorMesh = new THREE.Mesh(floorGeo, floorMat);
+    floorMesh.rotation.x = Math.PI / 2;
+    floorMesh.position.set(0, 0.001, 0);
+    group.add(floorMesh);
+
+    // 4. Floor Grid (Restricted to vehicle floor area, no large outside grid!)
+    const gridHelper = new THREE.GridHelper(Math.max(vW, vL), 10, 0x087f5b, 0x334155);
+    gridHelper.position.set(0, 0.002, 0);
+    gridHelper.scale.set(vW / Math.max(vW, vL), 1, vL / Math.max(vW, vL));
+    group.add(gridHelper);
+
+    // 5. Default 3-Quarter Isometric Camera Angle
     const maxDim = Math.max(vW, vH, vL);
-    const scale = (Math.min(width, height) / maxDim) * 0.42 * zoomScale;
+    cameraRef.current.position.set(vW * 1.5, vH * 1.6, vL * 1.5);
+    controlsRef.current.target.set(0, vH * 0.4, 0);
+    controlsRef.current.update();
+  }, [vehicle]);
 
-    const radX = (rotation.x * Math.PI) / 180;
-    const radY = (rotation.y * Math.PI) / 180;
+  // Render SOLID Cargo Boxes with High Depth Visibility
+  useEffect(() => {
+    if (!boxesGroupRef.current || !vehicle) return;
 
-    const cx = width / 2;
-    const cy = height / 2 + 30;
+    const group = boxesGroupRef.current;
+    group.clear();
 
-    const project = (x: number, y: number, z: number) => {
-      const x1 = x * Math.cos(radY) + z * Math.sin(radY);
-      const z1 = -x * Math.sin(radY) + z * Math.cos(radY);
-      const y2 = y * Math.cos(radX) - z1 * Math.sin(radX);
+    const vW = vehicle.widthCm / 100;
+    const vH = vehicle.heightCm / 100;
+    const vL = vehicle.lengthCm / 100;
 
-      return {
-        px: cx + x1 * scale,
-        py: cy - y2 * scale
-      };
-    };
-
-    const drawPoly = (
-      points: { px: number; py: number }[],
-      fill?: string,
-      stroke?: string,
-      lineWidth = 1
-    ) => {
-      if (points.length < 3) return;
-      ctx.beginPath();
-      ctx.moveTo(points[0].px, points[0].py);
-      for (let i = 1; i < points.length; i++) {
-        ctx.lineTo(points[i].px, points[i].py);
-      }
-      ctx.closePath();
-      if (fill) {
-        ctx.fillStyle = fill;
-        ctx.fill();
-      }
-      if (stroke) {
-        ctx.strokeStyle = stroke;
-        ctx.lineWidth = lineWidth;
-        ctx.stroke();
-      }
-    };
-
-    // 1. Render Container Floor & Grid Lines
-    const p1 = project(-vW / 2, -vH / 2, -vL / 2);
-    const p2 = project(vW / 2, -vH / 2, -vL / 2);
-    const p3 = project(vW / 2, -vH / 2, vL / 2);
-    const p4 = project(-vW / 2, -vH / 2, vL / 2);
-
-    drawPoly([p1, p2, p3, p4], "rgba(15, 23, 42, 0.95)", "#087F5B", 2);
-
-    // Floor Grid lines
-    for (let g = 1; g < 6; g++) {
-      const gz = -vL / 2 + (vL / 6) * g;
-      const gpA = project(-vW / 2, -vH / 2, gz);
-      const gpB = project(vW / 2, -vH / 2, gz);
-      ctx.beginPath();
-      ctx.moveTo(gpA.px, gpA.py);
-      ctx.lineTo(gpB.px, gpB.py);
-      ctx.strokeStyle = "rgba(8, 127, 91, 0.25)";
-      ctx.lineWidth = 1;
-      ctx.stroke();
-    }
-
-    // 2. Render Placed 3D Boxes
     const visibleBoxes = packedBoxes.slice(0, animCurrentStep);
 
-    const sortedBoxes = [...visibleBoxes].sort((a, b) => {
-      const az = a.zCm + a.lCm / 2;
-      const bz = b.zCm + b.lCm / 2;
-      return bz - az;
+    visibleBoxes.forEach((b) => {
+      const boxW = b.wCm / 100;
+      const boxH = b.hCm / 100;
+      const boxL = b.lCm / 100;
+
+      // Convert origin coordinate to Three.js centered coordinates
+      const posX = -vW / 2 + (b.xCm / 100) + boxW / 2;
+      const posY = (b.yCm / 100) + boxH / 2;
+      const posZ = -vL / 2 + (b.zCm / 100) + boxL / 2;
+
+      const isSelected = selectedBoxId === b.id;
+      const isHovered = hoveredBox?.id === b.id;
+
+      // Determine SOLID vibrant color
+      const baseColor = b.color || COLOR_MAP[b.cargoCode] || COLOR_MAP["Default"];
+
+      // SOLID Box Geometry & Material (opacity 0.98, transparent false for true depth rendering)
+      const geometry = new THREE.BoxGeometry(boxW, boxH, boxL);
+      const material = new THREE.MeshStandardMaterial({
+        color: new THREE.Color(baseColor),
+        transparent: false,
+        opacity: 1.0,
+        roughness: 0.35,
+        metalness: 0.05,
+        depthTest: true,
+        depthWrite: true,
+        emissive: isSelected
+          ? new THREE.Color(0x38bdf8)
+          : isHovered
+          ? new THREE.Color(0x087f5b)
+          : new THREE.Color(0x000000),
+        emissiveIntensity: isSelected ? 0.45 : isHovered ? 0.25 : 0
+      });
+
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.position.set(posX, posY, posZ);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      mesh.userData = { boxData: b };
+
+      // Subtle Thin Outline (Not wireframe, just thin edge definition)
+      const edges = new THREE.EdgesGeometry(geometry);
+      const edgeMat = new THREE.LineBasicMaterial({
+        color: isSelected ? 0xffffff : 0x0f172a,
+        transparent: true,
+        opacity: isSelected ? 0.9 : 0.35,
+        linewidth: isSelected ? 2 : 1
+      });
+      const edgeLines = new THREE.LineSegments(edges, edgeMat);
+      mesh.add(edgeLines);
+
+      group.add(mesh);
     });
+  }, [vehicle, packedBoxes, animCurrentStep, selectedBoxId, hoveredBox]);
 
-    sortedBoxes.forEach((b) => {
-      const bx1 = -vW / 2 + b.xCm;
-      const by1 = -vH / 2 + b.yCm;
-      const bz1 = -vL / 2 + b.zCm;
-      const bx2 = bx1 + b.wCm;
-      const by2 = by1 + b.hCm;
-      const bz2 = bz1 + b.lCm;
+  // Mouse Hover & Click Raycaster Handler
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!mountRef.current || !cameraRef.current || !boxesGroupRef.current) return;
 
-      const f1 = project(bx1, by1, bz1);
-      const f2 = project(bx2, by1, bz1);
-      const f3 = project(bx2, by2, bz1);
-      const f4 = project(bx1, by2, bz1);
+    const rect = mountRef.current.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
 
-      const b1 = project(bx1, by1, bz2);
-      const b2 = project(bx2, by1, bz2);
-      const b3 = project(bx2, by2, bz2);
-      const b4 = project(bx1, by2, bz2);
+    setTooltipPos({ x: mouseX + 12, y: mouseY + 12 });
 
-      drawPoly([b1, b2, b3, b4], b.color + "DD", "#0f172a", 1);
-      drawPoly([f1, f2, f3, f4], b.color + "EE", "#0f172a", 1);
-      drawPoly([f4, f3, b3, b4], b.color + "FF", "#0f172a", 1);
-      drawPoly([f1, f4, b4, b1], b.color + "CC", "#0f172a", 1);
-      drawPoly([f2, f3, b3, b2], b.color + "BB", "#0f172a", 1);
-    });
+    const mouse = new THREE.Vector2(
+      (mouseX / rect.width) * 2 - 1,
+      -(mouseY / rect.height) * 2 + 1
+    );
 
-    // 3. Container Wireframe Glass Walls
-    const cp1 = project(-vW / 2, -vH / 2, -vL / 2);
-    const cp2 = project(vW / 2, -vH / 2, -vL / 2);
-    const cp3 = project(vW / 2, -vH / 2, vL / 2);
-    const cp4 = project(-vW / 2, -vH / 2, vL / 2);
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(mouse, cameraRef.current);
 
-    const cp5 = project(-vW / 2, vH / 2, -vL / 2);
-    const cp6 = project(vW / 2, vH / 2, -vL / 2);
-    const cp7 = project(vW / 2, vH / 2, vL / 2);
-    const cp8 = project(-vW / 2, vH / 2, vL / 2);
+    const intersects = raycaster.intersectObjects(boxesGroupRef.current.children);
+    if (intersects.length > 0) {
+      const hoveredMesh = intersects[0].object as THREE.Mesh;
+      if (hoveredMesh.userData && hoveredMesh.userData.boxData) {
+        setHoveredBox(hoveredMesh.userData.boxData as PlacedBox3D);
+        return;
+      }
+    }
 
-    drawPoly([cp1, cp2, cp6, cp5], "rgba(8, 127, 91, 0.15)", "#087F5B", 1.5);
-    drawPoly([cp1, cp4, cp8, cp5], "rgba(8, 127, 91, 0.10)", "#087F5B", 1.5);
-    drawPoly([cp2, cp3, cp7, cp6], "rgba(8, 127, 91, 0.10)", "#087F5B", 1.5);
-    drawPoly([cp5, cp6, cp7, cp8], "rgba(8, 127, 91, 0.08)", "#087F5B", 1.5);
+    setHoveredBox(null);
+  };
 
-    // Front Entrance Frame
-    drawPoly([cp4, cp3, cp7, cp8], undefined, "#087F5B", 3);
+  const handleCanvasClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!mountRef.current || !cameraRef.current || !boxesGroupRef.current) return;
 
-  }, [vehicle, packedBoxes, animCurrentStep, rotation, zoomScale]);
+    const rect = mountRef.current.getBoundingClientRect();
+    const mouse = new THREE.Vector2(
+      ((e.clientX - rect.left) / rect.width) * 2 - 1,
+      -((e.clientY - rect.top) / rect.height) * 2 + 1
+    );
+
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(mouse, cameraRef.current);
+
+    const intersects = raycaster.intersectObjects(boxesGroupRef.current.children);
+    if (intersects.length > 0) {
+      const clickedMesh = intersects[0].object as THREE.Mesh;
+      if (clickedMesh.userData && clickedMesh.userData.boxData) {
+        onSelectBox(clickedMesh.userData.boxData as PlacedBox3D);
+        return;
+      }
+    }
+
+    onSelectBox(null);
+  };
 
   return (
-    <canvas
-      ref={canvasRef}
-      onMouseDown={onMouseDown}
-      onMouseMove={onMouseMove}
-      onMouseUp={onMouseUp}
-      onMouseLeave={onMouseUp}
-      className="w-full h-[460px] rounded-xl cursor-grab active:cursor-grabbing select-none"
-    />
+    <div
+      ref={mountRef}
+      onMouseMove={handleMouseMove}
+      onClick={handleCanvasClick}
+      className="w-full h-[480px] rounded-xl overflow-hidden cursor-grab active:cursor-grabbing select-none relative"
+    >
+      {/* Interactive Floating Micro-Tooltip on Mouse Hover */}
+      {hoveredBox && (
+        <div
+          style={{ left: `${tooltipPos.x}px`, top: `${tooltipPos.y}px` }}
+          className="absolute z-30 pointer-events-none bg-slate-900/95 border border-slate-700 backdrop-blur-md px-3 py-2 rounded-lg text-white text-[11px] font-mono shadow-xl space-y-0.5"
+        >
+          <div className="font-bold text-emerald-400 flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: hoveredBox.color }} />
+            <span>{hoveredBox.cargoName}</span>
+          </div>
+          <div className="text-slate-300">Dimensi: {hoveredBox.wCm} × {hoveredBox.hCm} × {hoveredBox.lCm} cm</div>
+          <div className="text-slate-400">Step Load: #{hoveredBox.stepIndex}</div>
+        </div>
+      )}
+    </div>
   );
 };
 
@@ -217,11 +393,8 @@ export default function CustomOptimizationPage() {
   const [activeResult, setActiveResult] = useState<OptimizationResult | null>(null);
   const [allComparisonResults, setAllComparisonResults] = useState<OptimizationResult[]>([]);
 
-  // 3D Viewport Controls
-  const [rotation, setRotation] = useState({ x: -22, y: -45 });
-  const [zoomScale, setZoomScale] = useState<number>(0.85);
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  // Selection Inspection
+  const [selectedBox, setSelectedBox] = useState<PlacedBox3D | null>(null);
 
   // Animation State
   const [animCurrentStep, setAnimCurrentStep] = useState<number>(0);
@@ -275,7 +448,7 @@ export default function CustomOptimizationPage() {
         const mappedCargos: CargoMasterItem[] = dbCargos.map((item, idx) => {
           const dimsStr = (item.dimension || "40x30x30").replace(/\s*cm/gi, "").replace(/[\*×]/g, "x");
           const parts = dimsStr.split("x").map((n) => Number(n.trim()) || 30);
-          const colors = ["#087F5B", "#3B82F6", "#F59E0B", "#EC4899", "#8B5CF6", "#EF4444"];
+          const colors = ["#3B82F6", "#10B981", "#F59E0B", "#EC4899", "#8B5CF6", "#EF4444"];
           return {
             id: item.id,
             name: item.name || item.id,
@@ -388,6 +561,7 @@ export default function CustomOptimizationPage() {
     }
 
     setIsSolving(true);
+    setSelectedBox(null);
 
     setTimeout(() => {
       const activeVehicles = availableVehicles.filter((v) => v.status !== "Nonaktif");
@@ -406,34 +580,13 @@ export default function CustomOptimizationPage() {
     }, 400);
   };
 
-  // Mouse Orbit Drag Controls
-  const handleMouseDown = (e: React.MouseEvent) => {
-    setIsDragging(true);
-    setDragStart({ x: e.clientX, y: e.clientY });
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging) return;
-    const dx = e.clientX - dragStart.x;
-    const dy = e.clientY - dragStart.y;
-    setRotation((prev) => ({
-      x: Math.max(-80, Math.min(80, prev.x + dy * 0.4)),
-      y: prev.y + dx * 0.4
-    }));
-    setDragStart({ x: e.clientX, y: e.clientY });
-  };
-
-  const handleMouseUp = () => {
-    setIsDragging(false);
-  };
-
   useEffect(() => {
     let timer: NodeJS.Timeout;
     if (isPlayingAnim && activeResult) {
       if (animCurrentStep < activeResult.packedBoxes.length) {
         timer = setTimeout(() => {
           setAnimCurrentStep((prev) => prev + 1);
-        }, 120);
+        }, 150);
       } else {
         setIsPlayingAnim(false);
       }
@@ -473,16 +626,6 @@ export default function CustomOptimizationPage() {
             </div>
 
             <div className="flex items-center gap-3">
-              {activeResult && (
-                <button
-                  onClick={() => setIsManifestOpen(true)}
-                  className="px-4 py-2 bg-white border border-[#E7EBF0] hover:bg-[#F8FAFC] text-[#172033] text-[13px] font-semibold rounded-lg transition-all flex items-center gap-1.5 cursor-pointer"
-                >
-                  <Printer size={15} className="text-[#667085]" />
-                  <span>Cetak Manifes</span>
-                </button>
-              )}
-
               <button
                 onClick={handleRunOptimization}
                 disabled={isSolving || !requestedStats.isValid}
@@ -495,7 +638,7 @@ export default function CustomOptimizationPage() {
                 {isSolving ? (
                   <>
                     <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    <span>Processing 3D...</span>
+                    <span>Memproses 3D...</span>
                   </>
                 ) : (
                   <>
@@ -534,33 +677,49 @@ export default function CustomOptimizationPage() {
 
           {/* Result Summary Horizontal Banner (Appears after Optimization) */}
           {activeResult && (
-            <div className="bg-[#E8F7F1] border border-[#087F5B]/30 rounded-xl p-4 sm:px-6 flex flex-wrap items-center justify-between gap-4">
+            <div className={`border rounded-xl p-4 sm:px-6 flex flex-wrap items-center justify-between gap-4 ${
+              activeResult.totalBoxesUnpacked === 0
+                ? "bg-[#E8F7F1] border-[#087F5B]/30"
+                : "bg-amber-50 border-amber-200"
+            }`}>
               <div className="flex items-center gap-6 font-sans">
                 <div>
-                  <span className="text-[11px] text-[#087F5B] font-medium uppercase tracking-wider block">Kendaraan Terpilih</span>
+                  <span className="text-[11px] text-[#667085] font-medium uppercase tracking-wider block">Kendaraan Terpilih</span>
                   <span className="text-base font-bold text-[#172033]">{activeResult.vehicle.name}</span>
                 </div>
                 <div>
-                  <span className="text-[11px] text-[#087F5B] font-medium uppercase tracking-wider block">Volume Terpakai</span>
+                  <span className="text-[11px] text-[#667085] font-medium uppercase tracking-wider block">Volume Terpakai</span>
                   <span className="text-base font-bold text-[#087F5B]">{activeResult.usedVolumeM3} m³</span>
                 </div>
                 <div>
-                  <span className="text-[11px] text-[#087F5B] font-medium uppercase tracking-wider block">Utilisasi</span>
+                  <span className="text-[11px] text-[#667085] font-medium uppercase tracking-wider block">Utilisasi Ruang</span>
                   <span className="text-base font-bold text-[#087F5B]">{activeResult.utilizationPercent.toFixed(1)}%</span>
                 </div>
                 <div>
-                  <span className="text-[11px] text-[#087F5B] font-medium uppercase tracking-wider block">Jumlah Muatan</span>
-                  <span className="text-base font-bold text-[#172033]">{activeResult.totalBoxesPacked} / {activeResult.totalBoxesRequested} item</span>
+                  <span className="text-[11px] text-[#667085] font-medium uppercase tracking-wider block">Status Penempatan</span>
+                  <span className="text-base font-bold text-[#172033]">
+                    {activeResult.totalBoxesPacked} / {activeResult.totalBoxesRequested} box ditempatkan
+                  </span>
                 </div>
               </div>
 
-              <span className="px-3 py-1 bg-[#087F5B] text-white text-xs font-semibold rounded-lg">
-                Optimasi berhasil
-              </span>
+              <div className="flex items-center gap-2">
+                {activeResult.totalBoxesUnpacked === 0 ? (
+                  <span className="px-3.5 py-1 bg-[#087F5B] text-white text-xs font-semibold rounded-lg flex items-center gap-1.5">
+                    <CheckCircle2 size={14} />
+                    <span>✓ {activeResult.totalBoxesPacked}/{activeResult.totalBoxesRequested} muatan ditempatkan</span>
+                  </span>
+                ) : (
+                  <span className="px-3.5 py-1 bg-amber-600 text-white text-xs font-semibold rounded-lg flex items-center gap-1.5">
+                    <AlertTriangle size={14} />
+                    <span>⚠️ {activeResult.totalBoxesPacked}/{activeResult.totalBoxesRequested} muatan ditempatkan</span>
+                  </span>
+                )}
+              </div>
             </div>
           )}
 
-          {/* Main Grid: Left Output & Input (4 cols) | Right 3D Visualizer (8 cols) */}
+          {/* Main Grid: Left Output & Input (4 cols) | Right Three.js 3D Visualizer (8 cols) */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-7">
 
             {/* Left Column: Vehicle Output & Cargo Input List (4 Cols) */}
@@ -663,7 +822,7 @@ export default function CustomOptimizationPage() {
                           <button
                             type="button"
                             onClick={() => handleQuantityChange(cargo.id, qty + 1)}
-                            className="w-7 h-7 rounded bg-white hover:bg-slate-200 text-[#172033] border border-[#E7EBF0] flex items-center justify-center cursor-pointer transition-colors"
+                            className="w-7 h-7 rounded bg-[#087F5B] hover:bg-[#066B4D] text-white border border-[#087F5B] flex items-center justify-center cursor-pointer transition-colors"
                           >
                             <Plus size={12} />
                           </button>
@@ -683,7 +842,7 @@ export default function CustomOptimizationPage() {
 
             </div>
 
-            {/* Right Column: 3D Spatial Visualization Canvas (8 Cols) */}
+            {/* Right Column: High-Visibility Three.js 3D Viewport (8 Cols) */}
             <div className="lg:col-span-8 bg-white border border-[#E7EBF0] rounded-xl p-5 space-y-4">
               
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-3 border-b border-[#E7EBF0]">
@@ -692,50 +851,70 @@ export default function CustomOptimizationPage() {
                     Visualisasi Penempatan Muatan 3D
                   </h2>
                   <p className="text-[12px] text-[#667085]">
-                    Tampilan ruang kontainer 3D kendaraan terpilih.
+                    Tampilan kontainer 3D realistis. Klik box untuk melihat detail penempatan.
                   </p>
                 </div>
 
-                {/* Minimalist 3D Toolbar */}
-                <div className="flex items-center gap-1 bg-[#F8FAFC] border border-[#E7EBF0] p-1 rounded-lg">
-                  <button
-                    onClick={() => setZoomScale((z) => Math.min(1.5, z + 0.1))}
-                    className="p-1.5 text-[#667085] hover:text-[#172033] rounded hover:bg-white cursor-pointer"
-                    title="Zoom In"
-                  >
-                    <ZoomIn size={15} />
-                  </button>
-                  <button
-                    onClick={() => setZoomScale((z) => Math.max(0.4, z - 0.1))}
-                    className="p-1.5 text-[#667085] hover:text-[#172033] rounded hover:bg-white cursor-pointer"
-                    title="Zoom Out"
-                  >
-                    <ZoomOut size={15} />
-                  </button>
-                  <button
-                    onClick={() => setRotation({ x: -22, y: -45 })}
-                    className="p-1.5 text-[#667085] hover:text-[#172033] rounded hover:bg-white cursor-pointer"
-                    title="Reset Angle"
-                  >
-                    <RotateCcw size={15} />
-                  </button>
+                {/* Controls Info */}
+                <div className="flex items-center gap-2 text-xs text-[#667085] bg-[#F8FAFC] border border-[#E7EBF0] px-3 py-1.5 rounded-lg font-medium">
+                  <MousePointer size={14} className="text-[#087F5B]" />
+                  <span>Klik & Rotate 3D Orbit</span>
                 </div>
               </div>
 
-              {/* 3D Viewport Dark Stage */}
-              <div className="w-full relative flex items-center justify-center overflow-hidden bg-[#0F172A] rounded-xl border border-slate-800">
-                <TruckVehicleCanvas3D
+              {/* Three.js 3D Viewport Stage */}
+              <div className="w-full relative flex items-center justify-center overflow-hidden bg-[#0B1120] rounded-xl border border-slate-800 shadow-inner">
+                <ThreeDCanvasViewport
                   vehicle={activeVehicle}
                   packedBoxes={activeResult ? activeResult.packedBoxes : []}
                   animCurrentStep={activeResult ? animCurrentStep : 0}
-                  rotation={rotation}
-                  zoomScale={zoomScale}
-                  onMouseDown={handleMouseDown}
-                  onMouseMove={handleMouseMove}
-                  onMouseUp={handleMouseUp}
+                  selectedBoxId={selectedBox ? selectedBox.id : null}
+                  onSelectBox={(box) => setSelectedBox(box)}
                 />
 
-                {/* Vehicle Overlay Specs Badge */}
+                {/* Viewport Top Status Banner */}
+                {activeResult && (
+                  <div className="absolute top-4 left-4 z-20">
+                    {activeResult.totalBoxesUnpacked === 0 ? (
+                      <div className="bg-slate-900/90 border border-[#087F5B]/60 backdrop-blur-md px-3.5 py-1.5 rounded-lg text-emerald-400 font-mono text-xs font-semibold flex items-center gap-2 shadow-md">
+                        <CheckCircle2 size={14} />
+                        <span>✓ {activeResult.totalBoxesPacked}/{activeResult.totalBoxesRequested} muatan ditempatkan (100% Valid & Stabil)</span>
+                      </div>
+                    ) : (
+                      <div className="bg-slate-900/90 border border-amber-500/60 backdrop-blur-md px-3.5 py-1.5 rounded-lg text-amber-400 font-mono text-xs font-semibold flex items-center gap-2 shadow-md">
+                        <AlertTriangle size={14} />
+                        <span>⚠️ {activeResult.totalBoxesPacked}/{activeResult.totalBoxesRequested} muatan ditempatkan ({activeResult.totalBoxesUnpacked} box tidak muat)</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Dynamic Selected Box Inspector Panel */}
+                {selectedBox && (
+                  <div className="absolute top-4 right-4 z-20 bg-slate-900/95 border border-slate-700 backdrop-blur-md p-3.5 rounded-xl text-slate-200 text-xs space-y-1.5 max-w-[240px] shadow-xl">
+                    <div className="flex justify-between items-center border-b border-slate-800 pb-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: selectedBox.color }} />
+                        <h4 className="font-bold text-white text-xs truncate">{selectedBox.cargoName}</h4>
+                      </div>
+                      <button
+                        onClick={() => setSelectedBox(null)}
+                        className="text-slate-400 hover:text-white p-0.5 cursor-pointer"
+                      >
+                        <X size={13} />
+                      </button>
+                    </div>
+
+                    <div className="space-y-1 font-mono text-[11px] text-slate-300">
+                      <div>Dimensi: <span className="text-white font-bold">{selectedBox.wCm} × {selectedBox.hCm} × {selectedBox.lCm} cm</span></div>
+                      <div>Volume: <span className="text-emerald-400 font-bold">{((selectedBox.wCm * selectedBox.hCm * selectedBox.lCm) / 1000000).toFixed(3)} m³</span></div>
+                      <div>Posisi 3D: <span className="text-slate-200">X:{selectedBox.xCm} Y:{selectedBox.yCm} Z:{selectedBox.zCm} cm</span></div>
+                      <div>Urutan Load: <span className="text-emerald-400 font-bold">Step #{selectedBox.stepIndex}</span></div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Bottom Vehicle Overlay Specs Badge */}
                 <div className="absolute bottom-4 left-4 bg-slate-900/90 border border-slate-800 backdrop-blur-md px-3.5 py-2 rounded-lg text-slate-300 font-mono text-[11px] space-y-0.5">
                   <div className="font-bold text-white flex items-center gap-1.5">
                     <Truck size={13} className="text-[#087F5B]" />
