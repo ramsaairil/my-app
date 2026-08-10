@@ -464,9 +464,23 @@ export default function CustomOptimizationPage() {
       }
       setCargoMaster(loadedCargos);
 
+      // Check if simulation preload selection exists in localStorage
+      let preloadedQty: Record<string, number> | null = null;
+      try {
+        const stored = localStorage.getItem("SIMULATION_PRELOAD_SELECTION");
+        if (stored) {
+          preloadedQty = JSON.parse(stored);
+          localStorage.removeItem("SIMULATION_PRELOAD_SELECTION");
+        }
+      } catch (e) {
+        // Ignore error
+      }
+
       const initialQty: Record<string, number> = {};
       loadedCargos.forEach((c, idx) => {
-        if (idx === 0) initialQty[c.id] = 20;
+        if (preloadedQty && typeof preloadedQty[c.id] === "number") {
+          initialQty[c.id] = preloadedQty[c.id];
+        } else if (idx === 0) initialQty[c.id] = 20;
         else if (idx === 1) initialQty[c.id] = 15;
         else if (idx === 2) initialQty[c.id] = 8;
         else initialQty[c.id] = 0;

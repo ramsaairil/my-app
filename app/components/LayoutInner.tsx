@@ -10,7 +10,7 @@ import Logo from "./Logo";
 import { Menu } from "lucide-react";
 
 const PUBLIC_ROUTES = ["/", "/login", "/register"];
-const PROTECTED_ROUTES = ["/dashboard", "/cargo", "/trucks", "/optimasi", "/settings"];
+const PROTECTED_ROUTES = ["/dashboard", "/cargo", "/trucks", "/optimasi", "/simulasi", "/settings"];
 
 export default function LayoutInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();

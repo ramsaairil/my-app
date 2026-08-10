@@ -8,6 +8,7 @@ import {
   Package,
   Truck,
   Layers,
+  BarChart3,
   Settings,
   ChevronLeft
 } from "lucide-react";
@@ -23,6 +24,7 @@ export default function Sidebar() {
     { id: "cargo", label: "Data Barang", icon: Package, href: "/cargo" },
     { id: "fleet", label: "Data Kendaraan", icon: Truck, href: "/trucks" },
     { id: "optimasi", label: "Optimasi 3D", icon: Layers, href: "/optimasi" },
+    { id: "simulasi", label: "Simulasi Kombinasi", icon: BarChart3, href: "/simulasi" },
   ];
 
   return (
