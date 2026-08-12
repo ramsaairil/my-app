@@ -36,9 +36,9 @@ export default function SimulationPage() {
 
   // Simulation Configuration State
   const [seed, setSeed] = useState<number>(20260811);
-  const [totalTrialsConfig, setTotalTrialsConfig] = useState<number>(100);
+  const [totalTrialsConfig, setTotalTrialsConfig] = useState<number>(25);
   const [isRunning, setIsRunning] = useState<boolean>(false);
-  const [progress, setProgress] = useState<{ completed: number; total: number }>({ completed: 0, total: 100 });
+  const [progress, setProgress] = useState<{ completed: number; total: number }>({ completed: 0, total: 25 });
 
   // Simulation Summary Results State
   const [summary, setSummary] = useState<SimulationRunSummary | null>(null);
@@ -244,21 +244,17 @@ export default function SimulationPage() {
                 />
               </div>
 
-              <div className="flex items-center gap-1 bg-white border border-[#E7EBF0] p-1 rounded-lg text-xs font-semibold">
-                {[50, 100, 200].map((count) => (
-                  <button
-                    key={count}
-                    onClick={() => setTotalTrialsConfig(count)}
-                    disabled={isRunning}
-                    className={`px-2.5 py-1 rounded transition-colors cursor-pointer ${totalTrialsConfig === count
-                      ? "bg-[#087F5B] text-white"
-                      : "text-[#667085] hover:bg-[#F8FAFC]"
-                      }`}
-                  >
-                    {count}
-                  </button>
-                ))}
-              </div>
+              <select
+                value={totalTrialsConfig}
+                onChange={(e) => setTotalTrialsConfig(Math.min(100, Number(e.target.value)))}
+                disabled={isRunning}
+                className="px-3 py-1.5 bg-white border border-[#E7EBF0] text-xs font-semibold rounded-lg text-[#172033] focus:outline-none cursor-pointer disabled:opacity-50 hover:border-[#087F5B]/50 transition-colors"
+              >
+                <option value={25}>25 Percobaan</option>
+                <option value={50}>50 Percobaan</option>
+                <option value={75}>75 Percobaan</option>
+                <option value={100}>100 Percobaan</option>
+              </select>
 
               <button
                 onClick={handleStartSimulation}
@@ -453,7 +449,7 @@ export default function SimulationPage() {
                   </div>
                 </div>
 
-                {/* Chart 2: Skor Ranking 100 Kombinasi */}
+                {/* Chart 2: Skor Ranking Kombinasi */}
                 <div className="bg-white border border-[#E7EBF0] rounded-xl p-5 space-y-4">
                   <div className="flex justify-between items-center pb-2 border-b border-[#E7EBF0]">
                     <h3 className="text-sm font-bold text-[#172033] flex items-center gap-2">

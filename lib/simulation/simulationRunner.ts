@@ -18,7 +18,7 @@ export interface RunSimulationOptions {
  */
 export async function runSimulationBatch(options: RunSimulationOptions): Promise<SimulationRunSummary> {
   const seed = options.seed || Number(new Date().toISOString().slice(0, 10).replace(/-/g, ""));
-  const totalTrials = options.totalTrials || 100;
+  const totalTrials = Math.min(100, Math.max(1, options.totalTrials || 25));
   const runId = `SIM-${seed}-${Date.now().toString().slice(-4)}`;
 
   const combinations = generateCargoCombinations({
