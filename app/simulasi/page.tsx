@@ -36,9 +36,9 @@ export default function SimulationPage() {
 
   // Simulation Configuration State
   const [seed, setSeed] = useState<number>(20260811);
-  const [totalTrialsConfig, setTotalTrialsConfig] = useState<number>(25);
+  const totalTrialsConfig = 100;
   const [isRunning, setIsRunning] = useState<boolean>(false);
-  const [progress, setProgress] = useState<{ completed: number; total: number }>({ completed: 0, total: 25 });
+  const [progress, setProgress] = useState<{ completed: number; total: number }>({ completed: 0, total: 100 });
 
   // Simulation Summary Results State
   const [summary, setSummary] = useState<SimulationRunSummary | null>(null);
@@ -227,7 +227,7 @@ export default function SimulationPage() {
                 Simulasi Kombinasi Muatan
               </h1>
               <p className="text-[14px] text-[#667085] mt-1">
-                Evaluasi {totalTrialsConfig} kombinasi muatan menggunakan algoritma optimasi 3D.
+                Evaluasi 100 kombinasi muatan menggunakan algoritma optimasi 3D.
               </p>
             </div>
 
@@ -243,18 +243,6 @@ export default function SimulationPage() {
                   className="w-24 font-bold text-[#172033] focus:outline-none bg-transparent"
                 />
               </div>
-
-              <select
-                value={totalTrialsConfig}
-                onChange={(e) => setTotalTrialsConfig(Math.min(100, Number(e.target.value)))}
-                disabled={isRunning}
-                className="px-3 py-1.5 bg-white border border-[#E7EBF0] text-xs font-semibold rounded-lg text-[#172033] focus:outline-none cursor-pointer disabled:opacity-50 hover:border-[#087F5B]/50 transition-colors"
-              >
-                <option value={25}>25 Percobaan</option>
-                <option value={50}>50 Percobaan</option>
-                <option value={75}>75 Percobaan</option>
-                <option value={100}>100 Percobaan</option>
-              </select>
 
               <button
                 onClick={handleStartSimulation}
@@ -272,7 +260,7 @@ export default function SimulationPage() {
                 ) : (
                   <>
                     <Zap size={16} />
-                    <span>Jalankan {totalTrialsConfig} Simulasi</span>
+                    <span>Jalankan 100 Simulasi</span>
                   </>
                 )}
               </button>
@@ -308,7 +296,7 @@ export default function SimulationPage() {
             <div className="space-y-1 text-xs leading-relaxed">
               <h3 className="font-bold text-[#172033]">Metode Evaluasi Kombinasi</h3>
               <p className="text-[#667085]">
-                Sistem menghasilkan {totalTrialsConfig} kombinasi muatan yang berbeda berdasarkan seed teruji. Setiap kombinasi diproses secara otomatis menggunakan algoritma optimasi 3D. Hasil kemudian dibandingkan berdasarkan keberhasilan penempatan muatan, tingkat utilisasi ruang kendaraan, jumlah muatan yang tidak terpasang, dan skor evaluasi.
+                Sistem menghasilkan 100 kombinasi muatan yang berbeda berdasarkan seed teruji. Setiap kombinasi diproses secara otomatis menggunakan algoritma optimasi 3D. Hasil kemudian dibandingkan berdasarkan keberhasilan penempatan muatan, tingkat utilisasi ruang kendaraan, jumlah muatan yang tidak terpasang, dan skor evaluasi.
               </p>
             </div>
           </div>
