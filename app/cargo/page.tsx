@@ -282,14 +282,13 @@ export default function CargoMasterDataPage() {
                     <th className="py-3 px-5 font-medium">Nama Barang</th>
                     <th className="py-3 px-5 font-medium">Dimensi</th>
                     <th className="py-3 px-5 font-medium">Volume</th>
-                    <th className="py-3 px-5 font-medium">Status</th>
                     <th className="py-3 px-5 font-medium text-right">Aksi</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#E7EBF0] text-[#172033]">
                   {filteredCargos.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="py-12 text-center text-[#667085]">
+                      <td colSpan={5} className="py-12 text-center text-[#667085]">
                         <Package className="mx-auto mb-2 text-slate-300" size={32} />
                         <p className="font-semibold text-sm text-[#172033]">Tidak ada data barang</p>
                         <p className="text-xs text-[#667085] mt-0.5">Coba cari dengan kata kunci lain atau tambahkan barang baru.</p>
@@ -312,12 +311,6 @@ export default function CargoMasterDataPage() {
                         </td>
                         <td className="py-3.5 px-5 font-mono font-semibold text-[#087F5B]">
                           {cargo.volumeM3.toFixed(3)} m³
-                        </td>
-                        <td className="py-3.5 px-5">
-                          <span className="inline-flex items-center gap-1.5 text-[12px] font-medium text-[#087F5B]">
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#087F5B]" />
-                            <span>Aktif</span>
-                          </span>
                         </td>
                         <td className="py-3.5 px-5 text-right">
                           <div className="flex items-center justify-end gap-2">
