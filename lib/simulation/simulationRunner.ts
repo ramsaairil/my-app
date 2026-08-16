@@ -1,7 +1,5 @@
-import { evaluateAllVehicles } from "../binPacking";
 import { CargoMasterItem, Vehicle } from "../types";
-import { generateCargoCombinations } from "./combinationGenerator";
-import { evaluateSimulationTrial } from "./simulationEvaluator";
+import { runGeneticAlgorithm } from "../geneticAlgorithm/gaEngine";
 import { SimulationRunSummary, SimulationTrialResult } from "./types";
 
 export interface RunSimulationOptions {
@@ -13,51 +11,33 @@ export interface RunSimulationOptions {
 }
 
 /**
- * Runs 100 3D bin packing simulations asynchronously using the existing optimization engine.
- * Runs in calculation mode (headless / zero 3D WebGL renderers) to ensure 0 browser freezing.
+ * Runs 100 3D bin packing simulations asynchronously using the Genetic Algorithm (GA) Optimization Engine.
+ * Evaluates Population (N=20) x Generations (G=5) = 100 total candidate evaluations.
  */
 export async function runSimulationBatch(options: RunSimulationOptions): Promise<SimulationRunSummary> {
   const seed = options.seed || Number(new Date().toISOString().slice(0, 10).replace(/-/g, ""));
-  const totalTrials = Math.min(100, Math.max(1, options.totalTrials || 25));
-  const runId = `SIM-${seed}-${Date.now().toString().slice(-4)}`;
+  const runId = `GA-SIM-${seed}-${Date.now().toString().slice(-4)}`;
 
-  const combinations = generateCargoCombinations({
+  // Run Genetic Algorithm Engine
+  const gaResult = await runGeneticAlgorithm({
     seed,
-    totalTrials,
+    populationSize: 20,
+    generationsCount: 5,
+    crossoverRate: 0.85,
+    mutationRate: 0.15,
+    elitismCount: 2,
+    tournamentSize: 3,
     cargoMasterList: options.cargoMasterList,
-    vehicles: options.vehicles
+    vehicles: options.vehicles,
+    onProgress: options.onProgress
   });
 
-  const rawTrials: SimulationTrialResult[] = [];
-  const activeVehicles = options.vehicles.filter((v) => v.status !== "Nonaktif");
+  const rawTrials: SimulationTrialResult[] = gaResult.allEvaluatedIndividuals.map(
+    (ind) => ind.trialResult
+  );
+  const totalTrials = rawTrials.length;
 
-  for (let i = 0; i < totalTrials; i++) {
-    const trialSelections = combinations[i];
-
-    try {
-      // Call existing 3D Bin Packing optimizer directly as a pure mathematical calculation service
-      const { recommendedResult } = evaluateAllVehicles(
-        activeVehicles,
-        options.cargoMasterList,
-        trialSelections
-      );
-
-      const trialEval = evaluateSimulationTrial(i + 1, trialSelections, recommendedResult);
-      rawTrials.push(trialEval);
-    } catch (err) {
-      // Error isolation: If one trial fails, record as FAILED and continue to remaining trials
-      const failedTrial = evaluateSimulationTrial(i + 1, trialSelections, null);
-      rawTrials.push(failedTrial);
-    }
-
-    if (options.onProgress && (i % 3 === 0 || i === totalTrials - 1)) {
-      options.onProgress(i + 1, totalTrials);
-      // Yield to main UI thread so progress bar renders smoothly
-      await new Promise((resolve) => setTimeout(resolve, 10));
-    }
-  }
-
-  // Ranking Algorithm for 100 trials:
+  // Ranking Algorithm for evaluated GA individuals:
   // 1. Status SUCCESS over PARTIAL over FAILED
   // 2. Score DESC
   // 3. Utilization DESC
@@ -81,7 +61,7 @@ export async function runSimulationBatch(options: RunSimulationOptions): Promise
   const totalVolUtil = rawTrials.reduce((sum, t) => sum + t.utilizationPercent, 0);
   const averageUtilizationPercent = Number((totalVolUtil / (totalTrials || 1)).toFixed(1));
 
-  const bestTrial = rankedTrials[0] || null;
+  const bestTrial = gaResult.bestIndividual ? gaResult.bestIndividual.trialResult : rankedTrials[0] || null;
   const bestUtilizationPercent = bestTrial ? bestTrial.utilizationPercent : 0;
   const bestScore = bestTrial ? bestTrial.score : 0;
 

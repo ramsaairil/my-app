@@ -294,9 +294,9 @@ export default function SimulationPage() {
               <Info size={18} />
             </div>
             <div className="space-y-1 text-xs leading-relaxed">
-              <h3 className="font-bold text-[#172033]">Metode Evaluasi Kombinasi</h3>
+              <h3 className="font-bold text-[#172033]">Metode Optimasi Algoritma Genetika (GA)</h3>
               <p className="text-[#667085]">
-                Sistem menghasilkan 100 kombinasi muatan yang berbeda berdasarkan seed teruji. Setiap kombinasi diproses secara otomatis menggunakan algoritma optimasi 3D. Hasil kemudian dibandingkan berdasarkan keberhasilan penempatan muatan, tingkat utilisasi ruang kendaraan, jumlah muatan yang tidak terpasang, dan skor evaluasi.
+                Algoritma Genetika mengevolusikan populasi (N=20) selama 5 Generasi (total 100 evaluasi individu) berbasis Seeded PRNG teruji. Proses evolusi menggunakan Tournament Selection (k=3), One-Point Crossover (Pc=0.85), Random Quantity Mutation (Pm=0.15), dan Elitism (2 individu terbaik). Setiap kromosom kandidat dievaluasi secara presisi oleh mesin 3D Bin Packing.
               </p>
             </div>
           </div>
