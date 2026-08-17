@@ -138,17 +138,6 @@ export default function LandingPage() {
       <footer className="bg-white border-t border-[#E7EBF0] py-5 px-6 lg:px-8 text-xs text-[#667085]">
         <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <span>&copy; {new Date().getFullYear()} SISTEM MUATAN 3D. Connected to Supabase Auth.</span>
-          <div>
-            {isAuthenticated ? (
-              <Link href="/dashboard" className="text-[#087F5B] font-semibold hover:underline">
-                Dashboard
-              </Link>
-            ) : (
-              <Link href="/login" className="text-[#087F5B] font-semibold hover:underline">
-                Portal Login
-              </Link>
-            )}
-          </div>
         </div>
       </footer>
 

@@ -66,11 +66,10 @@ export default function LayoutInner({ children }: { children: React.ReactNode })
 
       {/* Sidebar container */}
       <div
-        className={`h-full flex-shrink-0 transition-all duration-300 ease-in-out overflow-hidden fixed inset-y-0 left-0 z-50 md:relative md:z-20 bg-white ${
-          isOpen
+        className={`h-full flex-shrink-0 transition-all duration-300 ease-in-out overflow-hidden fixed inset-y-0 left-0 z-50 md:relative md:z-20 bg-white ${isOpen
             ? "w-[230px] opacity-100 pointer-events-auto border-r border-[#E7EBF0]"
             : "w-0 opacity-0 pointer-events-none"
-        }`}
+          }`}
       >
         <Sidebar />
       </div>
