@@ -90,15 +90,13 @@ export default function FleetOperationsPage() {
       setFormLength(preset.lengthCm);
       setFormWidth(preset.widthCm);
       setFormHeight(preset.heightCm);
-      if (!editingId && (!formName || formName.startsWith("Armada"))) {
-        setFormName(`${preset.name} #1`);
-      }
+      setFormName(preset.name);
     }
   };
 
   const handleOpenAddModal = () => {
     setEditingId(null);
-    setFormName("Gran Max Pick Up #1");
+    setFormName("Daihatsu Gran Max Pick Up");
     setFormType("Gran Max Pick Up");
     setFormLength(235);
     setFormWidth(155);
@@ -388,37 +386,26 @@ export default function FleetOperationsPage() {
                   type="text"
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
-                  placeholder="Contoh: Gran Max Pick Up #1"
+                  placeholder="Contoh: Gran Max Pick Up"
+                  className="w-full px-3 py-2 text-xs bg-[#F1F5F9] border border-[#E7EBF0] rounded-lg focus:outline-none font-medium text-[#667085] cursor-not-allowed"
+                  readOnly
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#172033] mb-1">Tipe Kendaraan</label>
+                <input
+                  type="text"
+                  value={formType}
+                  onChange={(e) => setFormType(e.target.value)}
+                  placeholder="Contoh: Box Medium"
                   className="w-full px-3 py-2 text-xs bg-[#F8FAFC] border border-[#E7EBF0] rounded-lg focus:outline-none focus:border-[#087F5B] focus:bg-white font-medium text-[#172033]"
                   required
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-[#172033] mb-1">Tipe Kendaraan</label>
-                  <input
-                    type="text"
-                    value={formType}
-                    onChange={(e) => setFormType(e.target.value)}
-                    placeholder="Contoh: Box Medium"
-                    className="w-full px-3 py-2 text-xs bg-[#F8FAFC] border border-[#E7EBF0] rounded-lg focus:outline-none focus:border-[#087F5B] focus:bg-white font-medium text-[#172033]"
-                    required
-                  />
-                </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-[#172033] mb-1">Status Operasional</label>
-                  <select
-                    value={formStatus}
-                    onChange={(e) => setFormStatus(e.target.value as "Aktif" | "Nonaktif")}
-                    className="w-full px-3 py-2 text-xs bg-[#F8FAFC] border border-[#E7EBF0] rounded-lg focus:outline-none focus:border-[#087F5B] focus:bg-white font-bold text-[#172033] cursor-pointer"
-                  >
-                    <option value="Aktif">Aktif Operasional</option>
-                    <option value="Nonaktif">Nonaktif</option>
-                  </select>
-                </div>
-              </div>
 
               <div className="grid grid-cols-3 gap-3">
                 <div>
