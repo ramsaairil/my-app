@@ -200,34 +200,6 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (error) {
-        // Fallback for admin / demo / test accounts if Email logins are disabled or demo credentials typed
-        if (
-          rawInput === "admin" ||
-          rawInput === "demo" ||
-          rawInput === "operator" ||
-          error.message.toLowerCase().includes("email logins are disabled")
-        ) {
-          const fallbackName = rawInput === "admin" ? "Admin Logistik" : rawInput.split("@")[0];
-          const mockUser = {
-            id: `demo-${Date.now()}`,
-            email: formattedEmail,
-            user_metadata: { full_name: fallbackName },
-            app_metadata: {},
-            aud: "authenticated",
-            created_at: new Date().toISOString()
-          } as unknown as User;
-          const mockSession = {
-            access_token: "mock-token",
-            refresh_token: "mock-refresh",
-            expires_in: 3600,
-            token_type: "bearer",
-            user: mockUser
-          } as unknown as Session;
-
-          syncUserData(mockUser, mockSession);
-          return { success: true };
-        }
-
         return { success: false, error: formatAuthError(error.message) };
       }
 
@@ -241,26 +213,8 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       syncUserData(data.user, data.session);
       return { success: true };
     } else {
-      // Local fallback if Supabase env vars not configured
-      const displayName = rawInput.split("@")[0] || "User Logistik";
-      const mockUser = {
-        id: `local-${Date.now()}`,
-        email: formattedEmail,
-        user_metadata: { full_name: displayName },
-        app_metadata: {},
-        aud: "authenticated",
-        created_at: new Date().toISOString()
-      } as unknown as User;
-      const mockSession = {
-        access_token: "local-token",
-        refresh_token: "local-refresh",
-        expires_in: 3600,
-        token_type: "bearer",
-        user: mockUser
-      } as unknown as Session;
-
-      syncUserData(mockUser, mockSession);
-      return { success: true };
+      // Supabase tidak dikonfigurasi — tolak login
+      return { success: false, error: "Sistem autentikasi belum dikonfigurasi. Hubungi administrator." };
     }
   };
 
@@ -294,29 +248,25 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (error) {
-        // Fallback for testing if Email logins/signups are disabled in Supabase Dashboard
-        if (error.message.toLowerCase().includes("email logins are disabled") || error.message.toLowerCase().includes("disabled")) {
-          const mockUser = {
-            id: `demo-${Date.now()}`,
-            email: cleanEmail,
-            user_metadata: { full_name: cleanName },
-            app_metadata: {},
-            aud: "authenticated",
-            created_at: new Date().toISOString()
-          } as unknown as User;
-          const mockSession = {
-            access_token: "mock-token",
-            refresh_token: "mock-refresh",
-            expires_in: 3600,
-            token_type: "bearer",
-            user: mockUser
-          } as unknown as Session;
-
-          syncUserData(mockUser, mockSession);
-          return { success: true, needsEmailVerification: false };
-        }
-
         return { success: false, error: formatAuthError(error.message) };
+      }
+
+      if (data.user) {
+        // Derive username from email prefix (e.g. "ramsa" from "ramsa@gmail.com")
+        const username = cleanEmail.split("@")[0];
+        // Insert user data into public.users table
+        const { error: insertError } = await supabase.from("users").insert({
+          id: data.user.id,
+          email: cleanEmail,
+          full_name: cleanName,
+          username: username,
+          created_at: new Date().toISOString(),
+        });
+
+        if (insertError) {
+          // Log error but do not block registration — auth.users sudah tersimpan
+          console.error("Gagal insert ke public.users:", insertError.message);
+        }
       }
 
       if (data.session) {
@@ -324,33 +274,15 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
         syncUserData(data.user, data.session);
         return { success: true, needsEmailVerification: false };
       } else if (data.user) {
-        // Email confirmation is required by Supabase settings!
-        // DO NOT log user in or set active session state.
+        // Email confirmation is required by Supabase settings
         syncUserData(null, null);
         return { success: true, needsEmailVerification: true };
       }
 
       return { success: true, needsEmailVerification: false };
     } else {
-      // Local fallback
-      const mockUser = {
-        id: `local-${Date.now()}`,
-        email: cleanEmail,
-        user_metadata: { full_name: cleanName },
-        app_metadata: {},
-        aud: "authenticated",
-        created_at: new Date().toISOString()
-      } as unknown as User;
-      const mockSession = {
-        access_token: "local-token",
-        refresh_token: "local-refresh",
-        expires_in: 3600,
-        token_type: "bearer",
-        user: mockUser
-      } as unknown as Session;
-
-      syncUserData(mockUser, mockSession);
-      return { success: true, needsEmailVerification: false };
+      // Supabase tidak dikonfigurasi — tolak registrasi
+      return { success: false, error: "Sistem autentikasi belum dikonfigurasi. Hubungi administrator." };
     }
   };
 
