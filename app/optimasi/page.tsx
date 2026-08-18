@@ -467,6 +467,7 @@ export default function CustomOptimizationPage() {
       setCargoMaster(loadedCargos);
 
       // Check if full pre-computed simulation optimization result exists in storage
+      // Only load it if explicitly requested via query param ?simId=...
       let simulationPreloadData: {
         simulationNumber: number;
         combination: Record<string, number>;
@@ -474,9 +475,24 @@ export default function CustomOptimizationPage() {
       } | null = null;
 
       try {
-        const storedRes = sessionStorage.getItem("SIMULATION_PRELOAD_RESULT") || localStorage.getItem("SIMULATION_PRELOAD_RESULT");
-        if (storedRes) {
-          simulationPreloadData = JSON.parse(storedRes);
+        const searchParams = new URLSearchParams(window.location.search);
+        const simId = searchParams.get('simId');
+
+        if (simId) {
+          const storedRes = sessionStorage.getItem("SIMULATION_PRELOAD_RESULT") || localStorage.getItem("SIMULATION_PRELOAD_RESULT");
+          if (storedRes) {
+            const parsed = JSON.parse(storedRes);
+            if (parsed && String(parsed.simulationNumber) === simId) {
+              simulationPreloadData = parsed;
+              
+              // Clear storage so it won't be loaded accidentally in the future
+              sessionStorage.removeItem("SIMULATION_PRELOAD_RESULT");
+              localStorage.removeItem("SIMULATION_PRELOAD_RESULT");
+            }
+          }
+          
+          // Remove ?simId from URL so refresh doesn't trigger it again
+          window.history.replaceState({}, document.title, window.location.pathname);
         }
       } catch (e) {
         console.error("Error reading SIMULATION_PRELOAD_RESULT", e);
