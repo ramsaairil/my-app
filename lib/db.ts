@@ -3,6 +3,7 @@ import { CargoMasterItem, Vehicle } from "./types";
 
 export interface CargoDbRecord {
   id: string;
+  user_id?: string;
   name: string;
   shape?: string;
   category?: string;
@@ -18,6 +19,7 @@ export interface CargoDbRecord {
 
 export interface TruckDbRecord {
   id: string;
+  user_id?: string;
   truck_name: string;
   length_cm?: number;
   width_cm?: number;
@@ -26,15 +28,35 @@ export interface TruckDbRecord {
   status: string;
 }
 
-// Fetch all cargo items from Supabase
+// Helper: ambil user_id dari sesi aktif
+async function getCurrentUserId(): Promise<string | null> {
+  if (!isSupabaseConfigured || !supabase) return null;
+  const { data } = await supabase.auth.getSession();
+  return data?.session?.user?.id ?? null;
+}
+
+// ─── CARGO ───────────────────────────────────────────────
+
+// Fetch cargo milik user yang sedang login
 export async function fetchCargosFromDb(): Promise<CargoDbRecord[]> {
   if (!isSupabaseConfigured || !supabase) {
     console.warn("⚠️ [Supabase DB] URL & Anon Key belum diisi di file .env.local! Menggunakan dataset default.");
     return [];
   }
 
+  const userId = await getCurrentUserId();
+  if (!userId) {
+    console.warn("⚠️ [Supabase DB] Tidak ada sesi aktif. Kargo tidak dimuat.");
+    return [];
+  }
+
   try {
-    const { data, error } = await supabase.from("cargos").select("*").order("created_at", { ascending: false });
+    const { data, error } = await supabase
+      .from("cargos")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+
     if (error) {
       if (error.code === "PGRST205" || error.code === "PGRST301") {
         console.warn("⚠️ [Supabase DB] Tabel 'cargos' belum dibuat di Supabase. Jalankan script SQL pada Supabase SQL Editor.");
@@ -52,16 +74,23 @@ export async function fetchCargosFromDb(): Promise<CargoDbRecord[]> {
   }
 }
 
-// Upsert (Insert or Update) a Cargo item into Supabase
+// Upsert (Insert or Update) cargo — selalu sertakan user_id
 export async function upsertCargoToDb(cargo: CargoMasterItem): Promise<boolean> {
   if (!isSupabaseConfigured || !supabase) {
     console.warn("⚠️ [Supabase DB] Data kargo tersimpan di memori lokal karena .env.local belum diisi.");
     return false;
   }
 
+  const userId = await getCurrentUserId();
+  if (!userId) {
+    console.warn("⚠️ [Supabase DB] Tidak ada sesi aktif. Kargo tidak disimpan ke DB.");
+    return false;
+  }
+
   try {
     const record: CargoDbRecord = {
       id: cargo.id,
+      user_id: userId,
       name: cargo.name,
       shape: "Balok",
       category: cargo.code,
@@ -89,7 +118,7 @@ export async function upsertCargoToDb(cargo: CargoMasterItem): Promise<boolean> 
   }
 }
 
-// Delete a cargo item from Supabase
+// Delete cargo — Supabase RLS memastikan hanya pemilik yang bisa hapus
 export async function deleteCargoFromDb(id: string): Promise<boolean> {
   if (!isSupabaseConfigured || !supabase) return false;
 
@@ -108,15 +137,28 @@ export async function deleteCargoFromDb(id: string): Promise<boolean> {
   }
 }
 
-// Fetch vehicles from Supabase
+// ─── VEHICLES ────────────────────────────────────────────
+
+// Fetch vehicles milik user yang sedang login
 export async function fetchTrucksFromDb(): Promise<TruckDbRecord[]> {
   if (!isSupabaseConfigured || !supabase) {
     console.warn("⚠️ [Supabase DB] URL & Anon Key belum diisi di file .env.local! Menggunakan dataset truk default.");
     return [];
   }
 
+  const userId = await getCurrentUserId();
+  if (!userId) {
+    console.warn("⚠️ [Supabase DB] Tidak ada sesi aktif. Kendaraan tidak dimuat.");
+    return [];
+  }
+
   try {
-    const { data, error } = await supabase.from("vehicles").select("*").order("created_at", { ascending: false });
+    const { data, error } = await supabase
+      .from("vehicles")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+
     if (error) {
       if (error.code === "PGRST205" || error.code === "PGRST301") {
         console.warn("⚠️ [Supabase DB] Tabel 'vehicles' belum dibuat di Supabase. Jalankan script SQL pada Supabase SQL Editor.");
@@ -137,16 +179,23 @@ export async function fetchTrucksFromDb(): Promise<TruckDbRecord[]> {
   }
 }
 
-// Upsert (Insert or Update) a Vehicle into Supabase
+// Upsert vehicle — selalu sertakan user_id
 export async function upsertTruckToDb(vehicle: Vehicle): Promise<boolean> {
   if (!isSupabaseConfigured || !supabase) {
     console.warn("⚠️ [Supabase DB] Data armada tersimpan di memori lokal karena .env.local belum diisi.");
     return false;
   }
 
+  const userId = await getCurrentUserId();
+  if (!userId) {
+    console.warn("⚠️ [Supabase DB] Tidak ada sesi aktif. Kendaraan tidak disimpan ke DB.");
+    return false;
+  }
+
   try {
     const record = {
       id: vehicle.id,
+      user_id: userId,
       vehicle_name: vehicle.name,
       length_cm: vehicle.lengthCm,
       width_cm: vehicle.widthCm,
@@ -169,7 +218,7 @@ export async function upsertTruckToDb(vehicle: Vehicle): Promise<boolean> {
   }
 }
 
-// Delete a vehicle from Supabase
+// Delete vehicle — Supabase RLS memastikan hanya pemilik yang bisa hapus
 export async function deleteTruckFromDb(id: string): Promise<boolean> {
   if (!isSupabaseConfigured || !supabase) return false;
 
