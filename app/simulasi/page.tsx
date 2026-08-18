@@ -562,7 +562,7 @@ export default function SimulationPage() {
                     {/* Sort Selector */}
                     <select
                       value={sortBy}
-                      onChange={(e) => setSortBy(e.target.value as any)}
+                      onChange={(e) => setSortBy(e.target.value as "RANK" | "SCORE" | "UTILIZATION" | "ITEMS")}
                       className="px-3 py-1.5 bg-[#F8FAFC] border border-[#E7EBF0] text-xs font-semibold rounded-lg text-[#172033] focus:outline-none"
                     >
                       <option value="RANK">Urutkan: Rank</option>

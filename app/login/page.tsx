@@ -47,10 +47,10 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-[#172033] font-sans antialiased flex flex-col justify-center items-center p-4 sm:p-6">
-      
+
       {/* Container */}
       <div className="w-full max-w-md space-y-6">
-        
+
         {/* Logo & Header */}
         <div className="text-center space-y-2">
           <Link href="/" className="inline-flex items-center gap-2.5">
@@ -65,7 +65,7 @@ export default function LoginPage() {
 
         {/* Card Form */}
         <div className="bg-white border border-[#E7EBF0] rounded-xl p-6 sm:p-8 shadow-xs space-y-5">
-          
+
           <div className="space-y-1">
             <h1 className="text-xl font-bold text-[#172033]">Masuk</h1>
             <p className="text-xs text-[#667085]">
@@ -82,7 +82,7 @@ export default function LoginPage() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            
+
             {/* Field: Email / Username */}
             <div>
               <label className="block text-xs font-semibold text-[#172033] mb-1.5">
@@ -128,11 +128,10 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className={`w-full py-2.5 text-white text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-2 ${
-                isSubmitting
+              className={`w-full py-2.5 text-white text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-2 ${isSubmitting
                   ? "bg-slate-300 text-slate-500 cursor-not-allowed"
                   : "bg-[#087F5B] hover:bg-[#066B4D]"
-              }`}
+                }`}
             >
               {isSubmitting ? (
                 <>

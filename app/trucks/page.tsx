@@ -411,7 +411,7 @@ export default function FleetOperationsPage() {
                   <label className="block text-xs font-bold text-[#172033] mb-1">Status Operasional</label>
                   <select
                     value={formStatus}
-                    onChange={(e) => setFormStatus(e.target.value as any)}
+                    onChange={(e) => setFormStatus(e.target.value as "Aktif" | "Nonaktif")}
                     className="w-full px-3 py-2 text-xs bg-[#F8FAFC] border border-[#E7EBF0] rounded-lg focus:outline-none focus:border-[#087F5B] focus:bg-white font-bold text-[#172033] cursor-pointer"
                   >
                     <option value="Aktif">Aktif Operasional</option>

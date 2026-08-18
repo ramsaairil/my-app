@@ -616,7 +616,9 @@ export default function CustomOptimizationPage() {
           setAnimCurrentStep((prev) => prev + 1);
         }, 150);
       } else {
-        setIsPlayingAnim(false);
+        timer = setTimeout(() => {
+          setIsPlayingAnim(false);
+        }, 0);
       }
     }
     return () => clearTimeout(timer);
@@ -790,7 +792,7 @@ export default function CustomOptimizationPage() {
                     <Truck size={28} className="mx-auto text-[#667085]" />
                     <p className="text-xs font-bold text-[#172033]">Kendaraan Belum Terpilih</p>
                     <p className="text-[12px] text-[#667085] leading-relaxed">
-                      Sistem akan merekomendasikan kendaraan terbaik secara otomatis setelah Anda menekan tombol <span className="font-semibold text-[#087F5B]">"Optimalkan Muatan"</span>.
+                      Sistem akan merekomendasikan kendaraan terbaik secara otomatis setelah Anda menekan tombol <span className="font-semibold text-[#087F5B]">&quot;Optimalkan Muatan&quot;</span>.
                     </p>
                   </div>
                 ) : (

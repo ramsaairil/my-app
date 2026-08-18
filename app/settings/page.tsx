@@ -19,7 +19,10 @@ export default function SettingsPage() {
   // Dynamic user data sync from Supabase user_metadata
   useEffect(() => {
     const activeName = user?.user_metadata?.full_name || name || "";
-    setFormName(activeName);
+    const timer = setTimeout(() => {
+      setFormName(activeName);
+    }, 0);
+    return () => clearTimeout(timer);
   }, [user, name]);
 
   const showToast = (message: string, type: "success" | "error" = "success") => {
