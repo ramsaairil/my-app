@@ -254,12 +254,14 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       if (data.user) {
         // Derive username from email prefix (e.g. "ramsa" from "ramsa@gmail.com")
         const username = cleanEmail.split("@")[0];
-        // Insert user data into public.users table
+        // Insert user data into public.users table.
+        // NOTE: password kolom diisi placeholder — password asli dikelola aman oleh Supabase Auth (auth.users).
         const { error: insertError } = await supabase.from("users").insert({
           id: data.user.id,
           email: cleanEmail,
           full_name: cleanName,
           username: username,
+          password: "managed_by_supabase_auth",
           created_at: new Date().toISOString(),
         });
 
