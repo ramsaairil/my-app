@@ -98,7 +98,7 @@ export default function CargoMasterDataPage() {
 
   const handleOpenAddModal = () => {
     setEditingId(null);
-    setFormName("Kardus Standar Baru");
+    setFormName("Box");
     setFormCode(`BOX-${String(cargos.length + 1).padStart(3, "0")}`);
     setFormLength(45);
     setFormWidth(35);
@@ -384,7 +384,7 @@ export default function CargoMasterDataPage() {
                   type="text"
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
-                  placeholder="Contoh: Kardus Elektronik A"
+                  placeholder="Contoh: Box"
                   className="w-full px-3 py-2 text-xs bg-[#F8FAFC] border border-[#E7EBF0] rounded-lg focus:outline-none focus:border-[#087F5B] focus:bg-white font-medium"
                   required
                 />

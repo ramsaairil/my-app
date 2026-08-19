@@ -493,11 +493,8 @@ export default function CustomOptimizationPage() {
         }
       } else {
         const initialQty: Record<string, number> = {};
-        loadedCargos.forEach((c, idx) => {
-          if (idx === 0) initialQty[c.id] = 20;
-          else if (idx === 1) initialQty[c.id] = 15;
-          else if (idx === 2) initialQty[c.id] = 8;
-          else initialQty[c.id] = 0;
+        loadedCargos.forEach((c) => {
+          initialQty[c.id] = 0;
         });
         setItemQuantities(initialQty);
       }
@@ -767,6 +764,27 @@ export default function CustomOptimizationPage() {
                     <span>⚠️ {activeResult.totalBoxesPacked}/{activeResult.totalBoxesRequested} muatan ditempatkan</span>
                   </span>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* Unpacked Items Warning Summary */}
+          {activeResult && activeResult.unpackedSummary && activeResult.unpackedSummary.length > 0 && (
+            <div className="bg-rose-50 border border-rose-200 rounded-xl p-4 flex items-start gap-3">
+              <AlertTriangle className="text-rose-600 mt-0.5 shrink-0" size={18} />
+              <div>
+                <h4 className="text-sm font-bold text-rose-700">Rincian Muatan Gagal Masuk ({activeResult.totalBoxesUnpacked} box):</h4>
+                <ul className="mt-1.5 space-y-1">
+                  {activeResult.unpackedSummary.map((u, idx) => (
+                    <li key={idx} className="text-[13px] font-semibold text-rose-700 flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                      {u.count} unit {u.cargoName} ({u.cargoCode})
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-xs text-rose-600/90 mt-2.5 leading-relaxed">
+                  *Muatan di atas tidak dapat dimasukkan karena dimensi fisik barang yang tidak muat, sisa ruang yang tidak mencukupi, atau tidak adanya area pijakan datar yang stabil di atas barang lain untuk menopang barang tersebut.
+                </p>
               </div>
             </div>
           )}

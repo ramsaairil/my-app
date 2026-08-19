@@ -2,7 +2,7 @@ import { Vehicle, VehiclePreset, CargoMasterItem } from "./types";
 
 export const VEHICLE_PRESETS: VehiclePreset[] = [
   {
-    type: "Box Kecil",
+    type: "Carry Box",
     name: "Suzuki Carry Box",
     lengthCm: 220,
     widthCm: 145,
@@ -10,7 +10,7 @@ export const VEHICLE_PRESETS: VehiclePreset[] = [
     description: "Kapasitas muatan ringan tertutup (4,14 m³)"
   },
   {
-    type: "Box Kecil",
+    type: "Gran Max Box",
     name: "Daihatsu Gran Max Box",
     lengthCm: 235,
     widthCm: 155,
@@ -18,7 +18,7 @@ export const VEHICLE_PRESETS: VehiclePreset[] = [
     description: "Mobil box ringan favorit angkutan dalam kota (4,74 m³)"
   },
   {
-    type: "Box Sedang",
+    type: "L300 Box",
     name: "Mitsubishi L300 Box",
     lengthCm: 242,
     widthCm: 160,

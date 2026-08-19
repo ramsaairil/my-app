@@ -216,7 +216,7 @@ export default function SimulationPage() {
                 Simulasi Kombinasi Muatan
               </h1>
               <p className="text-[14px] text-[#667085] mt-1">
-                Evaluasi 100 kombinasi muatan menggunakan algoritma optimasi 3D.
+                Evaluasi kombinasi muatan menggunakan algoritma optimasi 3D.
               </p>
             </div>
 
@@ -249,7 +249,7 @@ export default function SimulationPage() {
                 ) : (
                   <>
                     <Zap size={16} />
-                    <span>Jalankan 100 Simulasi</span>
+                    <span>Jalankan Simulasi</span>
                   </>
                 )}
               </button>
@@ -285,7 +285,7 @@ export default function SimulationPage() {
             <div className="space-y-1 text-xs leading-relaxed">
               <h3 className="font-bold text-[#172033]">Metode Optimasi Algoritma Genetika (GA)</h3>
               <p className="text-[#667085]">
-                Algoritma Genetika mengevolusikan populasi (N=20) selama 5 Generasi (total 100 evaluasi individu) berbasis Seeded PRNG teruji. Proses evolusi menggunakan Tournament Selection (k=3), One-Point Crossover (Pc=0.85), Random Quantity Mutation (Pm=0.15), dan Elitism (2 individu terbaik). Setiap kromosom kandidat dievaluasi secara presisi oleh mesin 3D Bin Packing.
+                Algoritma Genetika mengevolusikan populasi (N=20) selama 5 Generasi berbasis Seeded PRNG teruji. Proses evolusi menggunakan Tournament Selection (k=3), One-Point Crossover (Pc=0.85), Random Quantity Mutation (Pm=0.15), dan Elitism (2 individu terbaik). Setiap kromosom kandidat dievaluasi secara presisi oleh mesin 3D Bin Packing.
               </p>
             </div>
           </div>
@@ -508,14 +508,14 @@ export default function SimulationPage() {
                 </div>
               </div>
 
-              {/* Filterable & Searchable 100 Results Table */}
+              {/* Filterable & Searchable Results Table */}
               <div className="bg-white border border-[#E7EBF0] rounded-xl p-5 space-y-4">
 
                 {/* Table Header Controls */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-[#E7EBF0]">
                   <div className="flex items-center gap-2">
                     <h3 className="text-sm font-bold text-[#172033]">
-                      Tabel Hasil {summary.totalTrials} Percobaan
+                      Tabel Hasil {summary.trials.length} Percobaan
                     </h3>
                     <span className="text-xs font-mono text-[#667085]">
                       ({filteredAndSortedTrials.length} data)
