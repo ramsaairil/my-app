@@ -37,7 +37,7 @@ export default function FleetOperationsPage() {
 
   // Form Fields
   const [formName, setFormName] = useState("");
-  const [formType, setFormType] = useState<VehicleType | string>("Gran Max Pick Up");
+  const [formType, setFormType] = useState<VehicleType | string>("Box Kecil");
   const [formLength, setFormLength] = useState<number>(235);
   const [formWidth, setFormWidth] = useState<number>(155);
   const [formHeight, setFormHeight] = useState<number>(130);
@@ -96,8 +96,8 @@ export default function FleetOperationsPage() {
 
   const handleOpenAddModal = () => {
     setEditingId(null);
-    setFormName("Daihatsu Gran Max Pick Up");
-    setFormType("Gran Max Pick Up");
+    setFormName("Daihatsu Gran Max Box");
+    setFormType("Box Kecil");
     setFormLength(235);
     setFormWidth(155);
     setFormHeight(130);
@@ -386,7 +386,7 @@ export default function FleetOperationsPage() {
                   type="text"
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
-                  placeholder="Contoh: Gran Max Pick Up"
+                  placeholder="Contoh: Daihatsu Gran Max Box"
                   className="w-full px-3 py-2 text-xs bg-[#F1F5F9] border border-[#E7EBF0] rounded-lg focus:outline-none font-medium text-[#667085] cursor-not-allowed"
                   readOnly
                   required

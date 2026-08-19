@@ -2,28 +2,28 @@ import { Vehicle, VehiclePreset, CargoMasterItem } from "./types";
 
 export const VEHICLE_PRESETS: VehiclePreset[] = [
   {
-    type: "Pick Up",
-    name: "Pick Up Standar",
-    lengthCm: 200,
-    widthCm: 140,
-    heightCm: 120,
-    description: "Kapasitas muatan ringan lokal (3,36 m³)"
+    type: "Box Kecil",
+    name: "Suzuki Carry Box",
+    lengthCm: 220,
+    widthCm: 145,
+    heightCm: 130,
+    description: "Kapasitas muatan ringan tertutup (4,14 m³)"
   },
   {
-    type: "Gran Max Pick Up",
-    name: "Daihatsu Gran Max Pick Up",
+    type: "Box Kecil",
+    name: "Daihatsu Gran Max Box",
     lengthCm: 235,
     widthCm: 155,
     heightCm: 130,
-    description: "Pick Up bak luas favorit angkutan kota (4,74 m³)"
+    description: "Mobil box ringan favorit angkutan dalam kota (4,74 m³)"
   },
   {
-    type: "L300 Pick Up",
-    name: "Mitsubishi L300 Pick Up",
+    type: "Box Sedang",
+    name: "Mitsubishi L300 Box",
     lengthCm: 242,
     widthCm: 160,
     heightCm: 135,
-    description: "Pick Up legenda angkutan barang medium (5,23 m³)"
+    description: "Mobil box tangguh angkutan medium (5,23 m³)"
   },
   {
     type: "Box Kecil",

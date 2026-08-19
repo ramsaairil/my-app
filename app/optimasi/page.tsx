@@ -33,7 +33,7 @@ import {
   OptimizationResult,
   PlacedBox3D
 } from "../../lib/types";
-import { getStoredVehicles, getStoredCargos, VEHICLE_PRESETS, calculateVolumeM3 } from "../../lib/storage";
+import { getStoredVehicles, getStoredCargos, calculateVolumeM3 } from "../../lib/storage";
 import {
   evaluateAllVehicles,
   packVehicle,
@@ -404,22 +404,7 @@ export default function CustomOptimizationPage() {
   const [loadedSimNumber, setLoadedSimNumber] = useState<number | null>(null);
 
   const availableVehicles = useMemo(() => {
-    const presets: Vehicle[] = VEHICLE_PRESETS.map((p, idx) => ({
-      id: `PRESET-${idx + 1}`,
-      name: p.name,
-      type: p.type,
-      lengthCm: p.lengthCm,
-      widthCm: p.widthCm,
-      heightCm: p.heightCm,
-      volumeM3: calculateVolumeM3(p.lengthCm, p.widthCm, p.heightCm),
-      status: "Aktif"
-    }));
-
-    if (vehicles.length === 0) return presets;
-    return [
-      ...vehicles.filter((v) => v.status !== "Nonaktif"),
-      ...presets.filter((p) => !vehicles.some((v) => v.type === p.type))
-    ];
+    return vehicles.filter((v) => v.status !== "Nonaktif");
   }, [vehicles]);
 
   useEffect(() => {

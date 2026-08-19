@@ -23,7 +23,7 @@ import {
   Play
 } from "lucide-react";
 import { Vehicle, CargoMasterItem } from "../../lib/types";
-import { getStoredVehicles, getStoredCargos, VEHICLE_PRESETS, calculateVolumeM3 } from "../../lib/storage";
+import { getStoredVehicles, getStoredCargos, calculateVolumeM3 } from "../../lib/storage";
 import { fetchTrucksFromDb, fetchCargosFromDb } from "../../lib/db";
 import { runSimulationBatch } from "../../lib/simulation/simulationRunner";
 import { SimulationRunSummary, SimulationTrialResult } from "../../lib/simulation/types";
@@ -73,18 +73,7 @@ export default function SimulationPage() {
         }));
         loadedVehicles = mappedTrucks;
       }
-      if (loadedVehicles.length === 0) {
-        loadedVehicles = VEHICLE_PRESETS.map((p, idx) => ({
-          id: `PRESET-${idx + 1}`,
-          name: p.name,
-          type: p.type,
-          lengthCm: p.lengthCm,
-          widthCm: p.widthCm,
-          heightCm: p.heightCm,
-          volumeM3: calculateVolumeM3(p.lengthCm, p.widthCm, p.heightCm),
-          status: "Aktif"
-        }));
-      }
+
       setVehicles(loadedVehicles);
 
       let loadedCargos = getStoredCargos();
