@@ -27,6 +27,7 @@ import { getStoredVehicles, getStoredCargos, calculateVolumeM3 } from "../../lib
 import { fetchTrucksFromDb, fetchCargosFromDb } from "../../lib/db";
 import { runSimulationBatch } from "../../lib/simulation/simulationRunner";
 import { SimulationRunSummary, SimulationTrialResult } from "../../lib/simulation/types";
+import { saveSimulationForPrediction } from "../../lib/predictionData";
 
 export default function SimulationPage() {
   const router = useRouter();
@@ -50,6 +51,9 @@ export default function SimulationPage() {
 
   // Selected Trial Detail Modal
   const [selectedTrialModal, setSelectedTrialModal] = useState<SimulationTrialResult | null>(null);
+
+  // Prediction Data Save Status
+  const [predictionSaveStatus, setPredictionSaveStatus] = useState<{ success: boolean; message: string } | null>(null);
 
   // Load master data on mount
   useEffect(() => {
@@ -123,6 +127,12 @@ export default function SimulationPage() {
       });
 
       setSummary(summaryResult);
+
+      // Simpan data simulasi sebagai acuan prediksi sistem (async, non-blocking)
+      setPredictionSaveStatus(null);
+      saveSimulationForPrediction(summaryResult)
+        .then((result) => setPredictionSaveStatus(result))
+        .catch(() => setPredictionSaveStatus({ success: false, message: "Gagal menyimpan data prediksi." }));
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       alert(`Terjadi kesalahan pada simulasi: ${msg}`);
@@ -292,6 +302,18 @@ export default function SimulationPage() {
 
           {summary && (
             <>
+              {/* Status Penyimpanan Data Prediksi */}
+              {predictionSaveStatus && (
+                <div className={`border rounded-xl p-3 flex items-center justify-center gap-2 text-xs font-semibold shadow-sm ${
+                  predictionSaveStatus.success
+                    ? "bg-[#E8F7F1] border-[#087F5B]/30 text-[#087F5B]"
+                    : "bg-rose-50 border-rose-200 text-rose-700"
+                }`}>
+                  {predictionSaveStatus.success ? <CheckCircle2 size={16} /> : <AlertTriangle size={16} />}
+                  <span>{predictionSaveStatus.message}</span>
+                </div>
+              )}
+
               {/* 4 Summary Metric Cards */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <div className="bg-white border border-[#E7EBF0] rounded-xl p-5 space-y-1">

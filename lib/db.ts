@@ -38,7 +38,7 @@ async function getCurrentUserId(): Promise<string | null> {
 // ─── CARGO ───────────────────────────────────────────────
 
 // Fetch cargo milik user yang sedang login
-export async function fetchCargosFromDb(): Promise<CargoDbRecord[]> {
+export async function fetchCargosFromDb(retryCount = 0): Promise<CargoDbRecord[]> {
   if (!isSupabaseConfigured || !supabase) {
     console.warn("⚠️ [Supabase DB] URL & Anon Key belum diisi di file .env.local! Menggunakan dataset default.");
     return [];
@@ -58,6 +58,12 @@ export async function fetchCargosFromDb(): Promise<CargoDbRecord[]> {
       .order("created_at", { ascending: false });
 
     if (error) {
+      if (error.message.includes("JWT issued at future") && retryCount < 1) {
+        console.warn("⚠️ [Supabase DB] JWT issued at future detected, retrying in 1.5s...");
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        return fetchCargosFromDb(retryCount + 1);
+      }
+
       if (error.code === "PGRST205" || error.code === "PGRST301") {
         console.warn("⚠️ [Supabase DB] Tabel 'cargos' belum dibuat di Supabase. Jalankan script SQL pada Supabase SQL Editor.");
       } else {
@@ -140,7 +146,7 @@ export async function deleteCargoFromDb(id: string): Promise<boolean> {
 // ─── VEHICLES ────────────────────────────────────────────
 
 // Fetch vehicles milik user yang sedang login
-export async function fetchTrucksFromDb(): Promise<TruckDbRecord[]> {
+export async function fetchTrucksFromDb(retryCount = 0): Promise<TruckDbRecord[]> {
   if (!isSupabaseConfigured || !supabase) {
     console.warn("⚠️ [Supabase DB] URL & Anon Key belum diisi di file .env.local! Menggunakan dataset truk default.");
     return [];
@@ -160,6 +166,12 @@ export async function fetchTrucksFromDb(): Promise<TruckDbRecord[]> {
       .order("created_at", { ascending: false });
 
     if (error) {
+      if (error.message.includes("JWT issued at future") && retryCount < 1) {
+        console.warn("⚠️ [Supabase DB] JWT issued at future detected, retrying in 1.5s...");
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        return fetchTrucksFromDb(retryCount + 1);
+      }
+
       if (error.code === "PGRST205" || error.code === "PGRST301") {
         console.warn("⚠️ [Supabase DB] Tabel 'vehicles' belum dibuat di Supabase. Jalankan script SQL pada Supabase SQL Editor.");
       } else {

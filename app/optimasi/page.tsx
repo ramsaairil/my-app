@@ -232,7 +232,284 @@ const ThreeDCanvasViewport: React.FC<ThreeCanvasProps> = ({
     gridHelper.scale.set(vW / Math.max(vW, vL), 1, vL / Math.max(vW, vL));
     group.add(gridHelper);
 
-    // 5. Default 3-Quarter Isometric Camera Angle
+    // 5. Visual Door (Pintu Muat) — Panel transparan di sisi depan kontainer (Z+)
+    // Door Frame — garis tebal berwarna emerald membentuk bingkai pintu
+    const doorFramePoints = [
+      new THREE.Vector3(-vW / 2, 0, vL / 2),         // Bottom-left
+      new THREE.Vector3(-vW / 2, vH, vL / 2),         // Top-left
+      new THREE.Vector3(vW / 2, vH, vL / 2),          // Top-right
+      new THREE.Vector3(vW / 2, 0, vL / 2),           // Bottom-right
+      new THREE.Vector3(-vW / 2, 0, vL / 2),          // Close loop
+    ];
+    const doorFrameGeo = new THREE.BufferGeometry().setFromPoints(doorFramePoints);
+    const doorFrameMat = new THREE.LineBasicMaterial({ color: 0x34d399, linewidth: 3, transparent: true, opacity: 0.95 });
+    const doorFrame = new THREE.LineLoop(doorFrameGeo, doorFrameMat);
+    group.add(doorFrame);
+
+    // Door Center Line (garis pemisah 2 daun pintu)
+    const doorCenterGeo = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(0, 0, vL / 2),
+      new THREE.Vector3(0, vH, vL / 2),
+    ]);
+    const doorCenterMat = new THREE.LineBasicMaterial({ color: 0x34d399, linewidth: 2, transparent: true, opacity: 0.6 });
+    const doorCenterLine = new THREE.LineSegments(doorCenterGeo, doorCenterMat);
+    group.add(doorCenterLine);
+
+    // Door Surface — panel semi-transparan berwarna emerald pada sisi pintu
+    const doorPanelGeo = new THREE.PlaneGeometry(vW, vH);
+    const doorPanelMat = new THREE.MeshBasicMaterial({
+      color: 0x34d399,
+      transparent: true,
+      opacity: 0.07,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+    });
+    const doorPanel = new THREE.Mesh(doorPanelGeo, doorPanelMat);
+    doorPanel.position.set(0, vH / 2, vL / 2 + 0.003);
+    group.add(doorPanel);
+
+    // Door Handles — dua handle bulat kecil di kiri-kanan pintu
+    const handleGeo = new THREE.SphereGeometry(0.03, 12, 12);
+    const handleMat = new THREE.MeshStandardMaterial({ color: 0x34d399, metalness: 0.8, roughness: 0.2 });
+    const handleLeft = new THREE.Mesh(handleGeo, handleMat);
+    handleLeft.position.set(-0.06, vH * 0.48, vL / 2 + 0.02);
+    group.add(handleLeft);
+    const handleRight = new THREE.Mesh(handleGeo, handleMat);
+    handleRight.position.set(0.06, vH * 0.48, vL / 2 + 0.02);
+    group.add(handleRight);
+
+    // Door Hinge Lines — 3 garis pendek di sisi kiri dan kanan (engsel pintu)
+    [0.15, 0.5, 0.85].forEach((hPct) => {
+      const hingeY = vH * hPct;
+      // Left hinges
+      const lGeo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(-vW / 2 - 0.01, hingeY - 0.03, vL / 2),
+        new THREE.Vector3(-vW / 2 - 0.01, hingeY + 0.03, vL / 2),
+      ]);
+      const lLine = new THREE.LineSegments(lGeo, new THREE.LineBasicMaterial({ color: 0x94a3b8, linewidth: 2 }));
+      group.add(lLine);
+      // Right hinges
+      const rGeo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(vW / 2 + 0.01, hingeY - 0.03, vL / 2),
+        new THREE.Vector3(vW / 2 + 0.01, hingeY + 0.03, vL / 2),
+      ]);
+      const rLine = new THREE.LineSegments(rGeo, new THREE.LineBasicMaterial({ color: 0x94a3b8, linewidth: 2 }));
+      group.add(rLine);
+    });
+
+    // 6. 3D Arrow Indicator — Arah Masuk Barang (positioned OUTSIDE & ABOVE container)
+    const arrowLength = vL * 0.3;
+    const arrowDir = new THREE.Vector3(0, 0, -1); // Points inward (from door toward inside)
+    arrowDir.normalize();
+    const arrowOrigin = new THREE.Vector3(0, vH + 0.15, vL / 2 + arrowLength * 0.2);
+    const arrowColor = 0x34d399; // Emerald-400
+    const arrowHelper = new THREE.ArrowHelper(arrowDir, arrowOrigin, arrowLength, arrowColor, arrowLength * 0.22, arrowLength * 0.12);
+    group.add(arrowHelper);
+
+    // 7. Sprite Label "PINTU MUAT" — positioned well above container, renderOrder high
+    const labelCanvas = document.createElement("canvas");
+    labelCanvas.width = 320;
+    labelCanvas.height = 80;
+    const ctx2d = labelCanvas.getContext("2d");
+    if (ctx2d) {
+      ctx2d.clearRect(0, 0, 320, 80);
+      ctx2d.fillStyle = "rgba(15, 23, 42, 0.92)";
+      ctx2d.roundRect(4, 4, 312, 72, 10);
+      ctx2d.fill();
+      ctx2d.strokeStyle = "#34d399";
+      ctx2d.lineWidth = 2;
+      ctx2d.roundRect(4, 4, 312, 72, 10);
+      ctx2d.stroke();
+      ctx2d.font = "bold 28px Arial, sans-serif";
+      ctx2d.textAlign = "center";
+      ctx2d.textBaseline = "middle";
+      ctx2d.fillStyle = "#34d399";
+      ctx2d.fillText("🚪 PINTU MUAT", 160, 26);
+      ctx2d.font = "18px Arial, sans-serif";
+      ctx2d.fillStyle = "#cbd5e1";
+      ctx2d.fillText("↓  Arah Masuk Barang  ↓", 160, 56);
+    }
+    const labelTexture = new THREE.CanvasTexture(labelCanvas);
+    labelTexture.needsUpdate = true;
+    const labelMaterial = new THREE.SpriteMaterial({
+      map: labelTexture,
+      transparent: true,
+      depthTest: false,
+      depthWrite: false,
+    });
+    const labelSprite = new THREE.Sprite(labelMaterial);
+    const spriteScale = Math.max(vW * 0.7, 1.0);
+    labelSprite.scale.set(spriteScale, spriteScale * 0.25, 1);
+    labelSprite.position.set(0, vH + 0.5, vL / 2 + 0.1);
+    labelSprite.renderOrder = 999; // Selalu render di atas semua objek lain
+    group.add(labelSprite);
+
+    // 8. Sistem Koordinat — Garis Sumbu X/Y/Z dengan Skala Meter
+    // Origin point: pojok kiri-bawah-belakang kontainer
+    const originX = -vW / 2;
+    const originY = 0;
+    const originZ = -vL / 2;
+    const axisOvershoot = 0.15; // Extend sedikit melewati ujung kontainer
+    const tickSize = 0.06; // Panjang garis tick mark
+
+    // Helper: buat sprite label teks untuk tick mark
+    function createTickLabel(text: string, color: string, fontSize: number = 22): THREE.Sprite {
+      const canvas = document.createElement("canvas");
+      canvas.width = 96;
+      canvas.height = 40;
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.clearRect(0, 0, 96, 40);
+        ctx.font = `bold ${fontSize}px Arial, sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillStyle = color;
+        ctx.fillText(text, 48, 20);
+      }
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.needsUpdate = true;
+      const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, depthWrite: false });
+      const sprite = new THREE.Sprite(mat);
+      sprite.renderOrder = 998;
+      sprite.scale.set(0.35, 0.15, 1);
+      return sprite;
+    }
+
+    // Helper: buat sprite label nama sumbu (lebih besar)
+    function createAxisLabel(text: string, color: string): THREE.Sprite {
+      const canvas = document.createElement("canvas");
+      canvas.width = 200;
+      canvas.height = 48;
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.clearRect(0, 0, 200, 48);
+        ctx.font = "bold 22px Arial, sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillStyle = color;
+        ctx.fillText(text, 100, 24);
+      }
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.needsUpdate = true;
+      const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, depthWrite: false });
+      const sprite = new THREE.Sprite(mat);
+      sprite.renderOrder = 998;
+      sprite.scale.set(0.55, 0.15, 1);
+      return sprite;
+    }
+
+    // --- SUMBU X (Merah) → Lebar kendaraan ---
+    const xAxisEnd = originX + vW + axisOvershoot;
+    const xAxisGeo = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(originX, originY, originZ),
+      new THREE.Vector3(xAxisEnd, originY, originZ),
+    ]);
+    const xAxisLine = new THREE.LineSegments(xAxisGeo, new THREE.LineBasicMaterial({ color: 0xef4444, linewidth: 2 }));
+    group.add(xAxisLine);
+
+    // X-axis arrowhead
+    const xArrow = new THREE.ArrowHelper(
+      new THREE.Vector3(1, 0, 0), new THREE.Vector3(xAxisEnd - 0.1, originY, originZ),
+      0.1, 0xef4444, 0.08, 0.04
+    );
+    group.add(xArrow);
+
+    // X tick marks + labels (setiap 1 meter)
+    const xMaxMeters = Math.ceil(vW);
+    for (let m = 0; m <= xMaxMeters; m++) {
+      if (m > vW + 0.01) break; // Jangan melewati batas kontainer
+      const xPos = originX + m;
+      // Tick mark line
+      const tickGeo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(xPos, originY, originZ),
+        new THREE.Vector3(xPos, originY, originZ - tickSize),
+      ]);
+      group.add(new THREE.LineSegments(tickGeo, new THREE.LineBasicMaterial({ color: 0xef4444, transparent: true, opacity: 0.8 })));
+      // Label
+      const label = createTickLabel(`${m} m`, "#ef4444");
+      label.position.set(xPos, originY, originZ - tickSize - 0.12);
+      group.add(label);
+    }
+    // Axis name label
+    const xLabel = createAxisLabel("X — Lebar (m)", "#ef4444");
+    xLabel.position.set(originX + vW / 2, originY, originZ - tickSize - 0.30);
+    group.add(xLabel);
+
+    // --- SUMBU Y (Hijau) → Tinggi kendaraan ---
+    const yAxisEnd = originY + vH + axisOvershoot;
+    const yAxisGeo = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(originX, originY, originZ),
+      new THREE.Vector3(originX, yAxisEnd, originZ),
+    ]);
+    const yAxisLine = new THREE.LineSegments(yAxisGeo, new THREE.LineBasicMaterial({ color: 0x22c55e, linewidth: 2 }));
+    group.add(yAxisLine);
+
+    // Y-axis arrowhead
+    const yArrow = new THREE.ArrowHelper(
+      new THREE.Vector3(0, 1, 0), new THREE.Vector3(originX, yAxisEnd - 0.1, originZ),
+      0.1, 0x22c55e, 0.08, 0.04
+    );
+    group.add(yArrow);
+
+    // Y tick marks + labels (setiap 1 meter)
+    const yMaxMeters = Math.ceil(vH);
+    for (let m = 0; m <= yMaxMeters; m++) {
+      if (m > vH + 0.01) break;
+      const yPos = originY + m;
+      // Tick mark line
+      const tickGeo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(originX, yPos, originZ),
+        new THREE.Vector3(originX - tickSize, yPos, originZ),
+      ]);
+      group.add(new THREE.LineSegments(tickGeo, new THREE.LineBasicMaterial({ color: 0x22c55e, transparent: true, opacity: 0.8 })));
+      // Label
+      const label = createTickLabel(`${m} m`, "#22c55e");
+      label.position.set(originX - tickSize - 0.15, yPos, originZ);
+      group.add(label);
+    }
+    // Axis name label
+    const yLabel = createAxisLabel("Y — Tinggi (m)", "#22c55e");
+    yLabel.position.set(originX - tickSize - 0.35, originY + vH / 2, originZ);
+    group.add(yLabel);
+
+    // --- SUMBU Z (Biru) → Panjang kendaraan ---
+    const zAxisEnd = originZ + vL + axisOvershoot;
+    const zAxisGeo = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(originX, originY, originZ),
+      new THREE.Vector3(originX, originY, zAxisEnd),
+    ]);
+    const zAxisLine = new THREE.LineSegments(zAxisGeo, new THREE.LineBasicMaterial({ color: 0x3b82f6, linewidth: 2 }));
+    group.add(zAxisLine);
+
+    // Z-axis arrowhead
+    const zArrow = new THREE.ArrowHelper(
+      new THREE.Vector3(0, 0, 1), new THREE.Vector3(originX, originY, zAxisEnd - 0.1),
+      0.1, 0x3b82f6, 0.08, 0.04
+    );
+    group.add(zArrow);
+
+    // Z tick marks + labels (setiap 1 meter)
+    const zMaxMeters = Math.ceil(vL);
+    for (let m = 0; m <= zMaxMeters; m++) {
+      if (m > vL + 0.01) break;
+      const zPos = originZ + m;
+      // Tick mark line
+      const tickGeo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(originX, originY, zPos),
+        new THREE.Vector3(originX - tickSize, originY, zPos),
+      ]);
+      group.add(new THREE.LineSegments(tickGeo, new THREE.LineBasicMaterial({ color: 0x3b82f6, transparent: true, opacity: 0.8 })));
+      // Label
+      const label = createTickLabel(`${m} m`, "#3b82f6");
+      label.position.set(originX - tickSize - 0.15, originY, zPos);
+      group.add(label);
+    }
+    // Axis name label
+    const zLabel = createAxisLabel("Z — Panjang (m)", "#3b82f6");
+    zLabel.position.set(originX - tickSize - 0.35, originY, originZ + vL / 2);
+    group.add(zLabel);
+
+    // 9. Default 3-Quarter Isometric Camera Angle
     const maxDim = Math.max(vW, vH, vL);
     cameraRef.current.position.set(vW * 1.5, vH * 1.6, vL * 1.5);
     controlsRef.current.target.set(0, vH * 0.4, 0);
@@ -281,8 +558,8 @@ const ThreeDCanvasViewport: React.FC<ThreeCanvasProps> = ({
         emissive: isSelected
           ? new THREE.Color(0x38bdf8)
           : isHovered
-          ? new THREE.Color(0x087f5b)
-          : new THREE.Color(0x000000),
+            ? new THREE.Color(0x087f5b)
+            : new THREE.Color(0x000000),
         emissiveIntensity: isSelected ? 0.45 : isHovered ? 0.25 : 0
       });
 
@@ -469,13 +746,13 @@ export default function CustomOptimizationPage() {
             const parsed = JSON.parse(storedRes);
             if (parsed && String(parsed.simulationNumber) === simId) {
               simulationPreloadData = parsed;
-              
+
               // Clear storage so it won't be loaded accidentally in the future
               sessionStorage.removeItem("SIMULATION_PRELOAD_RESULT");
               localStorage.removeItem("SIMULATION_PRELOAD_RESULT");
             }
           }
-          
+
           // Remove ?simId from URL so refresh doesn't trigger it again
           window.history.replaceState({}, document.title, window.location.pathname);
         }
@@ -678,11 +955,10 @@ export default function CustomOptimizationPage() {
               <button
                 onClick={handleRunOptimization}
                 disabled={isSolving || !requestedStats.isValid}
-                className={`px-5 py-2 text-white text-[13px] font-semibold rounded-lg transition-all flex items-center gap-2 cursor-pointer shadow-xs ${
-                  isSolving || !requestedStats.isValid
+                className={`px-5 py-2 text-white text-[13px] font-semibold rounded-lg transition-all flex items-center gap-2 cursor-pointer shadow-xs ${isSolving || !requestedStats.isValid
                     ? "bg-slate-300 text-slate-500 cursor-not-allowed"
                     : "bg-[#087F5B] hover:bg-[#066B4D]"
-                }`}
+                  }`}
               >
                 {isSolving ? (
                   <>
@@ -726,11 +1002,10 @@ export default function CustomOptimizationPage() {
 
           {/* Result Summary Horizontal Banner (Appears after Optimization) */}
           {activeResult && (
-            <div className={`border rounded-xl p-4 sm:px-6 flex flex-wrap items-center justify-between gap-4 ${
-              activeResult.totalBoxesUnpacked === 0
+            <div className={`border rounded-xl p-4 sm:px-6 flex flex-wrap items-center justify-between gap-4 ${activeResult.totalBoxesUnpacked === 0
                 ? "bg-[#E8F7F1] border-[#087F5B]/30"
                 : "bg-amber-50 border-amber-200"
-            }`}>
+              }`}>
               <div className="flex items-center gap-6 font-sans">
                 <div>
                   <span className="text-[11px] text-[#667085] font-medium uppercase tracking-wider block">Kendaraan Terpilih</span>
@@ -914,7 +1189,7 @@ export default function CustomOptimizationPage() {
 
             {/* Right Column: High-Visibility Three.js 3D Viewport (8 Cols) */}
             <div className="lg:col-span-8 bg-white border border-[#E7EBF0] rounded-xl p-5 space-y-4">
-              
+
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-3 border-b border-[#E7EBF0]">
                 <div>
                   <h2 className="text-sm font-bold text-[#172033]">
@@ -1009,6 +1284,83 @@ export default function CustomOptimizationPage() {
                     </span>
                   </div>
                 )}
+              </div>
+
+              {/* Legend / Keterangan Visualisasi 3D */}
+              <div className="bg-[#F8FAFC] border border-[#E7EBF0] rounded-xl p-4 space-y-3">
+                <h3 className="text-xs font-bold text-[#172033] uppercase tracking-wider flex items-center gap-2">
+                  <Compass size={14} className="text-[#087F5B]" />
+                  Keterangan Visualisasi 3D
+                </h3>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-[12px]">
+
+                  {/* Kolom 1: Arah Masuk Barang */}
+                  <div className="space-y-2">
+                    <span className="text-[10px] font-bold text-[#667085] uppercase tracking-wider block">Arah Masuk Barang</span>
+                    <div className="flex items-center gap-2 bg-white border border-[#E7EBF0] rounded-lg px-3 py-2">
+                      <span className="text-emerald-500 text-lg font-bold">→</span>
+                      <div>
+                        <span className="font-semibold text-[#172033] block text-[11px]">Panah Hijau di Scene 3D</span>
+                        <span className="text-[#667085] text-[10px]">Menunjukkan arah masuk barang dari pintu muat kendaraan ke dalam kontainer</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Kolom 2: Sumbu Koordinat */}
+                  <div className="space-y-2">
+                    <span className="text-[10px] font-bold text-[#667085] uppercase tracking-wider block">Sumbu Koordinat</span>
+                    <div className="bg-white border border-[#E7EBF0] rounded-lg px-3 py-2 space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="w-4 h-0.5 bg-rose-500 inline-block rounded" />
+                        <span className="text-[#172033] font-semibold text-[11px]">X</span>
+                        <span className="text-[#667085] text-[10px]">= Lebar kendaraan</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="w-4 h-0.5 bg-emerald-500 inline-block rounded" />
+                        <span className="text-[#172033] font-semibold text-[11px]">Y</span>
+                        <span className="text-[#667085] text-[10px]">= Tinggi kendaraan</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="w-4 h-0.5 bg-blue-500 inline-block rounded" />
+                        <span className="text-[#172033] font-semibold text-[11px]">Z</span>
+                        <span className="text-[#667085] text-[10px]">= Panjang kendaraan</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Kolom 3: Keterangan Warna Muatan */}
+                  <div className="space-y-2">
+                    <span className="text-[10px] font-bold text-[#667085] uppercase tracking-wider block">Warna Jenis Muatan</span>
+                    <div className="bg-white border border-[#E7EBF0] rounded-lg px-3 py-2 space-y-1 max-h-[100px] overflow-y-auto custom-scrollbar">
+                      {cargoMaster.filter(c => (itemQuantities[c.id] || 0) > 0).length > 0
+                        ? cargoMaster
+                            .filter(c => (itemQuantities[c.id] || 0) > 0)
+                            .map((c) => (
+                              <div key={c.id} className="flex items-center gap-2">
+                                <span className="w-3 h-3 rounded-sm shrink-0 border border-black/10" style={{ backgroundColor: c.color }} />
+                                <span className="text-[#172033] font-medium text-[11px] truncate">{c.name}</span>
+                                <span className="text-[#667085] text-[10px] ml-auto shrink-0">{itemQuantities[c.id]}x</span>
+                              </div>
+                            ))
+                        : cargoMaster.map((c) => (
+                            <div key={c.id} className="flex items-center gap-2">
+                              <span className="w-3 h-3 rounded-sm shrink-0 border border-black/10" style={{ backgroundColor: c.color }} />
+                              <span className="text-[#172033] font-medium text-[11px] truncate">{c.name}</span>
+                            </div>
+                          ))
+                      }
+                    </div>
+                  </div>
+
+                </div>
+
+                {/* Interaksi */}
+                <div className="flex flex-wrap items-center gap-4 pt-2 border-t border-[#E7EBF0] text-[10px] text-[#667085]">
+                  <span className="flex items-center gap-1"><MousePointer size={11} className="text-[#087F5B]" /> Klik box = Detail penempatan</span>
+                  <span className="flex items-center gap-1"><RotateCcw size={11} className="text-[#087F5B]" /> Drag = Rotasi kamera 3D</span>
+                  <span className="flex items-center gap-1"><ZoomIn size={11} className="text-[#087F5B]" /> Scroll = Zoom in/out</span>
+                </div>
               </div>
 
             </div>
