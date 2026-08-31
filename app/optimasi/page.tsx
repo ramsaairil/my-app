@@ -24,8 +24,20 @@ import {
   Plus,
   Minus,
   Check,
-  MousePointer
+  MousePointer,
+  Save,
+  RefreshCw,
+  History,
+  Trash2
 } from "lucide-react";
+
+export interface SavedOptimization {
+  id: string;
+  timestamp: string;
+  itemQuantities: Record<string, number>;
+  activeResult: OptimizationResult;
+}
+
 import {
   Vehicle,
   CargoMasterItem,
@@ -680,6 +692,20 @@ export default function CustomOptimizationPage() {
   const [isManifestOpen, setIsManifestOpen] = useState(false);
   const [loadedSimNumber, setLoadedSimNumber] = useState<number | null>(null);
 
+  const [savedOptimizations, setSavedOptimizations] = useState<SavedOptimization[]>([]);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("SAVED_OPTIMIZATIONS");
+      if (stored) {
+        setSavedOptimizations(JSON.parse(stored));
+      }
+    } catch (e) {
+      console.error("Error loading saved optimizations", e);
+    }
+  }, []);
+
   const availableVehicles = useMemo(() => {
     return vehicles.filter((v) => v.status !== "Nonaktif");
   }, [vehicles]);
@@ -857,6 +883,52 @@ export default function CustomOptimizationPage() {
     }));
   };
 
+  const handleResetCargo = () => {
+    if (confirm("Apakah Anda yakin ingin mengosongkan semua muatan?")) {
+      const initialQty: Record<string, number> = {};
+      cargoMaster.forEach((c) => {
+        initialQty[c.id] = 0;
+      });
+      setItemQuantities(initialQty);
+      setActiveResult(null);
+      setAllComparisonResults([]);
+      setAnimCurrentStep(0);
+      setSelectedBox(null);
+    }
+  };
+
+  const handleSaveOptimization = () => {
+    if (!activeResult) return;
+    const newSave: SavedOptimization = {
+      id: Date.now().toString(),
+      timestamp: new Date().toLocaleString("id-ID", {
+        day: '2-digit', month: 'short', year: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+      }),
+      itemQuantities: { ...itemQuantities },
+      activeResult: activeResult
+    };
+    
+    const updated = [newSave, ...savedOptimizations].slice(0, 10); // keep max 10
+    setSavedOptimizations(updated);
+    localStorage.setItem("SAVED_OPTIMIZATIONS", JSON.stringify(updated));
+    alert("Hasil optimasi berhasil disimpan ke riwayat!");
+  };
+
+  const handleLoadSavedOptimization = (saved: SavedOptimization) => {
+    setItemQuantities(saved.itemQuantities);
+    setActiveResult(saved.activeResult);
+    setAnimCurrentStep(saved.activeResult.packedBoxes.length);
+    setIsHistoryOpen(false);
+  };
+
+  const handleDeleteSavedOptimization = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const updated = savedOptimizations.filter(s => s.id !== id);
+    setSavedOptimizations(updated);
+    localStorage.setItem("SAVED_OPTIMIZATIONS", JSON.stringify(updated));
+  };
+
   const handleRunOptimization = () => {
     if (!requestedStats.isValid) {
       alert(requestedStats.errorMessage || "Input muatan tidak valid untuk dioptimalkan.");
@@ -951,24 +1023,84 @@ export default function CustomOptimizationPage() {
               </p>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 relative">
+              <div className="relative">
+                <button
+                  onClick={() => setIsHistoryOpen(!isHistoryOpen)}
+                  className="px-3 py-2 text-[#667085] hover:text-[#172033] bg-white border border-[#E7EBF0] hover:bg-[#F8FAFC] text-[13px] font-semibold rounded-lg transition-all flex items-center gap-2 cursor-pointer"
+                >
+                  <History size={16} />
+                  <span className="hidden lg:inline">Riwayat</span>
+                </button>
+                
+                {isHistoryOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-72 bg-white border border-[#E7EBF0] rounded-xl shadow-xl z-50 overflow-hidden">
+                    <div className="p-3 border-b border-[#E7EBF0] bg-[#F8FAFC]">
+                      <h4 className="text-sm font-bold text-[#172033]">Riwayat Optimasi</h4>
+                    </div>
+                    <div className="max-h-64 overflow-y-auto custom-scrollbar">
+                      {savedOptimizations.length === 0 ? (
+                        <div className="p-4 text-center text-xs text-[#667085]">Belum ada riwayat tersimpan.</div>
+                      ) : (
+                        savedOptimizations.map(saved => (
+                          <div 
+                            key={saved.id} 
+                            onClick={() => handleLoadSavedOptimization(saved)}
+                            className="p-3 border-b border-[#E7EBF0] hover:bg-[#F8FAFC] cursor-pointer flex justify-between items-center group transition-colors"
+                          >
+                            <div>
+                              <p className="text-xs font-bold text-[#172033]">{saved.timestamp}</p>
+                              <p className="text-[11px] text-[#667085]">{saved.activeResult.vehicle.name} • {saved.activeResult.utilizationPercent.toFixed(1)}% Terisi</p>
+                            </div>
+                            <button 
+                              onClick={(e) => handleDeleteSavedOptimization(saved.id, e)}
+                              className="text-[#667085] hover:text-rose-500 p-1 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {activeResult && (
+                <button
+                  onClick={handleSaveOptimization}
+                  className="px-3 py-2 text-[#087F5B] hover:text-white bg-[#E8F7F1] hover:bg-[#087F5B] border border-[#087F5B]/30 text-[13px] font-semibold rounded-lg transition-all flex items-center gap-2 cursor-pointer"
+                >
+                  <Save size={16} />
+                  <span className="hidden lg:inline">Simpan</span>
+                </button>
+              )}
+
+              <button
+                onClick={handleResetCargo}
+                className="px-3 py-2 text-rose-600 hover:text-white bg-rose-50 hover:bg-rose-600 border border-rose-200 text-[13px] font-semibold rounded-lg transition-all flex items-center gap-2 cursor-pointer"
+              >
+                <RefreshCw size={16} />
+                <span className="hidden lg:inline">Reset</span>
+              </button>
+
               <button
                 onClick={handleRunOptimization}
                 disabled={isSolving || !requestedStats.isValid}
-                className={`px-5 py-2 text-white text-[13px] font-semibold rounded-lg transition-all flex items-center gap-2 cursor-pointer shadow-xs ${isSolving || !requestedStats.isValid
+                className={`px-4 lg:px-5 py-2 text-white text-[13px] font-semibold rounded-lg transition-all flex items-center gap-2 cursor-pointer shadow-xs ${isSolving || !requestedStats.isValid
                     ? "bg-slate-300 text-slate-500 cursor-not-allowed"
                     : "bg-[#087F5B] hover:bg-[#066B4D]"
                   }`}
               >
                 {isSolving ? (
                   <>
-                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    <span>Memproses 3D...</span>
+                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin shrink-0" />
+                    <span className="hidden lg:inline">Proses...</span>
                   </>
                 ) : (
                   <>
-                    <Zap size={16} />
-                    <span>Optimalkan Muatan</span>
+                    <Zap size={16} className="shrink-0" />
+                    <span className="hidden lg:inline">Optimalkan</span>
                   </>
                 )}
               </button>
